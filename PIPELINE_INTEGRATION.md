@@ -53,6 +53,17 @@ The inputs are raw, uncurated data produced by the scraping and official records
 | **`Contest[]`** | The list of races and ballot propositions for the election (e.g. State Rep District 49, Austin Prop A). | VoteTravis county election data |
 | **Config files** | `issues.yaml` (issue axes), `authority.yaml` (legal office powers), `sources.yaml` (trusted media list). | `config/` directory |
 
+### The Core Difference: `@ftb/records` vs. `@ftb/scraping`
+
+A central invariant of this project is **Actions outweigh words (Invariant 12)** and **Says vs. Does**:
+
+| Package | What it covers | Real-world sources | How the pipeline treats it |
+|---|---|---|---|
+| **`@ftb/records`**<br>(Person 1) | **Deeds / Official Actions** (What the candidate *did* while holding public office). | Texas Legislature Online (TLO) XML, House/Senate voting journals, City Council minutes, executive orders, court statistics. | **High Evidentiary Weight**: Actions are weighted **2x over words**. Contested roll-call votes weigh significantly more than routine consent votes. This forms the **"DOES"** side of the *Says vs. Does* gap. |
+| **`@ftb/scraping`**<br>(Person 3) | **Words, Context & Money** (What the candidate *claims*, what media reports, and who pays). | VOTE411, Texas Tribune voter guides, candidate campaign sites, debate transcripts, SerpApi allowlisted news, and FEC/TEC financial filings. | **Voice & Financial Evidence**: Used for platform highlights, 6-slot plan extractions, campaign cash/dark money intervals, and forming the **"SAYS"** side of the *Says vs. Does* gap. |
+
+---
+
 ### How Scraped Text is Converted into Typed Objects
 Here is an example (from `test-live-ai.ts`) showing how raw text from a website is structured by `@ftb/scraping` before handing it to the pipeline:
 
