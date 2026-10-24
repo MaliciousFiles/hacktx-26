@@ -2,6 +2,12 @@
 
 HackTX '26. See [PLAN.md](./PLAN.md) for the product, invariants and the type contract.
 
+App design docs:
+
+- [docs/UX.md](./docs/UX.md): user flow, every screen, copy and accessibility
+- [docs/VISUAL_DESIGN.md](./docs/VISUAL_DESIGN.md): color, type, masks, components, motion, share card
+- [docs/APP_BUILD.md](./docs/APP_BUILD.md): mobile architecture, API, website, privacy enforcement, tests, build order, contract gaps
+
 Records integration: [packages/records/README.md](./packages/records/README.md)
 documents the shared `CandidateResearchRequest`, additive action-provenance fields,
 and source coverage. Pipeline owns ballot discovery; records and scraping receive

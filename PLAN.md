@@ -10,6 +10,8 @@
 
 ## 1. User flow
 
+Screen-by-screen design: [docs/UX.md](docs/UX.md) · visual system: [docs/VISUAL_DESIGN.md](docs/VISUAL_DESIGN.md) · build guide: [docs/APP_BUILD.md](docs/APP_BUILD.md).
+
 ```
 Onboarding (Fairy Godmother) → address processed locally → precinct → ballot
   ▼
