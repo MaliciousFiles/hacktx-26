@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+*.log
+
+# env
+.env
+.env.*
+!.env.example
+
+# pipeline cache + raw snapshots (large, regenerable)
+packages/pipeline/.cache/
+packages/pipeline/snapshots/
