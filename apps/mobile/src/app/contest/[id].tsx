@@ -20,7 +20,7 @@ import { formatMoney } from "@/format";
 import { JUDICIAL_LABEL, officeKindLabel } from "@/labels";
 import { judicialAnswers, polePositions } from "@/matching";
 import { useSession } from "@/session";
-import { colors, serif } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 export default function ContestScreen() {
   const session = useSession();
@@ -231,13 +231,20 @@ function ViewBlock({
 }
 
 const styles = StyleSheet.create({
-  verbatim: { fontFamily: serif, color: colors.ink, fontSize: 18, lineHeight: 26 },
-  copy: { color: colors.ink, fontSize: 16, lineHeight: 23, marginTop: 6 },
-  missing: { color: colors.rose, fontSize: 16, lineHeight: 23, marginTop: 6 },
+  verbatim: {
+    fontFamily: fonts.displayItalic,
+    color: colors.ink,
+    fontSize: 18,
+    lineHeight: 26,
+  },
+  copy: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 23, marginTop: 6 },
+  missing: { fontFamily: fonts.bold, color: colors.rose, fontSize: 16, lineHeight: 23, marginTop: 6 },
   blockTitle: {
-    fontFamily: serif,
-    color: colors.inkSoft,
-    fontSize: 14,
-    marginTop: 12,
+    fontFamily: fonts.bold,
+    color: colors.line,
+    fontSize: 13,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginTop: 14,
   },
 });

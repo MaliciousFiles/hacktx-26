@@ -4,7 +4,7 @@ import { Body, Kicker, Note, SampleMark, Screen, TextButton, Title, TopBar } fro
 import { contestById, demoBallot, identityFor, orderedProfiles } from "@/fixtures/travisDemo";
 import { contestTone, officeKindLabel } from "@/labels";
 import { useSession } from "@/session";
-import { colors, serif } from "@/theme";
+import { colors, fonts, shadows } from "@/theme";
 
 export default function Ballot() {
   const session = useSession();
@@ -76,19 +76,27 @@ const styles = StyleSheet.create({
   row: {
     backgroundColor: colors.card,
     borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 20,
+    borderWidth: 2,
+    borderRadius: 10,
+    boxShadow: shadows.paper,
     padding: 16,
-    marginTop: 14,
+    marginTop: 16,
   },
-  pressed: { opacity: 0.85 },
+  pressed: { transform: [{ translateY: 2 }, { scale: 0.98 }] },
   kind: {
-    color: colors.gold,
+    fontFamily: fonts.bold,
+    color: colors.line,
     fontSize: 12,
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
-  rowTitle: { fontFamily: serif, color: colors.ink, fontSize: 24, lineHeight: 30, marginTop: 4 },
-  tone: { color: colors.forest, fontSize: 15, marginTop: 6 },
-  names: { color: colors.inkSoft, fontSize: 14, lineHeight: 20, marginTop: 8 },
+  rowTitle: {
+    fontFamily: fonts.display,
+    color: colors.heading,
+    fontSize: 25,
+    lineHeight: 30,
+    marginTop: 4,
+  },
+  tone: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 16, marginTop: 6 },
+  names: { fontFamily: fonts.body, color: colors.inkSoft, fontSize: 14, lineHeight: 20, marginTop: 8 },
 });

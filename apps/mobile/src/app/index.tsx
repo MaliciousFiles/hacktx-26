@@ -16,7 +16,7 @@ import {
 import { formatIsoDate } from "@/format";
 import { demoBallot } from "@/fixtures/travisDemo";
 import { useSession } from "@/session";
-import { colors, serif } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 export default function Onboarding() {
   const router = useRouter();
@@ -98,17 +98,18 @@ export default function Onboarding() {
 }
 
 const styles = StyleSheet.create({
-  guideName: { fontFamily: serif, color: colors.forest, fontSize: 16, marginBottom: 4 },
-  guideLine: { color: colors.ink, fontSize: 16, lineHeight: 23 },
+  guideName: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 17, marginBottom: 4 },
+  guideLine: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 23 },
   styleLabel: {
     marginTop: 22,
-    color: colors.inkSoft,
+    fontFamily: fonts.bold,
+    color: colors.line,
     fontSize: 13,
-    letterSpacing: 0.4,
+    letterSpacing: 1,
     textTransform: "uppercase",
   },
-  styleTitle: { fontFamily: serif, color: colors.ink, fontSize: 22, marginBottom: 6 },
-  styleBody: { color: colors.ink, fontSize: 16, lineHeight: 23 },
+  styleTitle: { fontFamily: fonts.display, color: colors.heading, fontSize: 24, marginBottom: 6 },
+  styleBody: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 23 },
   missing: { marginTop: 16 },
-  missingLabel: { color: colors.forest, fontSize: 16 },
+  missingLabel: { fontFamily: fonts.bold, color: colors.line, fontSize: 16 },
 });
