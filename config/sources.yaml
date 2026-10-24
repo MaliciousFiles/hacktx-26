@@ -109,6 +109,24 @@ official:
     name: Wayback Machine (archived campaign sites)
     domain: web.archive.org
 
+# Social platforms (PLAN.md §5 "Social media"). Source.outlet = platform id.
+# Only candidates' own, campaign-linked accounts are scraped.
+social:
+  - id: bluesky
+    method: api
+  - id: x
+    method: api_or_snippet # X_BEARER_TOKEN → API, else SerpApi snippets
+  - id: facebook
+    method: snippet
+  - id: instagram
+    method: snippet
+  - id: tiktok
+    method: snippet
+  - id: threads
+    method: snippet
+  - id: youtube
+    method: snippet
+
 # IFCN fact-check signatories (PLAN.md §5 "Fact-checks")
 # Only these outlets can produce FactCheck entries. No aggregate truthfulness score.
 fact_checkers:

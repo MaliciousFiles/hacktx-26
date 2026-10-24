@@ -1,8 +1,10 @@
 // aggregate.ts — Stage 4: aggregate Evidence[] into CandidateProfile stances (PLAN.md §6).
-// Actions outweigh voice (Invariant 12). Contested votes outweigh unanimous.
+// Light weighting for the optional alignment aid only (Invariant 12): actions modestly over voice,
+// contested votes over unanimous. Dates are shown to the user rather than weighted away.
 // No model calls — pure T1 over T2 data.
 import type {
   Evidence,
+  EventDate,
   OfficialAction,
   CandidateProfile,
   StanceAgg,
@@ -39,7 +41,13 @@ const SUFFICIENT_EVENTS_PER_ISSUE = 2;
 
 // ── Recency decay ──────────────────────────────────────────────────────────────
 
-function recencyDecay(date: string, asOfDate: string): Prob {
+// Undated evidence is shown as "date unknown" and counts less here; it is never treated as new.
+// Draft value; freeze in prereg.yaml.
+const UNDATED_WEIGHT = 0.5;
+
+function recencyDecay(eventDate: EventDate, asOfDate: string): Prob {
+  const date = eventDate.date;
+  if (!date) return UNDATED_WEIGHT;
   const msPerYear = 1000 * 60 * 60 * 24 * 365.25;
   const ageYears =
     Math.max(0, new Date(asOfDate).getTime() - new Date(date).getTime()) / msPerYear;
@@ -67,7 +75,7 @@ function evidenceWeight(ev: Evidence, actions: OfficialAction[], asOfDate: strin
     }
   }
 
-  return base * ev.relevance * recencyDecay(ev.date, asOfDate);
+  return base * ev.relevance * recencyDecay(ev.eventDate, asOfDate);
 }
 
 // ── Stance aggregation ─────────────────────────────────────────────────────────
