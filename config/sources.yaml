@@ -1,0 +1,130 @@
+# config/sources.yaml — outlet allowlist for Context Brief discovery (PLAN.md §5 "Context")
+# Only outlets on this list may appear in ContextBrief.confirmed / supporters / opponents.
+# Two articles that copy the same wire story count once.
+# Published in the app ("How it works" page).
+# Version this file in Release.configVersions["sources"].
+
+version: "sources-v1"
+
+# Questionnaire / ballot-guide sources (highest priority per PLAN.md §5 "Voice")
+questionnaires:
+  - id: vote411
+    name: VOTE411 (League of Women Voters)
+    url: https://www.vote411.org
+    type: questionnaire
+  - id: texas_tribune_voter_guide
+    name: Texas Tribune Voter Guide
+    url: https://apps.texastribune.org/features/2026/texas-primary-voter-guide/
+    type: questionnaire
+  - id: kut_statesman_voter_guide
+    name: KUT / Austin American-Statesman Voter Guide
+    url: https://www.kut.org
+    type: questionnaire
+  - id: ballotpedia
+    name: Ballotpedia
+    url: https://ballotpedia.org
+    type: questionnaire
+
+# News outlets (for Context Brief discovery via SerpApi)
+news:
+  - id: texas_tribune
+    name: Texas Tribune
+    domain: texastribune.org
+  - id: kut
+    name: KUT News
+    domain: kut.org
+  - id: austin_american_statesman
+    name: Austin American-Statesman
+    domain: statesman.com
+  - id: houston_chronicle
+    name: Houston Chronicle
+    domain: houstonchronicle.com
+  - id: dallas_morning_news
+    name: Dallas Morning News
+    domain: dallasnews.com
+  - id: san_antonio_express
+    name: San Antonio Express-News
+    domain: expressnews.com
+  - id: ap
+    name: Associated Press
+    domain: apnews.com
+  - id: reuters
+    name: Reuters
+    domain: reuters.com
+  - id: npr
+    name: NPR
+    domain: npr.org
+  - id: politico
+    name: Politico
+    domain: politico.com
+  - id: the_hill
+    name: The Hill
+    domain: thehill.com
+  - id: roll_call
+    name: Roll Call
+    domain: rollcall.com
+
+# Official sources (always allowed; not subject to the news allowlist)
+official:
+  - id: vote_travis
+    name: Travis County Elections (VoteTravis)
+    domain: votetravis.gov
+  - id: texas_legislature_online
+    name: Texas Legislature Online
+    domain: capitol.texas.gov
+  - id: congress_gov
+    name: Congress.gov
+    domain: congress.gov
+  - id: fec_gov
+    name: Federal Election Commission
+    domain: fec.gov
+  - id: tec_texas
+    name: Texas Ethics Commission
+    domain: ethics.state.tx.us
+  - id: austin_city_clerk
+    name: Austin City Clerk
+    domain: austintexas.gov
+  - id: tames
+    name: Texas Appellate Management & E-Filing System
+    domain: search.txcourts.gov
+  - id: oca_texas
+    name: Texas Office of Court Administration
+    domain: txcourts.gov
+  - id: austin_bar
+    name: Austin Bar Association
+    domain: austinbar.org
+  - id: fcc_public_file
+    name: FCC Public Inspection File
+    domain: publicfiles.fcc.gov
+  - id: meta_ad_library
+    name: Meta Ad Library
+    domain: facebook.com/ads/library
+  - id: google_political_ads
+    name: Google Political Ads Transparency
+    domain: transparencyreport.google.com
+  - id: irs_8872
+    name: IRS Form 8872 (527 donors)
+    domain: apps.irs.gov
+  - id: wayback_machine
+    name: Wayback Machine (archived campaign sites)
+    domain: web.archive.org
+
+# IFCN fact-check signatories (PLAN.md §5 "Fact-checks")
+# Only these outlets can produce FactCheck entries. No aggregate truthfulness score.
+fact_checkers:
+  - id: politifact
+    name: PolitiFact
+    domain: politifact.com
+    ifcn_signatory: true
+  - id: factcheck_org
+    name: FactCheck.org
+    domain: factcheck.org
+    ifcn_signatory: true
+  - id: washington_post_fact_checker
+    name: Washington Post Fact Checker
+    domain: washingtonpost.com
+    ifcn_signatory: true
+  - id: ap_fact_check
+    name: AP Fact Check
+    domain: apnews.com
+    ifcn_signatory: true

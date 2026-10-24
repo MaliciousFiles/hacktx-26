@@ -1,0 +1,548 @@
+{
+  "_comment": "Contract-shaped fixture (PLAN.md §10 'Everyone works against fixture JSON from H0'). Three contests: one candidate race, one proposition, one judicial. One candidate has coverage:objective_only to test the fallback path.",
+
+  "release": {
+    "id": "fixture-v1",
+    "asOfDate": "2026-10-24",
+    "manifestHash": "fixture-hash-placeholder",
+    "configVersions": {
+      "issues": "issues-v1",
+      "authority": "authority-v1",
+      "sources": "sources-v1"
+    },
+    "modelVersions": {
+      "jev": "jev-1.0-fixture",
+      "llm": "gemini-2.0-flash-fixture"
+    }
+  },
+
+  "ballot": {
+    "id": "ballot-fixture-1",
+    "releaseId": "fixture-v1",
+    "ballotStyleId": "travis-2026-style-001",
+    "precinctId": "precinct-fixture-001",
+    "contestIds": ["contest-candidate-1", "contest-measure-1", "contest-judicial-1"],
+    "requiresJudicialDeck": true
+  },
+
+  "contests": [
+    {
+      "id": "contest-candidate-1",
+      "title": "Texas House of Representatives, District 49",
+      "office": "tx_house",
+      "officeKind": "legislative",
+      "districtType": "tx_house",
+      "districtId": "tx-house-49",
+      "partisan": true,
+      "candidateIds": ["cand-a", "cand-b"],
+      "officeDescription": [
+        {
+          "text": "The Texas House of Representatives is the lower chamber of the Texas Legislature, responsible for drafting and passing state laws, including the state budget.",
+          "citations": [{ "kind": "source", "id": "cite-officedesc-1" }]
+        }
+      ],
+      "seats": 1,
+      "unopposed": false,
+      "writeInsAllowed": false,
+      "context": {
+        "confirmed": [
+          {
+            "sentences": [
+              {
+                "text": "The district covers central Austin and has been held by the same party for the past three election cycles.",
+                "citations": [{ "kind": "source", "id": "cite-context-1" }]
+              }
+            ]
+          }
+        ],
+        "supporters": [],
+        "opponents": [],
+        "disputed": [],
+        "notes": []
+      }
+    },
+    {
+      "id": "contest-measure-1",
+      "title": "Austin Proposition A: Transportation Bond",
+      "office": "measure",
+      "officeKind": "measure",
+      "districtType": "austin_city",
+      "districtId": "austin",
+      "partisan": false,
+      "candidateIds": [],
+      "officeDescription": [
+        {
+          "text": "City of Austin bond measure.",
+          "citations": [{ "kind": "source", "id": "cite-officedesc-2" }]
+        }
+      ],
+      "seats": 0,
+      "unopposed": false,
+      "measure": {
+        "ballotText": {
+          "text": "THE ISSUANCE OF $350,000,000 IN CERTIFICATES OF OBLIGATION FOR TRANSPORTATION IMPROVEMENTS AND THE LEVY OF A TAX TO PAY THE PRINCIPAL OF AND INTEREST ON THE OBLIGATIONS.",
+          "citation": { "kind": "source", "id": "cite-measure-ballot-text" }
+        },
+        "yesMeans": {
+          "state": "documented",
+          "sentences": [
+            {
+              "text": "A YES vote authorizes the City to issue $350 million in bonds for transportation improvements including road repairs, sidewalk construction, and transit infrastructure.",
+              "citations": [{ "kind": "source", "id": "cite-measure-yes" }]
+            }
+          ]
+        },
+        "noMeans": {
+          "state": "documented",
+          "sentences": [
+            {
+              "text": "A NO vote rejects the bond issuance; the city would not raise these funds through this mechanism.",
+              "citations": [{ "kind": "source", "id": "cite-measure-no" }]
+            }
+          ]
+        },
+        "fiscal": {
+          "principal": 350000000,
+          "citations": [{ "kind": "source", "id": "cite-measure-fiscal" }]
+        },
+        "issueVector": {
+          "infrastructure": {
+            "position": 0.8,
+            "evidenceStrength": 0.9,
+            "bySourceType": { "official_doc": 0.8 }
+          }
+        }
+      },
+      "context": {
+        "confirmed": [],
+        "supporters": [
+          {
+            "sentences": [
+              {
+                "text": "Supporters argue the bond will address years of deferred road maintenance and improve safety for pedestrians and cyclists.",
+                "citations": [{ "kind": "source", "id": "cite-supporters-1" }]
+              }
+            ]
+          }
+        ],
+        "opponents": [
+          {
+            "sentences": [
+              {
+                "text": "Opponents contend the city should prioritize existing budget resources before taking on additional debt.",
+                "citations": [{ "kind": "source", "id": "cite-opponents-1" }]
+              }
+            ]
+          }
+        ],
+        "disputed": [],
+        "notes": [{ "kind": "system", "code": "data_unavailable" }]
+      }
+    },
+    {
+      "id": "contest-judicial-1",
+      "title": "Travis County District Court, 201st Judicial District",
+      "office": "tx_district_court_judge",
+      "officeKind": "judicial",
+      "districtType": "tx_district_court",
+      "districtId": "travis-201",
+      "partisan": true,
+      "candidateIds": ["judge-a", "judge-b"],
+      "officeDescription": [
+        {
+          "text": "The 201st District Court is a state trial court with general jurisdiction over civil and criminal matters in Travis County.",
+          "citations": [{ "kind": "source", "id": "cite-officedesc-3" }]
+        }
+      ],
+      "seats": 1,
+      "unopposed": false,
+      "context": {
+        "confirmed": [],
+        "supporters": [],
+        "opponents": [],
+        "disputed": [],
+        "notes": [{ "kind": "system", "code": "no_organized_opposition_found" }]
+      }
+    }
+  ],
+
+  "candidates": [
+    {
+      "id": "cand-a",
+      "contestId": "contest-candidate-1",
+      "coverage": "full",
+      "incumbent": true,
+      "recordInOffice": "state",
+      "evidenceState": "sufficient",
+      "issueEvidenceState": {
+        "housing.zoning": "sufficient",
+        "economy.taxation": "thin",
+        "education.funding": "sufficient"
+      },
+      "stances": {
+        "housing.zoning": {
+          "position": 0.7,
+          "evidenceStrength": 0.8,
+          "bySourceType": {
+            "official_action": 0.75,
+            "questionnaire": 0.65
+          }
+        },
+        "economy.taxation": {
+          "position": -0.4,
+          "evidenceStrength": 0.4,
+          "bySourceType": {
+            "questionnaire": -0.4
+          }
+        },
+        "education.funding": {
+          "position": 0.6,
+          "evidenceStrength": 0.7,
+          "bySourceType": {
+            "official_action": 0.65,
+            "debate_speech": 0.55
+          }
+        }
+      },
+      "evidence": [
+        {
+          "id": "ev-a-1",
+          "contestId": "contest-candidate-1",
+          "sourceId": "src-1",
+          "candidateId": "cand-a",
+          "issueId": "housing.zoning",
+          "kind": "action",
+          "sourceType": "official_action",
+          "date": "2025-05-12",
+          "excerpt": "Voted yes on HB 1234, which allows by-right multifamily development in areas near transit corridors.",
+          "redacted": false,
+          "position": 0.8,
+          "distribution": {
+            "probs": { "strong_positive": 0.75, "moderate_positive": 0.20, "neutral": 0.05 },
+            "confidence": 0.88
+          },
+          "relevance": 0.92,
+          "isOwnSpeech": 0.0,
+          "claimType": "advocacy",
+          "claimTypeDist": {
+            "probs": { "advocacy": 0.90, "promise": 0.05, "value": 0.05 },
+            "confidence": 0.90
+          },
+          "specificity": 0.85,
+          "withinAuthority": "direct"
+        },
+        {
+          "id": "ev-a-2",
+          "contestId": "contest-candidate-1",
+          "sourceId": "src-2",
+          "candidateId": "cand-a",
+          "issueId": "education.funding",
+          "kind": "voice",
+          "sourceType": "questionnaire",
+          "date": "2026-09-01",
+          "excerpt": "We must fully fund our public schools and end the practice of diverting state dollars to private voucher programs.",
+          "redacted": false,
+          "position": 0.65,
+          "distribution": {
+            "probs": { "strong_positive": 0.60, "moderate_positive": 0.30, "neutral": 0.10 },
+            "confidence": 0.82
+          },
+          "relevance": 0.88,
+          "isOwnSpeech": 0.95,
+          "claimType": "advocacy",
+          "claimTypeDist": {
+            "probs": { "advocacy": 0.85, "promise": 0.10, "value": 0.05 },
+            "confidence": 0.85
+          },
+          "specificity": 0.4,
+          "withinAuthority": "direct"
+        }
+      ],
+      "platformHighlights": [
+        {
+          "text": "Supports expanding housing production near transit through zoning reform.",
+          "citations": [{ "kind": "candidate", "id": "ev-a-1" }]
+        },
+        {
+          "text": "Opposes publicly-funded school voucher programs.",
+          "citations": [{ "kind": "candidate", "id": "ev-a-2" }]
+        }
+      ],
+      "plans": [
+        {
+          "id": "plan-a-1",
+          "issueId": "housing.zoning",
+          "goal": {
+            "state": "documented",
+            "sentences": [
+              {
+                "text": "Increase the supply of housing near transit corridors by reforming zoning rules.",
+                "citations": [{ "kind": "candidate", "id": "ev-a-1" }]
+              }
+            ]
+          },
+          "mechanism": {
+            "state": "documented",
+            "sentences": [
+              {
+                "text": "Supported HB 1234, which allows by-right multifamily development within half a mile of high-frequency transit stops.",
+                "citations": [{ "kind": "candidate", "id": "ev-a-1" }]
+              }
+            ]
+          },
+          "cost": { "state": "not_stated" },
+          "funding": { "state": "not_stated" },
+          "timeline": { "state": "not_stated" },
+          "whoActs": {
+            "state": "documented",
+            "sentences": [
+              {
+                "text": "Texas Legislature and local governments.",
+                "citations": [{ "kind": "candidate", "id": "ev-a-1" }]
+              }
+            ]
+          },
+          "specificity": 0.5
+        }
+      ],
+      "specificity": { "score": 0.5, "tier": 1 },
+      "credibility": { "score": 0.85, "flags": [] },
+      "saysVsDoes": [
+        {
+          "issueId": "housing.zoning",
+          "says": 0.65,
+          "does": 0.8,
+          "gap": 0.15
+        }
+      ],
+      "promiseKept": [],
+      "truthfulness": { "factChecks": [], "recordVerified": [] }
+    },
+    {
+      "id": "cand-b",
+      "contestId": "contest-candidate-1",
+      "coverage": "objective_only",
+      "incumbent": false,
+      "recordInOffice": "none",
+      "evidenceState": "none",
+      "issueEvidenceState": {},
+      "stances": {},
+      "evidence": [],
+      "platformHighlights": [],
+      "plans": [],
+      "specificity": { "score": 0.0, "tier": 0 },
+      "credibility": { "score": 0.0, "flags": [] },
+      "saysVsDoes": [],
+      "promiseKept": [],
+      "truthfulness": { "factChecks": [], "recordVerified": [] }
+    },
+    {
+      "id": "judge-a",
+      "contestId": "contest-judicial-1",
+      "coverage": "full",
+      "incumbent": false,
+      "recordInOffice": "none",
+      "evidenceState": "thin",
+      "issueEvidenceState": {},
+      "stances": {},
+      "evidence": [],
+      "platformHighlights": [],
+      "plans": [],
+      "specificity": { "score": 0.0, "tier": 0 },
+      "credibility": { "score": 0.0, "flags": [] },
+      "saysVsDoes": [],
+      "promiseKept": [],
+      "truthfulness": { "factChecks": [], "recordVerified": [] },
+      "judicialProfile": {
+        "philosophy": {
+          "text_vs_purpose": {
+            "position": -0.6,
+            "evidenceStrength": 0.5,
+            "bySourceType": { "official_doc": -0.6 }
+          },
+          "precedent": {
+            "position": -0.4,
+            "evidenceStrength": 0.4,
+            "bySourceType": { "official_doc": -0.4 }
+          }
+        },
+        "experienceYears": 12,
+        "boardCertified": true
+      }
+    },
+    {
+      "id": "judge-b",
+      "contestId": "contest-judicial-1",
+      "coverage": "full",
+      "incumbent": true,
+      "recordInOffice": "state",
+      "evidenceState": "thin",
+      "issueEvidenceState": {},
+      "stances": {},
+      "evidence": [],
+      "platformHighlights": [],
+      "plans": [],
+      "specificity": { "score": 0.0, "tier": 0 },
+      "credibility": { "score": 0.0, "flags": [] },
+      "saysVsDoes": [],
+      "promiseKept": [],
+      "truthfulness": { "factChecks": [], "recordVerified": [] },
+      "judicialProfile": {
+        "philosophy": {
+          "text_vs_purpose": {
+            "position": 0.5,
+            "evidenceStrength": 0.55,
+            "bySourceType": { "official_doc": 0.5 }
+          },
+          "restraint_vs_review": {
+            "position": 0.3,
+            "evidenceStrength": 0.4,
+            "bySourceType": { "official_doc": 0.3 }
+          }
+        },
+        "experienceYears": 8,
+        "boardCertified": false
+      }
+    }
+  ],
+
+  "cards": [
+    {
+      "id": "card-pole-housing-zoning",
+      "kind": "pole",
+      "deck": "policy",
+      "anchor": true,
+      "issueId": "housing.zoning",
+      "poleA": "Cities should allow more apartments and mixed-use buildings in most neighborhoods by default.",
+      "poleB": "Neighborhoods should retain existing zoning rules and decide locally whether to allow denser development.",
+      "vector": {
+        "housing.zoning": { "a": 0.8, "b": -0.8, "weight": 1.0 }
+      }
+    },
+    {
+      "id": "card-pole-education-funding",
+      "kind": "pole",
+      "deck": "policy",
+      "anchor": false,
+      "issueId": "education.funding",
+      "poleA": "State education dollars should follow the student, including to private schools if families choose.",
+      "poleB": "State education dollars should stay in the public school system.",
+      "vector": {
+        "education.funding": { "a": 0.9, "b": -0.9, "weight": 1.0 }
+      }
+    },
+    {
+      "id": "card-tradeoff-transit-taxes",
+      "kind": "tradeoff",
+      "deck": "policy",
+      "anchor": false,
+      "policy": "Expanded public transit network across Travis County",
+      "cost": "A small increase in the local property tax rate",
+      "policyIssues": ["infrastructure"],
+      "costIssues": ["economy.taxation"]
+    },
+    {
+      "id": "card-judicial-text-vs-purpose",
+      "kind": "judicial_pole",
+      "deck": "judicial",
+      "anchor": true,
+      "dimension": "text_vs_purpose",
+      "poleA": "Judges should follow the exact words of a law as written, even if the outcome seems unintended.",
+      "poleB": "Judges should interpret laws in light of their purpose and the problem they were meant to solve.",
+      "coordinates": { "a": -1.0, "b": 1.0 }
+    },
+    {
+      "id": "card-judicial-precedent",
+      "kind": "judicial_pole",
+      "deck": "judicial",
+      "anchor": false,
+      "dimension": "precedent",
+      "poleA": "Courts should generally follow established precedent to ensure predictability.",
+      "poleB": "Courts should be willing to overturn past decisions when they are clearly wrong.",
+      "coordinates": { "a": -1.0, "b": 1.0 }
+    }
+  ],
+
+  "citations": [
+    {
+      "id": "cite-officedesc-1",
+      "sourceId": "src-officedesc-1",
+      "scope": { "kind": "contest", "id": "contest-candidate-1" },
+      "excerptSpan": { "start": 0, "end": 10 },
+      "excerpt": "[fixture]",
+      "redacted": false
+    },
+    {
+      "id": "cite-officedesc-2",
+      "sourceId": "src-officedesc-2",
+      "scope": { "kind": "contest", "id": "contest-measure-1" },
+      "excerptSpan": { "start": 0, "end": 10 },
+      "excerpt": "[fixture]",
+      "redacted": false
+    },
+    {
+      "id": "cite-officedesc-3",
+      "sourceId": "src-officedesc-3",
+      "scope": { "kind": "contest", "id": "contest-judicial-1" },
+      "excerptSpan": { "start": 0, "end": 10 },
+      "excerpt": "[fixture]",
+      "redacted": false
+    },
+    {
+      "id": "cite-context-1",
+      "sourceId": "src-context-1",
+      "scope": { "kind": "contest", "id": "contest-candidate-1" },
+      "excerptSpan": { "start": 0, "end": 10 },
+      "excerpt": "[fixture]",
+      "redacted": false
+    },
+    {
+      "id": "cite-measure-ballot-text",
+      "sourceId": "src-measure-official",
+      "scope": { "kind": "measure", "id": "contest-measure-1" },
+      "excerptSpan": { "start": 0, "end": 10 },
+      "excerpt": "[fixture]",
+      "redacted": false
+    },
+    {
+      "id": "cite-measure-yes",
+      "sourceId": "src-measure-official",
+      "scope": { "kind": "measure", "id": "contest-measure-1" },
+      "excerptSpan": { "start": 0, "end": 10 },
+      "excerpt": "[fixture]",
+      "redacted": false
+    },
+    {
+      "id": "cite-measure-no",
+      "sourceId": "src-measure-official",
+      "scope": { "kind": "measure", "id": "contest-measure-1" },
+      "excerptSpan": { "start": 0, "end": 10 },
+      "excerpt": "[fixture]",
+      "redacted": false
+    },
+    {
+      "id": "cite-measure-fiscal",
+      "sourceId": "src-measure-official",
+      "scope": { "kind": "measure", "id": "contest-measure-1" },
+      "excerptSpan": { "start": 0, "end": 10 },
+      "excerpt": "[fixture]",
+      "redacted": false
+    },
+    {
+      "id": "cite-supporters-1",
+      "sourceId": "src-news-1",
+      "scope": { "kind": "measure", "id": "contest-measure-1" },
+      "excerptSpan": { "start": 0, "end": 10 },
+      "excerpt": "[fixture]",
+      "redacted": false
+    },
+    {
+      "id": "cite-opponents-1",
+      "sourceId": "src-news-2",
+      "scope": { "kind": "measure", "id": "contest-measure-1" },
+      "excerptSpan": { "start": 0, "end": 10 },
+      "excerpt": "[fixture]",
+      "redacted": false
+    }
+  ]
+}

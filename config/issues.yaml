@@ -1,0 +1,202 @@
+# config/issues.yaml — issue taxonomy (PLAN.md §6.1)
+# Parent issues are used for retrieval; child issues are the scoring axes.
+# Neither pole is disfavored — labels describe the ends of the axis only.
+# Version this file in Release.configVersions["issues"].
+
+version: "issues-v1"
+
+issues:
+  # ── Economy ──────────────────────────────────────────────────────────────
+  - id: economy
+    label: Economy
+    levels: [federal, state, local]
+    negativePole: Government-directed economic activity
+    positivePole: Market-directed economic activity
+
+  - id: economy.taxation
+    parentId: economy
+    label: Taxation
+    levels: [federal, state, local]
+    negativePole: Higher taxes on higher incomes / corporations
+    positivePole: Lower taxes / flat or consumption-based taxation
+
+  - id: economy.spending
+    parentId: economy
+    label: Public spending
+    levels: [federal, state, local]
+    negativePole: Expand public programs and services
+    positivePole: Reduce government spending and programs
+
+  - id: economy.regulation
+    parentId: economy
+    label: Business regulation
+    levels: [federal, state, local]
+    negativePole: Stricter regulation of business and industry
+    positivePole: Lighter regulation of business and industry
+
+  - id: economy.labor
+    parentId: economy
+    label: Labor standards
+    levels: [federal, state, local]
+    negativePole: Higher minimum wage / stronger worker protections
+    positivePole: Employer-set wages / fewer mandated labor standards
+
+  # ── Housing ───────────────────────────────────────────────────────────────
+  - id: housing
+    label: Housing
+    levels: [state, local]
+    negativePole: Retain restrictive zoning and development controls
+    positivePole: Allow more housing by right / reduce zoning restrictions
+
+  - id: housing.zoning
+    parentId: housing
+    label: Zoning & land use
+    levels: [state, local]
+    negativePole: Retain restrictive zoning
+    positivePole: Allow more housing by right
+
+  - id: housing.affordability
+    parentId: housing
+    label: Affordable housing funding
+    levels: [state, local]
+    negativePole: Increase public subsidy for affordable housing
+    positivePole: Rely on market-rate construction to improve affordability
+
+  # ── Environment ───────────────────────────────────────────────────────────
+  - id: environment
+    label: Environment & energy
+    levels: [federal, state, local]
+    negativePole: Strong environmental regulation and clean-energy mandates
+    positivePole: Fewer environmental mandates / prioritize energy production
+
+  - id: environment.climate
+    parentId: environment
+    label: Climate policy
+    levels: [federal, state]
+    negativePole: Aggressive emissions reduction targets
+    positivePole: Market-based or no mandatory emissions targets
+
+  - id: environment.energy
+    parentId: environment
+    label: Energy mix
+    levels: [federal, state]
+    negativePole: Prioritize renewable energy development
+    positivePole: Prioritize fossil-fuel production and energy independence
+
+  - id: environment.water
+    parentId: environment
+    label: Water & land
+    levels: [state, local]
+    negativePole: Stricter water-use and land-conservation rules
+    positivePole: Fewer water-use and land-conservation restrictions
+
+  # ── Public safety ─────────────────────────────────────────────────────────
+  - id: safety
+    label: Public safety
+    levels: [federal, state, local]
+    negativePole: Reform policing / reduce incarceration
+    positivePole: Expand law enforcement / stricter sentencing
+
+  - id: safety.policing
+    parentId: safety
+    label: Policing & accountability
+    levels: [state, local]
+    negativePole: More civilian oversight and accountability measures
+    positivePole: Fewer restrictions on police discretion
+
+  - id: safety.guns
+    parentId: safety
+    label: Firearms
+    levels: [federal, state]
+    negativePole: More restrictions on firearms access
+    positivePole: Fewer restrictions on firearms access
+
+  # ── Education ─────────────────────────────────────────────────────────────
+  - id: education
+    label: Education
+    levels: [federal, state, local]
+    negativePole: Strengthen and fund public schools
+    positivePole: Expand school choice and private options
+
+  - id: education.funding
+    parentId: education
+    label: School funding
+    levels: [state, local]
+    negativePole: Increase public school funding
+    positivePole: Direct funding to families via vouchers or ESAs
+
+  - id: education.curriculum
+    parentId: education
+    label: Curriculum & standards
+    levels: [state, local]
+    negativePole: Broader, locally-driven curriculum autonomy
+    positivePole: Standardized statewide curriculum and testing
+
+  # ── Healthcare ────────────────────────────────────────────────────────────
+  - id: healthcare
+    label: Healthcare
+    levels: [federal, state]
+    negativePole: Expand public healthcare coverage
+    positivePole: Market-based / private healthcare delivery
+
+  - id: healthcare.access
+    parentId: healthcare
+    label: Coverage access
+    levels: [federal, state]
+    negativePole: Expand Medicaid / public option
+    positivePole: Reduce public insurance programs
+
+  - id: healthcare.reproductive
+    parentId: healthcare
+    label: Reproductive healthcare
+    levels: [federal, state]
+    negativePole: Expand access to abortion and reproductive services
+    positivePole: Restrict or ban abortion services
+
+  # ── Immigration ───────────────────────────────────────────────────────────
+  - id: immigration
+    label: Immigration
+    levels: [federal, state]
+    negativePole: Expand legal pathways / limit enforcement focus
+    positivePole: Stricter enforcement / reduce immigration levels
+
+  # ── Infrastructure ────────────────────────────────────────────────────────
+  - id: infrastructure
+    label: Infrastructure & transit
+    levels: [federal, state, local]
+    negativePole: Increase public investment in transit and infrastructure
+    positivePole: Prioritize private-sector / road-based infrastructure
+
+  # ── Government & elections ────────────────────────────────────────────────
+  - id: governance
+    label: Government & elections
+    levels: [federal, state, local]
+    negativePole: Expand voting access and electoral oversight
+    positivePole: Tighter voting requirements and election security measures
+
+  # ── Judicial philosophy (used only for JudicialCard / JudicialComparison) ─
+  # These are NOT policy axes and are never fed into MatchResult.
+  # Stored here for config-version tracking; coordinates come from JudicialCard.
+  - id: judicial.text_vs_purpose
+    label: Textualism vs. purposivism
+    levels: [federal, state]
+    negativePole: Reads the law's exact words
+    positivePole: Reads for the law's purpose
+
+  - id: judicial.restraint_vs_review
+    label: Judicial restraint vs. review
+    levels: [federal, state]
+    negativePole: Defers to lawmakers
+    positivePole: Willing to strike laws down
+
+  - id: judicial.precedent
+    label: Precedent
+    levels: [federal, state]
+    negativePole: Sticks with past rulings
+    positivePole: Willing to overturn precedent
+
+  - id: judicial.procedural_strictness
+    label: Procedural strictness
+    levels: [federal, state]
+    negativePole: More flexible on government procedure
+    positivePole: Strictly holds government to procedure

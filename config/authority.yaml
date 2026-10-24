@@ -1,0 +1,303 @@
+# config/authority.yaml — office × issue authority matrix (PLAN.md §6.9, Invariant 16)
+# Entries that are absent are implicitly power: none.
+# Human-reviewed; a "beyond_power" credibility flag requires a cited, unambiguous legal mismatch.
+# Version this file in Release.configVersions["authority"].
+
+version: "authority-v1"
+
+# Format: office key matches Contest.office; issueId matches issues.yaml; power: direct | influence | none
+authority:
+  # ── US Congress ───────────────────────────────────────────────────────────
+  - office: us_house
+    issueId: economy.taxation
+    power: direct
+  - office: us_house
+    issueId: economy.spending
+    power: direct
+  - office: us_house
+    issueId: economy.regulation
+    power: direct
+  - office: us_house
+    issueId: economy.labor
+    power: direct
+  - office: us_house
+    issueId: environment.climate
+    power: direct
+  - office: us_house
+    issueId: environment.energy
+    power: direct
+  - office: us_house
+    issueId: healthcare.access
+    power: direct
+  - office: us_house
+    issueId: healthcare.reproductive
+    power: direct
+  - office: us_house
+    issueId: immigration
+    power: direct
+  - office: us_house
+    issueId: infrastructure
+    power: direct
+  - office: us_house
+    issueId: safety.guns
+    power: direct
+  - office: us_house
+    issueId: governance
+    power: direct
+  - office: us_house
+    issueId: education.funding
+    power: influence
+  - office: us_house
+    issueId: housing.affordability
+    power: influence
+
+  - office: us_senate
+    issueId: economy.taxation
+    power: direct
+  - office: us_senate
+    issueId: economy.spending
+    power: direct
+  - office: us_senate
+    issueId: economy.regulation
+    power: direct
+  - office: us_senate
+    issueId: economy.labor
+    power: direct
+  - office: us_senate
+    issueId: environment.climate
+    power: direct
+  - office: us_senate
+    issueId: environment.energy
+    power: direct
+  - office: us_senate
+    issueId: healthcare.access
+    power: direct
+  - office: us_senate
+    issueId: healthcare.reproductive
+    power: direct
+  - office: us_senate
+    issueId: immigration
+    power: direct
+  - office: us_senate
+    issueId: infrastructure
+    power: direct
+  - office: us_senate
+    issueId: safety.guns
+    power: direct
+  - office: us_senate
+    issueId: governance
+    power: direct
+
+  # ── TX Legislature ─────────────────────────────────────────────────────────
+  - office: tx_house
+    issueId: economy.taxation
+    power: direct
+  - office: tx_house
+    issueId: economy.spending
+    power: direct
+  - office: tx_house
+    issueId: economy.regulation
+    power: direct
+  - office: tx_house
+    issueId: economy.labor
+    power: direct
+  - office: tx_house
+    issueId: housing.zoning
+    power: direct
+  - office: tx_house
+    issueId: housing.affordability
+    power: direct
+  - office: tx_house
+    issueId: environment.water
+    power: direct
+  - office: tx_house
+    issueId: environment.energy
+    power: direct
+  - office: tx_house
+    issueId: education.funding
+    power: direct
+  - office: tx_house
+    issueId: education.curriculum
+    power: direct
+  - office: tx_house
+    issueId: healthcare.access
+    power: direct
+  - office: tx_house
+    issueId: healthcare.reproductive
+    power: direct
+  - office: tx_house
+    issueId: safety.policing
+    power: direct
+  - office: tx_house
+    issueId: safety.guns
+    power: direct
+  - office: tx_house
+    issueId: infrastructure
+    power: direct
+  - office: tx_house
+    issueId: governance
+    power: direct
+
+  - office: tx_senate
+    issueId: economy.taxation
+    power: direct
+  - office: tx_senate
+    issueId: economy.spending
+    power: direct
+  - office: tx_senate
+    issueId: economy.regulation
+    power: direct
+  - office: tx_senate
+    issueId: economy.labor
+    power: direct
+  - office: tx_senate
+    issueId: housing.zoning
+    power: direct
+  - office: tx_senate
+    issueId: housing.affordability
+    power: direct
+  - office: tx_senate
+    issueId: environment.water
+    power: direct
+  - office: tx_senate
+    issueId: environment.energy
+    power: direct
+  - office: tx_senate
+    issueId: education.funding
+    power: direct
+  - office: tx_senate
+    issueId: education.curriculum
+    power: direct
+  - office: tx_senate
+    issueId: healthcare.access
+    power: direct
+  - office: tx_senate
+    issueId: healthcare.reproductive
+    power: direct
+  - office: tx_senate
+    issueId: safety.policing
+    power: direct
+  - office: tx_senate
+    issueId: safety.guns
+    power: direct
+  - office: tx_senate
+    issueId: infrastructure
+    power: direct
+  - office: tx_senate
+    issueId: governance
+    power: direct
+
+  # ── TX Governor ───────────────────────────────────────────────────────────
+  - office: tx_governor
+    issueId: economy.spending
+    power: direct   # signs/vetoes budget
+  - office: tx_governor
+    issueId: economy.regulation
+    power: influence
+  - office: tx_governor
+    issueId: education.funding
+    power: influence
+  - office: tx_governor
+    issueId: healthcare.access
+    power: influence
+  - office: tx_governor
+    issueId: environment.water
+    power: influence
+  - office: tx_governor
+    issueId: safety.policing
+    power: influence
+  - office: tx_governor
+    issueId: infrastructure
+    power: influence
+
+  # ── TX Attorney General ───────────────────────────────────────────────────
+  - office: tx_attorney_general
+    issueId: healthcare.reproductive
+    power: direct   # enforcement / litigation
+  - office: tx_attorney_general
+    issueId: safety.policing
+    power: influence
+  - office: tx_attorney_general
+    issueId: economy.regulation
+    power: influence
+  - office: tx_attorney_general
+    issueId: governance
+    power: influence
+
+  # ── TX Railroad Commissioner ──────────────────────────────────────────────
+  - office: tx_railroad_commissioner
+    issueId: environment.energy
+    power: direct
+  - office: tx_railroad_commissioner
+    issueId: environment.water
+    power: direct
+  - office: tx_railroad_commissioner
+    issueId: economy.regulation
+    power: direct
+
+  # ── TX SBOE ───────────────────────────────────────────────────────────────
+  - office: tx_sboe
+    issueId: education.curriculum
+    power: direct
+  - office: tx_sboe
+    issueId: education.funding
+    power: influence
+
+  # ── Austin City Council ───────────────────────────────────────────────────
+  - office: austin_city_council
+    issueId: housing.zoning
+    power: direct
+  - office: austin_city_council
+    issueId: housing.affordability
+    power: direct
+  - office: austin_city_council
+    issueId: infrastructure
+    power: direct
+  - office: austin_city_council
+    issueId: safety.policing
+    power: direct
+  - office: austin_city_council
+    issueId: economy.spending
+    power: direct
+  - office: austin_city_council
+    issueId: economy.taxation
+    power: direct   # local property tax / fees
+  - office: austin_city_council
+    issueId: environment.water
+    power: influence
+
+  # ── Travis County Commissioner ────────────────────────────────────────────
+  - office: travis_county_commissioner
+    issueId: economy.spending
+    power: direct
+  - office: travis_county_commissioner
+    issueId: infrastructure
+    power: direct
+  - office: travis_county_commissioner
+    issueId: safety.policing
+    power: direct
+  - office: travis_county_commissioner
+    issueId: economy.taxation
+    power: direct
+
+  # ── AISD Board of Trustees ────────────────────────────────────────────────
+  - office: aisd_board_trustee
+    issueId: education.funding
+    power: direct
+  - office: aisd_board_trustee
+    issueId: education.curriculum
+    power: direct
+
+  # ── Judges (policy power: none — judicial philosophy tracked separately) ──
+  - office: tx_district_court_judge
+    issueId: economy
+    power: none
+  - office: tx_court_of_appeals_judge
+    issueId: economy
+    power: none
+  - office: tx_supreme_court_justice
+    issueId: economy
+    power: none
+  - office: tx_cca_judge
+    issueId: economy
+    power: none
