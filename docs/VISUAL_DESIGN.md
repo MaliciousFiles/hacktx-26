@@ -16,6 +16,8 @@
 | Mascot | **Minimal**: the Fairy Godmother appears only in onboarding and the Unmasking |
 | Navigation | A single stack, as built. No tab bar (UX.md §2.2) |
 | Share card | Stats only. No picks, names or parties |
+| Masks | Generic androgynous fantasy-character headshots, unrelated to the real candidate |
+| Gold | Darkened from `#8A6830` to `#7A5B28` so it passes AA contrast |
 
 ---
 
@@ -43,7 +45,7 @@ These are the tokens in `apps/mobile/src/theme.ts` on `mobile-dev-build`. Compon
 | `line` | `#E0D3C2` | Borders, dividers, pole lines |
 | `forest` | `#1E4636` | Primary buttons, selected choices, progress, back links, the user's ◆ marker |
 | `forestSoft` | `#E4EFE8` | "Documented" / positive-evidence banners |
-| `gold` | `#8A6830` | Kicker, ornament, ⭐ "Matters to me", sample mark |
+| `gold` | `#7A5B28` | Kicker, ornament, ⭐ "Matters to me", sample mark. **Changed from the built `#8A6830`** |
 | `goldSoft` | `#F4E7CB` | Default banner, starred state, alignment chips |
 | `rose` | `#8E3344` | **"Not stated"** pills, 🚩 flags (always with icon + text) |
 | `roseSoft` | `#F8E8EA` | Warning banners |
@@ -59,9 +61,7 @@ These are the tokens in `apps/mobile/src/theme.ts` on `mobile-dev-build`. Compon
 - **No party colors.** Forest and rose must never stand for two candidates or two sides. Candidates are told apart by **mask and shape, not color**: on pole lines each candidate gets an ink-colored shape (● ■ ▲ ◆ …) labeled with the mask title. The user is always the forest ◆. After the reveal, party names are plain text and **never colored by party**.
 - **Rose** is only for missing plan slots, 🚩 flags and warnings (PLAN §2). It is never used for a candidate, a pole or an alignment bucket.
 - **Buckets** all use the same `goldSoft` chip with `ink` text and are told apart only by emoji and label. That keeps any one of them from looking "good" or "bad". 🪞 Clouded uses a dashed `line` border instead.
-- **Contrast:**
-  - `gold` on `bg` is about **4.4:1**, just under AA (4.5:1) for small text. It's fine for the 13pt uppercase kicker as a decorative label, but **don't use `gold` for body text or for information the user needs**. If it's ever needed for that, darken it to about `#7A5B28`. **[team check]**
-  - Every other text pairing passes AA: `ink`, `inkSoft`, `rose` and `forest` on `bg`/`card`, and `card` on `forest`.
+- **Contrast:** every text pairing passes AA (4.5:1). `gold` was darkened to `#7A5B28` (about 5.4:1 on `bg`) because the built `#8A6830` came out at about 4.4:1. Update `theme.ts` to match.
 
 ---
 
@@ -101,25 +101,27 @@ From `ui.tsx`:
 
 ## 5. Masks (the cast)
 
-The built app stores `mask.character` per candidate. Mask art, if added, is a **bundled local asset**, never fetched, so a URL can't correlate with a candidate (Inv. 7, 8).
+**Decided:** each mask is a **title plus a portrait**, a generic, androgynous fantasy-character headshot. The portrait is a costume, not a likeness: it has nothing to do with the real candidate.
 
-Rules:
-- Protagonists only, and nothing villain-coded.
-- No gender, race or age cues that could read as describing the candidate behind the mask.
-- At least 16 characters, so a contest with many candidates never repeats one.
+**Portrait rules**
+- **Unrelated to the person:** masks are dealt by crypto-random shuffle, never by any feature of the candidate (Inv. 8). The art direction must not let a portrait be read as hinting at gender, age, race or party.
+- **Androgynous and fantastical:** soft, ageless faces; fantasy features such as pointed ears, horns, feathers, leaf crowns, star freckles and hoods; non-human or jewel-tone skin (moss, lilac, slate, copper, pearl) rather than realistic skin tones.
+- **No party colors:** avoid red/blue pairs in costumes. Wardrobe stays in the parchment/forest/gold palette.
+- **Protagonists only:** friendly, curious expressions; nothing villain-coded (PLAN §11).
+- **Consistent style:** the same framing (head and shoulders, three-quarter view), lighting and line weight for every portrait, so no character looks more "important" or trustworthy than another.
+- **Enough of them:** at least 16, so a contest never repeats a mask.
+- **Bundled:** shipped in `apps/mobile/assets/masks/`, never fetched (Inv. 7). Art is made once before the event and frozen (PLAN §7, tier T3). It is never generated at runtime.
 
-Proposed starter cast (title · motif). **[team check: names and whether masks get illustrations]**
+**Starter titles** (the portraits are generic; the titles add flavor):
 
 | | | | |
 |---|---|---|---|
-| The Lantern Keeper · lantern | The Glass Cobbler · slipper | The Map Mender · scroll | The Star Baker · star loaf |
-| The Lighthouse Owl · owl | The Paper Dragon · origami dragon | The Quiet Giant · mountain | The Kite Rider · kite |
-| The Bell Ringer · bell | The Tea Gardener · teapot | The Moth Knight · moth | The River Weaver · loom |
-| The Clockwork Fox · fox | The Moon Gardener · crescent | The Arch Builder · arch | The Story Spinner · spindle |
+| The Lantern Keeper | The Glass Cobbler | The Map Mender | The Star Baker |
+| The Lighthouse Keeper | The Paper Folder | The Quiet Wanderer | The Kite Rider |
+| The Bell Ringer | The Tea Gardener | The Moth Herald | The River Weaver |
+| The Clock Tinker | The Moon Gardener | The Arch Builder | The Story Spinner |
 
-**Mask tile** (if illustrated): a 56pt circle (rows) or 120pt circle (candidate header) with a `goldSoft` fill, a 1pt `gold` border and the motif in `ink`. With no art, show the character title in serif inside the same circle as a monogram.
-
----
+**Portrait tile:** a circle, 56pt in rows and 120pt in the candidate header, with a 1pt `gold` border on a `goldSoft` field. If an image is missing, fall back to the title's initials in serif.
 
 ## 6. Components
 
@@ -156,7 +158,7 @@ Keep motion restrained so it fits the book look.
 |---|---|---|
 | Screen transitions | `slide_from_right` (as built) | OS default |
 | Card answer | The choice fills `forest`, then the next card slides in. An optional swipe follows the finger and rotates up to 6° | Instant |
-| Unmasking | Contest by contest: the mask monogram fades and lifts while the name fades in under a gold `Ornament` flourish. About 700 ms per contest; tap to skip | 250 ms crossfade |
+| Unmasking | Contest by contest: the mask portrait fades and lifts while the name fades in under a gold `Ornament` flourish. About 700 ms per contest; tap to skip | 250 ms crossfade |
 | "Surprised?" stats | Count-up numbers, 600 ms | Static |
 
 If swipe gestures ship, add `react-native-gesture-handler` and `react-native-reanimated` with `npx expo install`. No motion ever carries information on its own.
@@ -166,7 +168,7 @@ If swipe gestures ship, add `react-native-gesture-handler` and `react-native-rea
 ## 8. Share card
 
 - **Size:** 1080 × 1350 (4:5), rendered **on the device** from a hidden view (`react-native-view-shot`), then passed to the OS share sheet (`expo-sharing`). Nothing is uploaded (Inv. 5).
-- **Layout:** a `bg` parchment field with a `gold` double rule border. The kicker reads "MY FAIRY TALE BALLOT", then one big serif stat the user picks from U4 ("I looked at **9 races** before seeing a single name"), then an `Ornament`, then the domain in `inkSoft`.
+- **Layout:** a `bg` parchment field with a `gold` double rule border. The kicker reads "MY FAIRY TALE BALLOT", then one big serif stat the user picks from U4 ("My picks came from **3** different parties"), then an `Ornament`, then the domain in `inkSoft`.
 - **Must not contain:** picks, candidate names or masks tied to them, parties, alignment buckets, ballot style, precinct or district.
 - The built reveal screen shares a **text** message today (`Share.share({ message })`). The image is an upgrade, and text sharing stays as the fallback.
 

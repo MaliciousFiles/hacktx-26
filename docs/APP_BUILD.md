@@ -57,7 +57,7 @@ This extends what's on `mobile-dev-build`. Files marked *(built)* exist there.
 apps/mobile/
 ├─ app.json · eas.json        (built)
 ├─ assets/
-│  ├─ masks/                  optional mask illustrations (bundled; never fetched)
+│  ├─ masks/                  16+ fantasy headshot portraits (bundled; never fetched)
 │  └─ lookup/                 offline ballot-style list (+ polygons if lookup ships)
 └─ src/
    ├─ app/                    ROUTES ONLY (Expo Router)
@@ -186,7 +186,7 @@ fixtureSource.ts  reads fixtures/release-fixture.json; sets demo=true
 | order (in `session.tsx` today) | `session.order[contestId]` is a crypto shuffle. It must never take anything that depends on alignment or tier (Inv. 15, 22). |
 | `contestView.ts` | `(release, session) → ContestViewModel` with fully resolved sections, empty-state reasons and citation lookups. Screens only render view models. That's what makes the leak test in §8 possible. |
 | `unanswered.ts` | Lists ballot-relevant issues where every candidate's `issueEvidenceState` is `none`, plus slots that are `not_stated` for all candidates. |
-| `surprise.ts` | U4 stats from `picks`, `guesses` and `revealed`. It returns only the stats whose inputs exist; with too few partisan picks it returns none rather than a misleading %. |
+| `surprise.ts` | The two U4 stats (parties of my picks, across-the-aisle %) from `picks` and `revealed`. With fewer than 2 partisan picks it returns none rather than a misleading %. |
 
 **UI rule over scoring output:** treat a `MatchResult` with `matchClarity === 0` as **🪞 Clouded** whatever its `bucket` says. Today `proximityToBucket` never emits `"clouded"`, so the UI has to apply this rule. Pipeline/scoring owners should decide whether near-threshold uncertainty also maps to Clouded in `@ftb/types/scoring` (PLAN §6.5).
 
@@ -215,7 +215,7 @@ The ballot-style list for O5 ships in the same bundled asset, so manual selectio
 | B4 | All profiles in the contest, `userVector` | Pole-line positions from `stances[issueId].position` |
 | B5 | `contest.measure`, `contest.context` | `computeMeasureConnections` |
 | B8 | `judicialProfile` per candidate | `computeJudicialComparison` |
-| U3/U4 | `/reveal` identities, `picks`, `guesses` | `surprise.ts` |
+| U3/U4 | `/reveal` identities, `picks`, `guesses` (shown per contest in U3) | `surprise.ts` |
 
 ---
 
@@ -268,7 +268,7 @@ Keeping `identities.json` in **its own file** means no `/ballot` code path can e
 
 ## 5. Daily Challenge (stretch)
 
-- `GET /daily?date` returns a `DailyChallenge`, with its `payload` shaped per game once PLAN §12 #6 is decided.
+- Prototype both games (UX.md §3.7). `GET /daily?date` returns a `DailyChallenge` whose `game` is `"quote_match"` or `"follow_the_gold"`. Agree on each `payload` shape with the pipeline owner; it's `unknown` in the contract today.
 - The game state lives on the device. The result grid is plain text through the share sheet.
 - It uses its own `MaskSession` (`scope: "game"`), never the ballot session.
 - The pipeline must build daily payloads from contests **outside the Travis ballot** (PLAN §12 #7). The API cannot check this; it is a pipeline publish gate.
@@ -331,7 +331,7 @@ Add `apps/mobile/src/lib/**/*.test.ts` and `apps/web/src/**/*.test.ts` to `vites
 | Copy lint | — | No banned word (UX.md §5) in `copy.ts`; every evidence-facing string uses the neutral templates |
 | Clouded rule | E | `matchClarity === 0` renders as Clouded |
 | Objective Info Mode | — | A contest with every candidate `objective_only` produces a view model with no alignment section |
-| Surprise stats | F | No % stat with fewer than 2 partisan picks; guesses are optional |
+| Surprise stats | F | Only the two agreed stats; no % with fewer than 2 partisan picks |
 | Share props | G | The share card prop type is exactly the allowlist |
 | API | G, H | `/ballot` output deep-equals the stored file; `/ballot` never contains any string from `identities.json`; unknown or mismatched release → 404; `/reveal` returns exactly `contest.candidateIds` |
 

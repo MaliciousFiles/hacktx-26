@@ -20,6 +20,9 @@
 | Share card | Stats only. No picks, names or parties |
 | Mascot | Minimal: the Fairy Godmother appears in onboarding and the Unmasking only |
 | Extras kept | Guess the party, Compare side by side, Daily Challenge, My ballot notes |
+| Daily Challenge | Prototype **both** Quote Match and Follow the Gold; pick one after friend testing |
+| "Surprised?" stats | Two stats: parties of my picks, and the across-the-aisle % |
+| Masks | Generic androgynous fantasy-character headshots, unrelated to the real candidate |
 
 ---
 
@@ -362,7 +365,7 @@ Fixed order:
 - Toggle: "Play *Guess the party* first" (on by default; see U2).
 - Buttons: "Unmask ✨" and "Not yet".
 
-**U2 · Guess the party** *(optional, local only)*: for each partisan contest where the user picked someone, the question "Which party do you think *The Lantern Keeper* is?" with the parties on that contest as options, plus "No idea". The guesses feed the U4 stats, never leave the phone, and are deleted with the session.
+**U2 · Guess the party** *(optional, local only)*: for each partisan contest where the user picked someone, the question "Which party do you think *The Lantern Keeper* is?" with the parties on that contest as options, plus "No idea". During the reveal (U3), each contest shows the guess next to the real party ("You guessed: …"). The guesses aren't summarized as a U4 stat, never leave the phone, and are deleted with the session.
 
 **U3 · Reveal ceremony**
 - The Godmother returns here: "Masks off, everyone."
@@ -371,13 +374,11 @@ Fixed order:
 - Citation links unlock on every screen after this step.
 
 **U4 · Surprised?**
-All stats are computed on the device from picks, guesses and the identities returned by `/reveal`:
-- "Your picks came from **3** different parties." (partisan races only)
-- "You guessed **4 of 7** parties right." (only if U2 was played)
-- "In **38%** of partisan races, your pick wasn't from the party you picked most often." This is the cross-the-aisle stat.
-- For nonpartisan contests: "**6** of your picks were in nonpartisan races, where party isn't on the ballot."
+Two stats, both computed on the device from picks and the identities returned by `/reveal`:
+- **Parties of my picks:** "Your picks came from **3** different parties." Partisan races only.
+- **Across the aisle:** "In **38%** of partisan races, your pick wasn't from the party you picked most often."
+- Both need at least 2 partisan picks. With fewer, show "Not enough partisan picks for stats" instead of a misleading number.
 - Tone: celebrate the surprise and never shame it. No "you were wrong". Use "Plot twist!" instead.
-- **[decide]** Final stat set after friend testing (Suite F).
 
 ### 3.5 After the reveal
 
@@ -404,7 +405,11 @@ All stats are computed on the device from picks, guesses and the identities retu
 
 ### 3.7 Daily Challenge
 
-- **[decide]** Mechanic: *Quote Match* vs. *Follow the Gold* (PLAN §12 #6). Wireframe for Quote Match: 4 masked quotes and 4 platform cards; drag or tap to pair them; 3 lives; a result emoji grid (`🟪🟪⬜🟪`) to share.
+**Decided:** prototype both games, then keep one after friend testing (PLAN §12 #6). Both use the same shell: one puzzle a day, 3 lives, a result emoji grid to share as text, and tap-to-pair (drag is optional).
+
+- **Quote Match:** 4 masked characters (headshot + title) and 4 short platform cards. Pair each quote with the platform it came from. Grid: `🟩🟩🟥🟩`.
+- **Follow the Gold:** 4 masked characters and 4 funding profiles (top industry, in-state share, direct vs. outside range). Match each character to their money. Grid: `🟨🟨🟥🟨`.
+- After the puzzle: the real names and a link to the sources, since these are past or out-of-area races.
 - Data: past races, other states or national figures only. It never uses contests on the player's own ballot before their reveal (PLAN §12 #7).
 - Uses its own `MaskSession` with `scope: "game"`, separate from the ballot masks.
 
