@@ -206,7 +206,7 @@ export async function classifyOne(
   issue: IssuePoleLabel,
   actionId: string | undefined,
   config: ClassifyConfig,
-): Promise<Omit<Evidence, "id" | "date" | "quoteSpan"> | null> {
+): Promise<Omit<Evidence, "id" | "eventDate" | "quoteSpan"> | null> {
   const req: JevClassifyRequest = {
     text: input.text,
     issueId: issue.id,

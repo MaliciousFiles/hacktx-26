@@ -13,6 +13,9 @@ export type Level = "federal" | "state" | "local";
 export interface Release {
   id: string; // "data-v3"
   asOfDate: ISODate; // fixed reference date for recency decay (never wall-clock)
+  // This election's campaign period, identical for every candidate. Evidence dated inside it is
+  // labeled "this campaign"; older evidence stays visible, labeled with its own date.
+  campaignWindow: { since: ISODate; until: ISODate };
   manifestHash: string;
   configVersions: Record<string, string>; // issues, rubrics, thresholds, authority, sources
   modelVersions: Record<string, string>; // { jev: "jev-1.14", llm: "..." } — never "latest"
@@ -128,6 +131,22 @@ export type SourceType =
   | "social_snippet"
   | "news";
 
+/** How we know when something was said or done. Shown next to every date in the app. */
+export type DateBasis =
+  | "published" // timestamp on the item itself (post, article, video)
+  | "official_record" // date of the vote, filing, order or opinion
+  | "event" // date of the debate, forum or town hall
+  | "page_observed" // undated page (e.g. live campaign site): "says this as of" fetchedAt
+  | "archive_capture" // Wayback capture: "said this no later than"
+  | "unknown"; // never filled in with fetchedAt
+
+export interface EventDate {
+  date?: ISODate; // present unless basis === "unknown"
+  basis: DateBasis;
+  // "week"/"month" for relative or coarse dates such as "3 weeks ago" or "May 2025".
+  precision: "day" | "week" | "month" | "year";
+}
+
 export interface Source {
   id: ID;
   contestId: ID;
@@ -137,8 +156,9 @@ export interface Source {
   type: SourceType;
   url: string;
   outlet?: string;
-  fetchedAt: ISODate;
+  fetchedAt: ISODate; // when we fetched it; NOT when it was said
   publishedAt?: ISODate;
+  eventDate: EventDate; // when it was said, and how we know
   contentHash: string;
   originalText: string; // immutable fetched text; pipeline-only, never send pre-reveal
   text: string; // normalized, NOT a classifier input; use versioned projection first
@@ -191,7 +211,7 @@ export interface Evidence {
   issueId: IssueId;
   kind: "action" | "voice";
   sourceType: SourceType;
-  date: ISODate;
+  eventDate: EventDate; // shown with the evidence; unknown dates stay unknown
   quote: string; // verbatim substring of Source.originalText (checked in code)
   quoteSpan: { start: number; end: number }; // UTF-16 code-unit offsets into originalText; slice must equal quote
   position: Position;
@@ -662,6 +682,7 @@ export interface SourceFinder {
     contestId: ID;
     candidateId?: ID;
     vars: Record<string, string>;
+    window: { since: ISODate; until: ISODate }; // identical for every candidate in a contest
   }): Promise<Source[]>;
 }
 

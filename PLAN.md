@@ -46,11 +46,12 @@ Share card · Daily Challenge (separate loop)
 | Section | Summary |
 |---|---|
 | **Top agreements / disagreements** | Each with quote, date, link. |
+| **Timeline** | Every quote, post and action for an issue in date order, each with its date and how we know it (§5 "Dates"). Split into **This campaign** (inside the release's `campaignWindow`) and **Earlier**. Earlier evidence is never hidden; the user decides how much it matters. If the two disagree, show a neutral "Position over time" note with both dated sides. This is a display, not a score. |
 | **Platform highlights** | Neutral-voiced, every sentence cited. |
 | **Plan Explorer** | Goal → Mechanism → Cost → Funding → Timeline → Who acts. Missing slots show **"Not stated"** in red. |
 | **Specificity score** | Separate, prominent indicator of documented plan detail (not truth or feasibility). May drive order only if fairness gates pass (§3). |
 | **Credibility flags** | 🚩 Beyond this office's power (counts **against** them) · ⚠️ Needs others to act · 💸 No funding source stated · ✅ Funded / tradeoff named. |
-| **Says vs. Does** | Official speech vs. social vs. record, per issue; gaps flagged. |
+| **Says vs. Does** | Official speech vs. social vs. record, per issue, each side labeled with its dates; gaps flagged. |
 | **Promise Kept** | Stretch: for prior officeholders, ✅ Kept · 🛠️ Fought for · ❌ Broken **only after human review** · ⏸️ No documented action (not proof of inaction) · 🚫 Outside their power. Wayback promises are one possible source. |
 | **Fact-checks** | Stretch: show individual IFCN fact-checks with context, not a candidate-level truthfulness score (coverage is unequal). 🔎 Record-Verified Claims also require reviewed identity/action matches. |
 | **Bipartisanship** | Two designs kept until data decides: (a) one composite, (b) Bridge-builder + Maverick. Called "Coalition Breadth" in nonpartisan races. |
@@ -85,7 +86,7 @@ These are non-negotiable. Each has at least one test (§8).
 9. **Symmetry.** Every candidate in a contest gets identical search templates, caps, time windows, rubrics, and review treatment.
 10. **Proximity scoring, not directional.** Extremity is never rewarded.
 11. **Repetition isn't evidence.** Confidence grows with distinct sources and events, not mention count.
-12. **Actions outweigh words.** Contested votes outweigh unanimous or consent votes, which weigh about 0.
+12. **Show when, not just what.** Every quote, post and action carries its event date and the basis for that date (`EventDate`: published, official record, event, page observed, archive capture, or unknown). The app shows it next to the evidence and lets the user sort by it. Unknown dates are labeled unknown, never filled in with the fetch date. Current-campaign material and past records are shown side by side with their dates instead of being blended into one number. Weighting (actions vs. words, contested votes, recency) is a light, secondary input to the optional alignment aid only. Consent and voice votes still weigh about 0 there, because they say little about a position.
 13. **Judges are never scored on policy.**
 14. **Propositions never get a recommendation.** Connections are gated and capped.
 15. **Default order is randomized.** Specificity-tier ordering is an experimental, opt-in decision only if tests exclude material disparity by party, incumbency **and resources** with adequate power; otherwise keep random order. No false claims of fairness from a small sample.
@@ -141,16 +142,55 @@ These are non-negotiable. Each has at least one test (§8).
 | Promise Kept | Wayback Machine CDX snapshots of prior campaign sites and questionnaires |
 
 ### Voice (statements)
-Priority order:
-1. **Questionnaires** (VOTE411, Texas Tribune, KUT/Statesman, Ballotpedia)
-2. Debates, forums, town halls (SerpApi + YouTube transcripts)
-3. Campaign sites
-4. Social media: SerpApi `site:x.com` / `site:facebook.com` snippets (snippet dates/text may be incomplete). Paid X API fallback depends on volume and current pricing.
+Focus on what candidates are saying **in this campaign**. Older statements are still collected and shown, labeled with their dates.
+1. **Questionnaires** from this cycle (VOTE411, Texas Tribune, KUT/Statesman, Ballotpedia). Use general-election guides; primary guides are "Earlier".
+2. **Current campaign site:** undated pages are dated `page_observed` ("says this as of" the fetch date); prior versions come from Wayback (`archive_capture`).
+3. **Debates, forums, town halls** (SerpApi + YouTube transcripts), dated by the event.
+4. **Social media** (below), dated by the post.
+
+#### Social media
+Implemented in `@ftb/scraping` (`social.ts`). One finder per platform; the best available method is chosen once per run, so every candidate gets the same method on the same platform.
+
+| Platform | Method | `SourceType` | Date | Notes |
+|---|---|---|---|---|
+| Bluesky | Public AppView API (no key) | `social_post` | post `createdAt` | Full text; reposts skipped |
+| X | API v2 if `X_BEARER_TOKEN`, else SerpApi `site:x.com/{handle}/status` | `social_post` / `social_snippet` | `created_at` / search date | Retweets excluded; long posts use full `note_tweet` text |
+| Facebook | SerpApi `site:facebook.com/{handle}` | `social_snippet` | search date | Only `/posts`, `/videos`, `/photos`, `/reel` under the page |
+| Instagram | SerpApi `site:instagram.com "@{handle}"` | `social_snippet` | search date | `/p/` links kept only when the title names the handle |
+| TikTok | SerpApi `site:tiktok.com/@{handle}/video` | `social_snippet` | search date | |
+| Threads | SerpApi `site:threads.com/@{handle}/post` | `social_snippet` | search date | |
+| YouTube | SerpApi YouTube engine | `social_snippet` | `published_date` | Filtered to the candidate's channel; transcripts are a separate source |
+
+Rules:
+- **Accounts must be the candidate's own.** Scrape only handles the campaign itself links (campaign site, filing, platform verification), recorded with `verifiedVia`. Parody, staff and fan accounts look alike; when unsure, leave the account out.
+- **Same window, templates and caps for everyone** (Invariant 9): `SourceFinder.find` takes the release's `campaignWindow`, and `maxItems` per candidate per platform is global.
+- **Explicit gaps:** a coverage row for every (candidate, platform): `scraped`, `no_account`, `not_configured` (no key), or `error`. "No account" is shown as such, never as "said nothing".
+- **Own words only:** reposts and retweets are dropped; quote posts keep only the candidate's text.
+- **Snippets are weaker evidence:** text may be truncated and dates may be relative ("3 weeks ago", resolved against `fetchedAt` with `week` precision) or missing (`unknown`). Quotes validate against the snippet as fetched, never against a reconstructed full post.
+- **Repetition:** candidates repeat the same line across posts and platforms; the pipeline counts the message once (Invariant 11).
+- **Masking:** handles, slogans and hashtags identify candidates. Add every verified handle to the redaction and identity-leak lists.
+- Meta Ad Library ad text (dated, full text) is the next source to add for current campaign messaging.
+
+#### Dates
+Every `Source` and `Evidence` carries an `EventDate` = `{ date?, basis, precision }`. `fetchedAt` is when we fetched it and is never used as the date something was said.
+
+| `basis` | Meaning | Shown as |
+|---|---|---|
+| `published` | Timestamp on the item (post, article, video) | "Posted Oct 3, 2026" |
+| `official_record` | Date of the vote, filing, order or opinion | "Voted May 12, 2025" |
+| `event` | Date of the debate, forum or town hall | "Said at a forum, Sep 30, 2026" |
+| `page_observed` | Undated page, dated by our fetch | "On their site as of Oct 24, 2026" |
+| `archive_capture` | Wayback capture date | "On their site by Jun 2024" |
+| `unknown` | No reliable date | "Date unknown" |
+
+`precision` (`day`, `week`, `month`, `year`) is shown too, so "~3 weeks ago" is not displayed as an exact day.
 
 ### Ballot
 VoteTravis consolidated ballot PDF (all eligible contests) + public district/precinct shapefiles → offline, on-device location lookup. **Lookup must resolve an official election-specific ballot style**, not merely a precinct: the [Travis County election page](https://votetravis.gov/current-election-information/current-election/) offers a consolidated ballot and separate personalized ballot; its [poll-worker manual](https://votetravis.gov/wp-content/uploads/G25-Training-Manual.pdf) tracks precinct **and ballot style** as separate fields. This establishes that styles matter, **not** that multiple styles share a precinct in this particular election. Verify local results against official personalized ballots. If no reliable public precinct→style map exists or a point is ambiguous, stop and let the user select/confirm the official ballot style; never silently guess or transmit an address/GPS point.
 
 **Data release vs. official ballot:** `/ballot` returns the requested `releaseId` and that release's full contest/citation/profile snapshot. `/reveal` takes the same `releaseId`; server and client reject missing, superseded-without-snapshot, mismatched, duplicated or unknown candidate IDs. Store immutable releases while users may still have an active walkthrough. A release update must not silently replace the data a user is viewing.
+
+**Campaign window:** each release sets `Release.campaignWindow` (draft: from the opening of the candidate filing period, 2025-11-08, through election day, 2026-11-03), identical for every contest and candidate. Social and voice finders search inside it; records and older statements outside it are still collected and labeled **Earlier**. Releases are re-scraped and republished on a fixed schedule during early voting; the schedule and each release's `asOfDate` are shown in the app.
 
 ### Context
 SerpApi News/Web with fixed templates + official docs. Outlet allowlist lives in `config/sources.yaml` and is published in the app.
@@ -181,7 +221,7 @@ These are **draft operational definitions**, not validated findings. Freeze para
 1. **Issue axes.** Hierarchical: Politicosmos's 20 categories for retrieval, child issues for scoring. Each `Issue` has explicit positive and negative policy poles, e.g. `housing.zoning`: +1 = allow more housing by right; -1 = retain restrictive zoning. Neither pole means "good". Never use broad topic labels as stance axes.
 2. **Two card rubrics.** A `PoleCard` neutrally explains two competing policy approaches on one defined axis; side/order randomized. Selecting either pole supplies a **direct but provisional** stance. A `TradeoffCard` asks whether a specific policy X is worth a specific cost Y; accepting/declining teaches about priorities and prompts reflection, but neither is fed into the stance vector without separately validated interpretation. Both need mirrored framing, comprehension tests and issue-diversity review. Skip means missing, not neutral.
 3. **User vector (draft).** For issue `i`, use **only pole choices**: `u_i = Σ(x_ji · w_ji) / Σw_ji`, where `x_ji` is the chosen pole's fixed coordinate on issue `i` and `w_ji ≥ 0` is the reviewed card weight. Randomized screen side has no effect. `userCertainty` depends on independent cards and consistency; one card remains low-certainty. ⭐ and top-3 affect salience, never the sign. Tradeoff responses are a separate reflection record, not automatic candidate alignment; a user can support X generally yet reject X at cost Y.
-4. **Candidate evidence.** Deduplicate by event and syndication; classify direction against the same issue poles. `modelConfidence` = stored response distribution; `evidenceStrength` = independent source breadth, provenance, recency and agreement (distinct concepts). Action-derived directions require an auditable issue/measure interpretation; votes on omnibus bills are not automatically positions on all topics. Recorded contested vote = losing side ≥10% of participating votes (draft); voice vote/consent is never treated as contested. Actions get higher evidentiary weight than words; specificity and feasibility stay **separate** from ideological proximity to avoid turning undocumented value judgments into stance.
+4. **Candidate evidence.** Deduplicate by event and syndication; classify direction against the same issue poles. `modelConfidence` = stored response distribution; `evidenceStrength` = independent source breadth, provenance, recency and agreement (distinct concepts). Action-derived directions require an auditable issue/measure interpretation; votes on omnibus bills are not automatically positions on all topics. Recorded contested vote = losing side ≥10% of participating votes (draft); voice vote/consent is never treated as contested. Weighting is deliberately light, since the main product answer to "old record vs. current campaign" is showing dated evidence side by side (Invariant 12). In the alignment aid, actions may get modestly higher weight than words, recency decays slowly from `asOfDate` using `eventDate`, and undated evidence counts less, never as new. Specificity and feasibility stay **separate** from ideological proximity to avoid turning undocumented value judgments into stance.
 5. **Secondary alignment aid.** For comparable issues, `a_i = 1 − |u_i − c_i|/2`; average weighted by salience and **both** user certainty and candidate evidence strength. Missing issues must not improve alignment; show coverage, avoid cross-candidate ranking if compared on materially different issue sets. Absolute bucket *draft* cutoffs: ≥0.80 Happily Ever After; ≥0.60 Good Company; ≥0.40 Different Paths; <0.40 Worlds Apart. `noStrongMatch` only when none reaches ≥0.80 **with sufficient coverage**. Near-threshold uncertainty ⇒ Clouded or issue-by-issue view. **Neither score nor bucket recommends a vote.**
 6. **Coverage (draft).** `sufficient` = ≥3 comparable distinct child issues, each candidate stance supported by ≥2 independent source events (one may be a well-documented official action), user certainty above threshold. `thin` = some relevant evidence but below threshold; `none` = no defensible comparison. `matchClarity` reflects coverage and evidence strength, not Jev's confidence. No artificial claims that one official act and its press release are two independent events.
 7. **Card selection.** Anchors cover important issues independent of what candidates say. Additional cards cover documented candidate differences **and major relevant questions candidates have not answered**, subject to issue-diversity caps. Tradeoffs probe interactions and spur questions in the walkthrough; they do not replace pole cards to optimize bucket separation. Use no party metadata. Stretch: adaptive choice evaluated against a fixed deck.
@@ -224,6 +264,7 @@ These are **draft operational definitions**, not validated findings. Freeze para
 | Daily challenge (seeded by date) | T1 over T2 |
 | Search query templates (identical per contest) | T1 |
 | Raw fetches | Snapshot (hash + `fetchedAt`) |
+| Event-date parsing (timestamps, "3 days ago" relative to `fetchedAt`) | T1 |
 | Chunking, normalization, masking | T1 |
 | All Jev classifications, card vectors, bill and action direction, industries | T2 |
 | Generated text (highlights, plan slots, context claims) | T2 + validators |
@@ -255,7 +296,7 @@ Each owner tests their own module; **Person 2 owns the cross-cutting bias suites
 
 | Suite | Tests |
 |---|---|
-| **A. Data integrity** | Official **ballot-style ID** and contest list vs. ~20 personalized ballots from varied precincts (test possible split/ambiguous styles; never guess) · journal vote parsing vs. LegiScan sample (≥99%) · money reconciles with FEC/TEC summary totals · Meta totals are ranges · Wayback snapshot dates in window |
+| **A. Data integrity** | Official **ballot-style ID** and contest list vs. ~20 personalized ballots from varied precincts (test possible split/ambiguous styles; never guess) · journal vote parsing vs. LegiScan sample (≥99%) · money reconciles with FEC/TEC summary totals · Meta totals are ranges · Wayback snapshot dates in window · event dates match platform timestamps on a sample; no `fetchedAt` substituted for an unknown date · every scraped social account traces to a campaign-linked `verifiedVia` · identical window and caps per contest · per-platform coverage rows for every candidate |
 | **B. Model accuracy** | Golden set labeled by **2 humans** (human agreement = ceiling) · Jev accuracy by source and office type · calibration (does 0.8 mean right 80% of the time?) · fallback rate · historical promise/outcome labels checked against original records with inter-reviewer agreement |
 | **C. Consistency** | Negation flips direction · paraphrase stability · name/party swap · formal vs. casual style (social) · **party-masking experiment** (unmasked / names masked / names + party masked → accuracy vs. bias; decision rule in prereg) |
 | **D. Fairness & cards** | Evidence coverage parity across **all contests and office types** · template symmetry · pole-card side swaps and framing audit · tradeoff comprehension and no sign inversion on decline · topic balance, including unanswered issues · random/mirror-image swipers · assess disparity by party / incumbency / money for coverage, specificity and flags (small samples are descriptive) · random mask/party independence · Context Brief syndication and balance |
@@ -283,7 +324,7 @@ The contract lives in code at [`packages/types/src/index.ts`](packages/types/src
 |---|---|---|
 | **1 — Records** | Build reusable official-record adapters and candidate/role resolution for **every applicable contest**; automate fetch, parsing, provenance and availability states. Sample across office types for QA, not hand-research selected races. Expand TLO, executive/regulatory, local and judicial adapters as available; later archive *dated* historical promises/outcomes for validation | `OfficialAction[]`, historical promise cohort + coverage reports |
 | **2 — Classification & pipeline** | Primary: pole-defined issues, **both** card rubrics, golden set, cached classifiers (Jev or fallback), automated per-contest publish gates, abstain rules, pure scoring and validators. QA samples and release diffs across office types; later: deeper Plan Explorer and preregistered historical validation | `Evidence[]`, `CandidateProfile` aggregates, `@ftb/types/scoring`; owns suites B C D E G H I |
-| **3 — Voice, ballot & money** | Primary: official Travis ballot and **local lookup**, candidate discovery + symmetrical queries for **all** candidates, questionnaires, speeches, campaign sites, SerpApi context, FEC/TEC where applicable. Missing-source states are explicit; later: social breadth, Meta, FCC/IRS tracing | `Source[]`, `Contest`/`ContextBrief`, `MoneyFlow[]` + coverage report · Suite A |
+| **3 — Voice, ballot & money** | Primary: official Travis ballot and **local lookup**, candidate discovery + symmetrical queries for **all** candidates, questionnaires, speeches, campaign sites, SerpApi context, social media across major platforms (§5), FEC/TEC where applicable. Every item dated with an `EventDate`. Missing-source states are explicit; later: Meta ad text, FCC/IRS tracing | `Source[]`, `Contest`/`ContextBrief`, `MoneyFlow[]` + coverage report · Suite A |
 | **4 — App & serving** | Primary: Expo **pole/tradeoff** deck, evidence-first contest view, selectable **complete** contest list, abstain mode, unmask, local share render, offline lookup/manual fallback; minimal API. Alignment view is secondary. Later: historical-rate explainer only if validated, daily game, mascot polish, detailed Plan Explorer, opt-in PostHog | Demo + privacy/accessibility checks + Suite F instrumentation |
 
 **Rules**
@@ -333,7 +374,9 @@ The contract lives in code at [`packages/types/src/index.ts`](packages/types/src
 | 7 | Daily game data source (avoid spoilers) | Other states/past races · national figures · unlock after unmasking |
 | 8 | Swipe intensity: keep ±1, or add ±2? | Currently ±1 + ⭐ salience |
 | 9 | Candidate-level truthfulness score? | Default no; individual checks only, reconsider after coverage and selection-bias audit |
-| 10 | X data: snippets only, or paid API for top races? | Snippet quality check |
+| 10 | X data: snippets only, or paid API for top races? | Snippet quality check. Code supports both (`X_BEARER_TOKEN` switches X to the API for every candidate) |
+| 16 | Campaign window start | Draft: filing period opens 2025-11-08. Alternative: general election only (after the Mar 3 primary). Must be identical for every candidate |
+| 17 | Re-scrape cadence during early voting | Draft: daily release; never swap data under an active walkthrough (§5) |
 | 11 | Corporate track picks | Proposed in §13; confirm with team |
 | 12 | Offline geocoding/map size vs. manual ballot-style selector | Benchmark offline on real phones; never fall back to transmitting precise location silently |
 | 13 | How to use tradeoff decisions beyond reflection | Default: keep separate from stance matching. Pilot comprehension and explicit follow-up choices before inferring any issue priority or candidate alignment |

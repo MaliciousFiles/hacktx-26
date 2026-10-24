@@ -4,6 +4,7 @@
   "release": {
     "id": "fixture-v1",
     "asOfDate": "2026-10-24",
+    "campaignWindow": { "since": "2025-11-08", "until": "2026-11-03" },
     "manifestHash": "fixture-hash-placeholder",
     "configVersions": {
       "issues": "issues-v1",
@@ -213,7 +214,7 @@
           "issueId": "housing.zoning",
           "kind": "action",
           "sourceType": "official_action",
-          "date": "2025-05-12",
+          "eventDate": { "date": "2025-05-12", "basis": "official_record", "precision": "day" },
           "excerpt": "Voted yes on HB 1234, which allows by-right multifamily development in areas near transit corridors.",
           "redacted": false,
           "position": 0.8,
@@ -239,7 +240,7 @@
           "issueId": "education.funding",
           "kind": "voice",
           "sourceType": "questionnaire",
-          "date": "2026-09-01",
+          "eventDate": { "date": "2026-09-01", "basis": "published", "precision": "day" },
           "excerpt": "We must fully fund our public schools and end the practice of diverting state dollars to private voucher programs.",
           "redacted": false,
           "position": 0.65,

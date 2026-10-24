@@ -40,6 +40,7 @@ async function main() {
     url: "https://apps.texastribune.org/features/2026/texas-voter-guide/",
     outlet: "texas_tribune",
     fetchedAt: new Date().toISOString().slice(0, 10),
+    eventDate: { date: "2026-10-01", basis: "published", precision: "day" },
     contentHash: "hash-live-test",
     originalText: candidateRawText,
     text: candidateRawText,
@@ -94,7 +95,7 @@ async function main() {
   const evidence = {
     ...classification,
     id: "ev-live-1",
-    date: source.fetchedAt,
+    eventDate: source.eventDate,
     quoteSpan: { start: 37, end: 135 },
     quote: candidateRawText.slice(37, 135),
   };

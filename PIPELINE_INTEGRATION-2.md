@@ -91,7 +91,8 @@ export interface Source {
   type: "questionnaire" | "debate_speech" | "campaign_site" | "news" | "social_post";
   url: string;              // Source URL
   outlet?: string;          // e.g. "vote411", "texas_tribune" (from config/sources.yaml)
-  fetchedAt: string;        // ISO "2026-10-24"
+  fetchedAt: string;        // ISO "2026-10-24" — when we fetched it, NOT when it was said
+  eventDate: EventDate;     // { date?, basis, precision } — when it was said and how we know (PLAN.md §5 "Dates")
   contentHash: string;      // sha256(originalText)
   originalText: string;     // RAW, untouched text from the site (used for UTF-16 quote validation)
   text: string;             // Cleaned/normalized text
