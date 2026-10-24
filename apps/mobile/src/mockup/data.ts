@@ -11,8 +11,8 @@ import type {
   MaskSession,
   SourceCitation,
 } from "@ftb/types";
+import * as Crypto from "expo-crypto";
 import fixture from "../../../../fixtures/release-fixture.json";
-import type { State } from "./state";
 
 export type BallotResponse = Api["GET /ballot"]["res"];
 
@@ -33,7 +33,7 @@ export function citationFor(ref: EvidenceRef): SourceCitation | undefined {
 }
 
 // Labels only; the real app reads these from config/issues.yaml in the release.
-export const issueLabels: Record<IssueId, string> = {
+const issueLabels: Record<IssueId, string> = {
   "housing.zoning": "Zoning & land use",
   "education.funding": "Education funding",
   "economy.taxation": "Taxation",
@@ -51,6 +51,18 @@ export const ballotStyles = [
   { id: "travis-2026-style-001", label: "Style 001 — Central Austin (fixture)" },
   { id: "travis-2026-style-002", label: "Style 002 — not in fixture" },
 ];
+
+/** One-line, honest coverage summary for the ballot list (Invariant 20). */
+export function coverageNote(contest: Contest): string {
+  if (contest.measure) return "Ballot text, effects and arguments";
+  if (contest.unopposed) return "Unopposed — objective info only";
+  if (contest.officeKind === "judicial") return "Philosophy + objective qualifications";
+  const cands = candidatesFor(contest);
+  const objective = cands.filter((c) => c.coverage === "objective_only").length;
+  if (objective === cands.length) return "Objective info only";
+  if (objective > 0) return `${objective} of ${cands.length} candidates: objective info only`;
+  return "Full evidence comparison";
+}
 
 // ── Reveal (mock `GET /reveal/:contestId`) ──────────────────────────────────
 // Placeholder identities: the fixture deliberately has none, since they are reveal-only.
@@ -81,9 +93,7 @@ const maskCast: Omit<Mask, "imageUrl">[] = [
 ];
 
 function randomInt(n: number): number {
-  const buf = new Uint32Array(1);
-  crypto.getRandomValues(buf);
-  return buf[0] % n;
+  return Crypto.getRandomValues(new Uint32Array(1))[0] % n;
 }
 
 export function shuffle<T>(xs: T[]): T[] {
@@ -105,7 +115,7 @@ export function newMaskSession(): MaskSession {
   }
   const now = new Date();
   return {
-    id: crypto.randomUUID(),
+    id: Crypto.randomUUID(),
     scope: "ballot",
     createdAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + 24 * 3600 * 1000).toISOString(),
@@ -113,27 +123,15 @@ export function newMaskSession(): MaskSession {
   };
 }
 
-export const maskName = (m: Mask | undefined) => (m ? `${m.title} ${m.character}` : "Masked");
+const maskName = (m: Mask | undefined) => (m ? `${m.title} ${m.character}` : "Masked");
 
 /** Mask label before reveal; name and party after. */
 export function displayName(
-  s: Pick<State, "revealed" | "masks">,
+  s: { revealed: Record<string, CandidateIdentity[]>; masks: MaskSession },
   contestId: string,
   candidateId: string,
 ): string {
   const ident = s.revealed[contestId]?.find((i) => i.id === candidateId);
   if (ident) return ident.party ? `${ident.name} (${ident.party})` : ident.name;
   return maskName(s.masks.map[candidateId]);
-}
-
-/** One-line, honest coverage summary for the ballot list (Invariant 20). */
-export function coverageNote(contest: Contest): string {
-  if (contest.measure) return "Ballot text, effects and arguments";
-  if (contest.unopposed) return "Unopposed — objective info only";
-  if (contest.officeKind === "judicial") return "Philosophy + objective qualifications";
-  const cands = candidatesFor(contest);
-  const objective = cands.filter((c) => c.coverage === "objective_only").length;
-  if (objective === cands.length) return "Objective info only";
-  if (objective > 0) return `${objective} of ${cands.length} candidates: objective info only`;
-  return "Full evidence comparison";
 }
