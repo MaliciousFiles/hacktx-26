@@ -41,145 +41,129 @@
 
 ---
 
-## 2. For Upstream Agents: Providing Inputs to the Pipeline
+## 2. Inputs to the Pipeline
 
-The pipeline does **not** scrape web pages or download government XMLs directly. It receives strongly typed objects from `@ftb/records` and `@ftb/scraping`.
+The inputs are raw, uncurated data produced by the scraping and official records packages:
 
-### A. `@ftb/records` (Official Actions / Person 1)
-Your module pulls roll-call votes, signed/vetoed bills, and local council votes.
+| Input Object | What it contains | Where it comes from |
+|---|---|---|
+| **`Source[]`** | Raw text from questionnaires (VOTE411, Texas Tribune), campaign websites, debate transcripts, and news articles. Contains the full `originalText`, date, URL, and outlet. | `packages/scraping` (via SerpApi / web fetchers) |
+| **`OfficialAction[]`** | Real government voting records, bill sponsorship, and votes (e.g. "Voted YES on HB 1234, margin 85-60"). | `packages/records` (via Texas Legislature Online & City Council minutes) |
+| **`MoneyFlow[]`** | Direct campaign contributions, PAC transfers, and independent outside ad spending. | `packages/scraping` (via FEC & Texas Ethics Commission) |
+| **`Contest[]`** | The list of races and ballot propositions for the election (e.g. State Rep District 49, Austin Prop A). | VoteTravis county election data |
+| **Config files** | `issues.yaml` (issue axes), `authority.yaml` (legal office powers), `sources.yaml` (trusted media list). | `config/` directory |
 
-* **Interface to implement**: `RecordProvider` in `packages/records/src/index.ts`
-* **Output to produce**: `OfficialAction[]`
-
-```ts
-import type { OfficialAction } from "@ftb/types";
-
-export interface OfficialAction {
-  id: string;               // e.g. "act-hb1234-vote"
-  actorId: string;          // candidateId
-  issueIds: string[];       // e.g. ["housing.zoning"] (from config/issues.yaml)
-  role: string;             // e.g. "TX House D49"
-  body?: string;            // e.g. "Texas House of Representatives"
-  type: "floor_vote" | "committee_vote" | "authored" | "signed" | "vetoed" | ...;
-  stance: "yes" | "no" | "abstain" | "author";
-  margin?: { yes: number; no: number }; // Contested votes (minority >= 10%) weigh 1.5x
-  date: string;             // ISO "2025-05-12"
-  title: string;            // "HB 1234 - Multifamily Transit Zoning"
-  officialText: string;     // HRO bill analysis, order summary
-  sourceUrl: string;        // e.g. "https://capitol.texas.gov/..."
-}
-```
-
-> **Pipeline Invariant 12**: Contested roll-call votes are weighted twice as heavily as campaign speeches. If `margin` shows a contested vote, its weight increases further.
-
----
-
-### B. `@ftb/scraping` (Voice, Context & Money / Person 3)
-Your module queries SerpApi, candidate questionnaires (VOTE411, Texas Tribune, KUT), campaign sites, and campaign finance APIs (FEC/TEC).
-
-* **Interfaces to implement**: `SourceFinder` & `FinanceProvider` in `packages/scraping/src/index.ts`
-* **Outputs to produce**: `Source[]` and `MoneyFlow[]`
-
-#### 1. Sources (`Source[]`)
-```ts
-import type { Source } from "@ftb/types";
-
-export interface Source {
-  id: string;               // e.g. "src-vote411-hinojosa"
-  contestId: string;        // e.g. "contest-tx-house-49"
-  candidateId?: string;     // e.g. "cand-hinojosa" (if candidate statement)
-  type: "questionnaire" | "debate_speech" | "campaign_site" | "news" | "social_post";
-  url: string;              // Source URL
-  outlet?: string;          // e.g. "vote411", "texas_tribune" (from config/sources.yaml)
-  fetchedAt: string;        // ISO "2026-10-24"
-  contentHash: string;      // sha256(originalText)
-  originalText: string;     // RAW, untouched text from the site (used for UTF-16 quote validation)
-  text: string;             // Cleaned/normalized text
-}
-```
-
-> **Pipeline Invariant 3**: `originalText` must be untouched. The pipeline validates that quotes extracted by models are exact character-for-character substrings of `originalText`.
-
-#### 2. Campaign Finance (`MoneyFlow[]`)
-```ts
-import type { MoneyFlow } from "@ftb/types";
-
-export interface MoneyFlow {
-  id: string;
-  from: string;             // Entity ID (donor, PAC, c4)
-  to: string;               // Committee / Candidate ID
-  kind: "contribution" | "transfer" | "independent_expenditure" | "ad_buy";
-  amount: { min: number; max: number }; // Meta/Google ads use ranges; exact donations have min === max
-  date: string;
-  supports?: string;        // candidateId
-  opposes?: string;
-  sourceUrl: string;        // FEC / TEC filing URL
-}
-```
-
-The pipeline aggregates `MoneyFlow[]` into a `FundingMap` and calculates the outside spending dark-money interval:
-$$\text{DarkShare} = \left[\frac{\text{Dark}_{\min}}{\text{Outside}_{\max}}, \frac{\text{Dark}_{\max}}{\text{Outside}_{\min}}\right]$$
-
----
-
-## 3. For Downstream Agents: Consuming Pipeline Output
-
-### A. `@ftb/api` (Serving API / Person 4)
-The serving API does **NOT** call AI models. It serves the frozen JSON files published by `@ftb/pipeline`:
-
-* **Release file location**: `packages/pipeline/dist/releases/*.json` (or `fixtures/release-fixture.json` during development)
-* **Routes to implement in `apps/api/src/index.ts`**:
+### How Scraped Text is Converted into Typed Objects
+Here is an example (from `test-live-ai.ts`) showing how raw text from a website is structured by `@ftb/scraping` before handing it to the pipeline:
 
 ```ts
-// GET /ballot?ballotStyleId=...&releaseId=...
-app.get("/ballot", (c) => {
-  // 1. Read the requested release file from disk / storage
-  // 2. Return { release, ballot, contests, candidates, cards, citations }
-});
+// 1. Raw candidate speech (e.g., from a real questionnaire on housing in Austin)
+const candidateRawText =
+  "Representative Gina Hinojosa stated: We must reform municipal zoning to allow multifamily housing " +
+  "near major transit corridors by right. High housing costs are pushing working families out of central Austin. " +
+  "I sponsored HB 1234 to cut red tape and incentivize private builders without public subsidies.";
 
-// GET /reveal/:contestId?releaseId=...
-app.get("/reveal/:contestId", (c) => {
-  // Returns candidate identity mapping only when the user taps Reveal:
-  // { releaseId, contestId, identities: [{ id, name, party, photoUrl, website }] }
-});
-```
-
-> **Pipeline Invariant 7**: The `/ballot` response contains **zero** candidate names, party labels, or donor identities. Names are only returned by `/reveal`.
-
----
-
-### B. `@ftb/mobile` (Expo App / Person 4)
-The mobile app computes matches **on-device** using pure functions from `@ftb/types/scoring`. No user swipes or GPS coordinates are ever sent to a server.
-
-```ts
-import {
-  computeUserVector,
-  computeContestMatch,
-  computeJudicialComparison
-} from "@ftb/types/scoring";
-
-// 1. Convert user's card swipes into a stance vector
-const userVector = computeUserVector(swipes, ballotData.cards, salienceWeights);
-
-// 2. Score legislative/executive contests
-const matchResult = computeContestMatch(userVector, contest, ballotData.candidates);
-// Returns alignment bucket: "happily_ever_after" | "good_company" | "different_paths" | "worlds_apart"
-
-// 3. Score judicial contests (Invariant 13: Judges are NEVER scored on policy!)
-if (contest.officeKind === "judicial") {
-  const judicialComp = computeJudicialComparison(userVector, contest.id, ballotData.candidates);
-  // Returns proximity on 4 dimensions: text_vs_purpose, restraint_vs_review, precedent, procedural_strictness
-}
+const source: Source = {
+  id: "src-live-test-1",
+  contestId: "contest-tx-house-49",
+  candidateId: "cand-hinojosa",
+  type: "questionnaire",
+  url: "https://apps.texastribune.org/features/2026/texas-voter-guide/",
+  outlet: "texas_tribune",
+  fetchedAt: "2026-10-24",
+  contentHash: "hash-live-test",
+  originalText: candidateRawText, // MUST be untouched for UTF-16 quote verification
+  text: candidateRawText,
+};
 ```
 
 ---
 
-## 4. Pipeline Execution Command
+## 3. What the Pipeline Does
 
-To run the pipeline and generate a new published release:
+The pipeline turns noisy, biased raw web text into clean, cited, masked data through 7 stages:
+
+1. **Deduplicates**: Two news outlets repeating the exact same wire story count as 1 source, not 2 (`(url, contentHash)` deduplication).
+2. **Masks**: Redacts names and party affiliations into an auditable `ClassificationInput` so AI models evaluate policy positions objectively without party bias.
+3. **Classifies with JEV**: Scores where the candidate stands on a `-1.0` to `+1.0` scale for each issue axis with full probability distributions.
+4. **Compares Words vs. Deeds**: Checks if how a politician voted in the legislature matches what they say on their campaign site (computes Says vs. Does gaps and dark-money spending ratios).
+5. **Generates Plans with Gemini**: Summarizes candidate proposals into 6 slots (*Goal, Mechanism, Cost, Funding, Timeline, Who Acts*).
+6. **Validates Deterministically**:
+   * Drops any generated sentence that doesn't cite an exact quote.
+   * Checks quotes character-for-character against the original source text (`validateQuote`).
+   * **Leak Gate (`identityLeakGate`)**: Rejects the release if any real candidate name, party name, or donor name accidentally slipped into the text.
+7. **Publishes Release**: Assembles the snapshot and cryptographically seals it with a canonical SHA-256 `manifestHash`.
+
+---
+
+## 4. Output of the Pipeline
+
+The output is **one versioned, frozen JSON file** (e.g., `dist/releases/release-v1.json`) containing:
+
+| Output Field | What it looks like / What it contains |
+|---|---|
+| **`release`** | Release ID (e.g. `"data-v1"`), as-of date, and a cryptographic `manifestHash` proving the data wasn't modified after publishing. |
+| **`ballot`** | The ballot style ID and the list of contest IDs a voter in that precinct will see, plus `requiresJudicialDeck`. |
+| **`contests`** | Each race on the ballot, official job description, and neutral context briefs (what supporters say vs. what opponents say). |
+| **`candidates`** | **Masked candidate profiles (`CandidateProfile[]`)**:<br>• Stances on each issue (`-1.0` to `+1.0`) with evidence strength.<br>• Platform highlights cited with evidence.<br>• Plan breakdown with a specificity score (0% to 100%).<br>• Says vs. Does gap score.<br>• Follow the money: direct vs. dark outside money ranges.<br>• **NO names, NO parties, NO photos, NO donor names.** |
+| **`cards`** | The interactive swipe cards (`PoleCard`, `TradeoffCard`, `JudicialCard`) that the voter will swipe through on their phone. |
+| **`citations`** | Every verified quote and citation referenced by the candidates. |
+
+---
+
+## 5. How the App Uses This Output
+
+* **`apps/api`**: Loads this output file and simply serves it statically over HTTP (`GET /ballot`). **Zero AI model calls happen when a user uses the app.**
+* **`apps/mobile`**:
+  1. Downloads the masked profiles and cards.
+  2. The voter swipes through the cards.
+  3. The phone calculates the user's score locally using `@ftb/types/scoring`.
+  4. The user inspects candidate plans and quotes completely blind to party or identity.
+  5. The voter taps "Reveal" at the end, and the phone calls `GET /reveal/:contestId` to finally show who the candidates were.
+
+---
+
+## 6. Contest Types & The Release Fixture
+
+A real Travis County ballot does not just contain one kind of race. Voters face three fundamentally different choices, and the app handles each with completely different rules:
+
+| Contest | Type | What is on the ballot | How the app handles it |
+|---|---|---|---|
+| **`contest-candidate-1`** | **Legislative / Executive Race** (e.g. TX House D-49) | Two or more human politicians (`cand-a`, `cand-b`) competing for one seat. | Evaluated on **policy stances** (housing, taxes, education), plan specificity, campaign money, and "Says vs. Does" voting record gaps. |
+| **`contest-measure-1`** | **Ballot Proposition / Bond** (e.g. Austin Prop A: $350M Bond) | **No candidates.** Just a policy proposal to vote YES or NO on. | Evaluated on **verbatim legal ballot text**, what YES means vs. what NO means, and financial debt/interest impact. **Never gets an alignment score or recommendation** (Invariant 14). |
+| **`contest-judicial-1`** | **Judicial Race** (e.g. 201st District Court Judge) | Two attorneys/judges (`judge-a`, `judge-b`) running for judge. | **Judges are NEVER scored on policy issues** (Invariant 13). Their `stances` are empty. Instead, they are evaluated on **judicial philosophy** (textualism, precedent) and objective qualifications (years licensed, board certification, Austin Bar ratings). |
+
+### What is `"requiresJudicialDeck": true`?
+When a voter's ballot contains a contested judicial race, the ballot sets `"requiresJudicialDeck": true`. 
+The mobile app sees this flag and inserts the 4-card **Judicial Philosophy Mini-Deck** (`JudicialCard[]`) into the onboarding flow:
+* **Text vs. Purpose**: Literal statutory text vs. legislative purpose.
+* **Restraint vs. Review**: Deferring to lawmakers vs. active judicial review.
+* **Precedent**: Adhering to past rulings vs. willingness to overturn errors.
+* **Procedural Strictness**: Strict procedural rules vs. flexible justice.
+
+This builds a separate **Judicial Vector** so voters evaluate judges on legal interpretation rather than partisan policy.
+
+---
+
+## 7. Configuration Files Reference
+
+The pipeline relies on three versioned configuration files in `config/`:
+1. **`config/issues.yaml`**: The hierarchical taxonomy of policy axes (e.g., `housing.zoning`, `economy.taxation`, `safety.policing`) with balanced, neutrally worded negative and positive poles.
+2. **`config/authority.yaml`**: The legal power matrix mapping each office to its actual legal jurisdiction (`direct`, `influence`, or `none`). Used to flag candidates promising things beyond their office's authority.
+3. **`config/sources.yaml`**: The media allowlist specifying vetted questionnaire providers (VOTE411, Texas Tribune, KUT), local news outlets, and IFCN fact-checkers.
+
+---
+
+## 8. Pipeline Execution Commands
 
 ```sh
+# Run the pipeline to validate and publish releases
 pnpm -F @ftb/pipeline start
-```
 
-This compiles, classifies, validates, and seals the output into `packages/pipeline/dist/releases/{releaseId}.json`.
+# Run live AI pipeline test with real Gemini/JEV keys
+export GEMINI_API_KEY="your-gemini-key"
+pnpm -F @ftb/pipeline exec tsx src/test-live-ai.ts
+
+# Run all test suites
+pnpm test
+```
