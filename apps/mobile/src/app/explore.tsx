@@ -214,7 +214,7 @@ function DeckDone() {
       <Title>The names can wait.</Title>
       <Body>
         Every contest on this sample is still ahead. The evidence comes first. A summary does not
-        pick a winner.
+        choose for you.
       </Body>
       {demoBallot.cards.map((card) => {
         const swipe = session.swipes.find((item) => item.cardId === card.id);
