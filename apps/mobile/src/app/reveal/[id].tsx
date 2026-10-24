@@ -15,7 +15,7 @@ import {
 } from "@/components/ui";
 import { contestById, demoBallot, identityFor, issueById } from "@/fixtures/travisDemo";
 import { useSession } from "@/session";
-import { colors, serif } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 export default function RevealScreen() {
   const session = useSession();
@@ -51,11 +51,13 @@ export default function RevealScreen() {
           }}
         />
       }
+      header={
+        <TopBar
+          onBack={() => router.navigate({ pathname: "/contest/[id]", params: { id: contest.id } })}
+          backLabel="Evidence"
+        />
+      }
     >
-      <TopBar
-        onBack={() => router.navigate({ pathname: "/contest/[id]", params: { id: contest.id } })}
-        backLabel="Evidence"
-      />
       <SampleMark />
       <Kicker>{contest.title}</Kicker>
       <Title>The mask is off.</Title>
@@ -106,9 +108,15 @@ function shareMessage(swipes: { cardId: string; starred: boolean; kind: string }
 }
 
 const styles = StyleSheet.create({
-  was: { color: colors.inkSoft, fontSize: 14, lineHeight: 20 },
-  name: { fontFamily: serif, color: colors.ink, fontSize: 28, lineHeight: 34, marginTop: 4 },
-  party: { color: colors.ink, fontSize: 16, marginTop: 4 },
-  cardKicker: { fontFamily: serif, color: colors.forest, fontSize: 18, marginBottom: 8 },
-  cardLine: { color: colors.ink, fontSize: 16, lineHeight: 24 },
+  was: { fontFamily: fonts.body, color: colors.inkSoft, fontSize: 14, lineHeight: 20 },
+  name: {
+    fontFamily: fonts.display,
+    color: colors.heading,
+    fontSize: 30,
+    lineHeight: 34,
+    marginTop: 4,
+  },
+  party: { fontFamily: fonts.bold, color: colors.line, fontSize: 16, marginTop: 4 },
+  cardKicker: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 19, marginBottom: 8 },
+  cardLine: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 24 },
 });

@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@expo-google-fonts/alegreya-sans": "^0.4.2",
+    "@expo-google-fonts/im-fell-english": "^0.4.0",
+    "@expo-google-fonts/im-fell-english-sc": "^0.4.0",
     "@ftb/types": "workspace:*",
     "expo": "~58.0.19",
     "expo-constants": "~58.0.13",
     "expo-dev-client": "~58.0.15",
     "expo-file-system": "~58.0.11",
+    "expo-font": "~58.0.10",
     "expo-linking": "~58.0.14",
     "expo-router": "~58.0.26",
     "expo-secure-store": "~58.0.2",
@@ -19,6 +23,7 @@
     "react-native": "0.88.0",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-screens": "~4.30.0",
+    "react-native-svg": "15.16.0",
     "react-native-view-shot": "6.1.1",
     "react-native-web": "^0.21.4"
   },
@@ -28,6 +33,7 @@
   },
   "scripts": {
     "start": "expo start",
+    "go": "expo start --go",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",

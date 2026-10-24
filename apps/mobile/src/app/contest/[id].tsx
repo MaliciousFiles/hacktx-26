@@ -20,7 +20,7 @@ import { formatMoney } from "@/format";
 import { JUDICIAL_LABEL, officeKindLabel } from "@/labels";
 import { judicialAnswers, polePositions } from "@/matching";
 import { useSession } from "@/session";
-import { colors, serif } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 export default function ContestScreen() {
   const session = useSession();
@@ -61,8 +61,8 @@ export default function ContestScreen() {
           />
         ) : undefined
       }
+      header={<TopBar onBack={() => router.navigate("/ballot")} backLabel="Ballot" />}
     >
-      <TopBar onBack={() => router.navigate("/ballot")} backLabel="Ballot" />
       <SampleMark />
       <Kicker>{officeKindLabel(contest.officeKind)}</Kicker>
       <Title>{contest.title}</Title>
@@ -99,12 +99,12 @@ function Measure({ contest }: { contest: Contest }) {
         title="No recommendation"
         body="A proposition never gets a vote from this app. The connection to your cards is withheld unless a reviewed link exists. This sample does not claim one."
       />
-      <Section title="Ballot language">
+      <Section title="Ballot language" icon="scroll">
         <Text style={styles.verbatim}>{measure.ballotText.text}</Text>
       </Section>
       <SlotBlock label="A yes vote" slot={measure.yesMeans} />
       <SlotBlock label="A no vote" slot={measure.noMeans} />
-      <Section title="Dollars">
+      <Section title="Dollars" icon="coins">
         <Text style={styles.copy}>
           Principal{" "}
           {measure.fiscal?.principal
@@ -142,7 +142,7 @@ function JudicialNotes() {
   const session = useSession();
   const answers = judicialAnswers(demoBallot.cards, session.swipes);
   return (
-    <Section title="What you said about judging">
+    <Section title="What you said about judging" icon="gavel">
       <Note>
         These answers are not turned into a policy match, and they do not rank the candidates.
       </Note>
@@ -183,7 +183,7 @@ function Context({ context }: { context: ContextBrief }) {
     ["Disputed or unknown", context.disputed],
   ] as const;
   return (
-    <Section title="Context">
+    <Section title="Context" icon="book">
       {blocks.map(([title, claims]) => (
         <ViewBlock key={title} title={title} empty={claims.length === 0}>
           {claims.map((claim) => (
@@ -231,13 +231,26 @@ function ViewBlock({
 }
 
 const styles = StyleSheet.create({
-  verbatim: { fontFamily: serif, color: colors.ink, fontSize: 18, lineHeight: 26 },
-  copy: { color: colors.ink, fontSize: 16, lineHeight: 23, marginTop: 6 },
-  missing: { color: colors.rose, fontSize: 16, lineHeight: 23, marginTop: 6 },
+  verbatim: {
+    fontFamily: fonts.displayItalic,
+    color: colors.ink,
+    fontSize: 18,
+    lineHeight: 26,
+  },
+  copy: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 23, marginTop: 6 },
+  missing: {
+    fontFamily: fonts.bold,
+    color: colors.rose,
+    fontSize: 16,
+    lineHeight: 23,
+    marginTop: 6,
+  },
   blockTitle: {
-    fontFamily: serif,
-    color: colors.inkSoft,
-    fontSize: 14,
-    marginTop: 12,
+    fontFamily: fonts.bold,
+    color: colors.line,
+    fontSize: 13,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginTop: 14,
   },
 });

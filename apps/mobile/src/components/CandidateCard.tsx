@@ -5,7 +5,7 @@ import { formatIsoDate, formatMoney, monogram } from "@/format";
 import { FLAG_COPY, SOURCE_LABEL } from "@/labels";
 import { proximity } from "@/matching";
 import { useSession } from "@/session";
-import { colors, serif } from "@/theme";
+import { colors, fonts, shadows } from "@/theme";
 import { Banner, Note, Section } from "@/components/ui";
 
 const PLAN_SLOTS = [
@@ -64,7 +64,7 @@ export function CandidateCard({
       )}
 
       {profile.platformHighlights.length > 0 ? (
-        <Section title="In their own record">
+        <Section title="In their own record" icon="scroll">
           {profile.platformHighlights.map((sentence) => (
             <Text key={sentence.text} style={styles.paragraph}>
               {sentence.text}
@@ -74,7 +74,7 @@ export function CandidateCard({
       ) : null}
 
       {profile.evidence.length > 0 ? (
-        <Section title="Evidence">
+        <Section title="Evidence" icon="sparkle">
           {profile.evidence.map((item) => (
             <View key={item.id} style={styles.quote}>
               <Text style={styles.quoteText}>“{item.excerpt}”</Text>
@@ -92,7 +92,7 @@ export function CandidateCard({
       ) : null}
 
       {profile.plans.length > 0 ? (
-        <Section title="Plan">
+        <Section title="Plan" icon="book">
           <Note>
             Filled slots only. This is not a score of whether the plan is true or possible.
           </Note>
@@ -129,7 +129,7 @@ export function CandidateCard({
       ) : null}
 
       {profile.credibility.flags.length > 0 ? (
-        <Section title="Worth a second look">
+        <Section title="Worth a second look" icon="info">
           {profile.credibility.flags.map((flag) => (
             <View key={`${flag.type}-${flag.issueId}`} style={styles.flag}>
               <Text style={styles.flagTitle}>{FLAG_COPY[flag.type].title}</Text>
@@ -142,7 +142,7 @@ export function CandidateCard({
       ) : null}
 
       {profile.saysVsDoes.length > 0 ? (
-        <Section title="Says and does">
+        <Section title="Says and does" icon="scale">
           {profile.saysVsDoes.map((gap) => (
             <Text key={gap.issueId} style={styles.paragraph}>
               On {issueById(gap.issueId)?.label ?? gap.issueId}, the public statements and the
@@ -153,7 +153,7 @@ export function CandidateCard({
       ) : null}
 
       {profile.judicialProfile ? (
-        <Section title="On the record">
+        <Section title="On the record" icon="gavel">
           <Text style={styles.paragraph}>
             Stated years in practice: {profile.judicialProfile.experienceYears ?? "not stated"}.
             Board certification: {profile.judicialProfile.boardCertified ? "listed" : "not listed"}.
@@ -225,7 +225,7 @@ function Money({ profile }: { profile: CandidateProfile }) {
   const funding = profile.funding;
   if (!funding) return null;
   return (
-    <Section title="Money on file">
+    <Section title="Money on file" icon="coins">
       <Text style={styles.paragraph}>
         {formatIsoDate(funding.period.start)} – {formatIsoDate(funding.period.end)}
       </Text>
@@ -265,8 +265,9 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 22,
+    borderWidth: 2,
+    borderRadius: 10,
+    boxShadow: shadows.paper,
     padding: 16,
     marginTop: 16,
   },
@@ -275,27 +276,56 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.forestSoft,
+    borderWidth: 2,
+    borderColor: colors.line,
+    backgroundColor: colors.gold,
+    boxShadow: shadows.paper,
     alignItems: "center",
     justifyContent: "center",
   },
-  monogramText: { fontFamily: serif, color: colors.forest, fontSize: 18 },
+  monogramText: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 20 },
   identityText: { flex: 1 },
-  name: { fontFamily: serif, color: colors.ink, fontSize: 22, lineHeight: 28 },
-  subtitle: { color: colors.inkSoft, fontSize: 14, lineHeight: 20, marginTop: 2 },
-  paragraph: { color: colors.ink, fontSize: 16, lineHeight: 23, marginTop: 8 },
-  detailLabel: { fontFamily: serif, color: colors.ink, fontSize: 16 },
+  name: { fontFamily: fonts.display, color: colors.heading, fontSize: 24, lineHeight: 28 },
+  subtitle: {
+    fontFamily: fonts.body,
+    color: colors.inkSoft,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 2,
+  },
+  paragraph: {
+    fontFamily: fonts.body,
+    color: colors.ink,
+    fontSize: 16,
+    lineHeight: 23,
+    marginTop: 8,
+  },
+  detailLabel: { fontFamily: fonts.smallCaps, color: colors.ink, fontSize: 16 },
   quote: {
-    backgroundColor: colors.bg,
-    borderRadius: 14,
+    backgroundColor: colors.cream,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.gold,
+    borderRadius: 6,
     padding: 12,
     marginTop: 10,
   },
-  quoteText: { fontFamily: serif, color: colors.ink, fontSize: 16, lineHeight: 23 },
-  quoteMeta: { color: colors.inkSoft, fontSize: 13, lineHeight: 18, marginTop: 8 },
+  quoteText: { fontFamily: fonts.displayItalic, color: colors.ink, fontSize: 16, lineHeight: 23 },
+  quoteMeta: {
+    fontFamily: fonts.bold,
+    color: colors.inkSoft,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 8,
+  },
   plan: { marginTop: 8 },
-  planIssue: { fontFamily: serif, color: colors.ink, fontSize: 16, marginTop: 8 },
-  missing: { color: colors.rose, fontSize: 16, lineHeight: 23, marginTop: 8 },
+  planIssue: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 16, marginTop: 8 },
+  missing: {
+    fontFamily: fonts.bold,
+    color: colors.rose,
+    fontSize: 16,
+    lineHeight: 23,
+    marginTop: 8,
+  },
   flag: { marginTop: 8 },
-  flagTitle: { fontFamily: serif, color: colors.ink, fontSize: 16 },
+  flagTitle: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 16 },
 });

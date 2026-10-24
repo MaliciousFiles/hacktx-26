@@ -1,10 +1,23 @@
 import { Redirect, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text } from "react-native";
-import { Body, Kicker, Note, SampleMark, Screen, TextButton, Title, TopBar } from "@/components/ui";
+import type { OfficeKind } from "@ftb/types";
+import { StyleSheet, Text, View } from "react-native";
+import { Icon, type IconName } from "@/components/art";
+import { Enter, PressableScale } from "@/components/motion";
+import {
+  Body,
+  IconBox,
+  Kicker,
+  Note,
+  SampleMark,
+  Screen,
+  TextButton,
+  Title,
+  TopBar,
+} from "@/components/ui";
 import { contestById, demoBallot, identityFor, orderedProfiles } from "@/fixtures/travisDemo";
 import { contestTone, officeKindLabel } from "@/labels";
 import { useSession } from "@/session";
-import { colors, serif } from "@/theme";
+import { colors, fonts, shadows } from "@/theme";
 
 export default function Ballot() {
   const session = useSession();
@@ -17,20 +30,24 @@ export default function Ballot() {
   });
 
   return (
-    <Screen>
-      <TopBar
-        onBack={() => router.navigate("/explore")}
-        backLabel="Deck"
-        action={
-          <TextButton
-            label="Start over"
-            onPress={() => {
-              session.reset();
-              router.navigate("/");
-            }}
-          />
-        }
-      />
+    <Screen
+      header={
+        <TopBar
+          onBack={() => router.navigate("/explore")}
+          backLabel="Deck"
+          action={
+            <TextButton
+              label="Start over"
+              icon="back"
+              onPress={() => {
+                session.reset();
+                router.navigate("/");
+              }}
+            />
+          }
+        />
+      }
+    >
       <SampleMark />
       <Kicker>Your ballot</Kicker>
       <Title>Every contest is here.</Title>
@@ -41,7 +58,7 @@ export default function Ballot() {
       {session.deckIndex < demoBallot.cards.length ? (
         <Note>You still have unanswered cards in the deck.</Note>
       ) : null}
-      {contests.map((contest) => {
+      {contests.map((contest, index) => {
         const profiles = orderedProfiles(contest, session.order[contest.id]);
         const objective = profiles.every(
           (profile) => profile.coverage === "objective_only" || profile.evidenceState === "none",
@@ -51,20 +68,34 @@ export default function Ballot() {
           return session.masks?.map[profile.id]?.character ?? "Masked candidate";
         });
         return (
-          <Pressable
-            key={contest.id}
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${contest.title}`}
-            onPress={() => router.push({ pathname: "/contest/[id]", params: { id: contest.id } })}
-            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-          >
-            <Text style={styles.kind}>{officeKindLabel(contest.officeKind)}</Text>
-            <Text style={styles.rowTitle}>{contest.title}</Text>
-            <Text style={styles.tone}>{contestTone(contest.officeKind, objective)}</Text>
-            <Text style={styles.names}>
-              {names.length > 0 ? names.join("  ·  ") : "No candidates"}
-            </Text>
-          </Pressable>
+          <Enter key={contest.id} kind="deal" delay={120 + index * 110}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${contest.title}`}
+              onPress={() => router.push({ pathname: "/contest/[id]", params: { id: contest.id } })}
+              depth={0.98}
+              style={styles.row}
+            >
+              <View style={styles.rowHead}>
+                <IconBox icon={OFFICE_ICONS[contest.officeKind]} />
+                <Text style={styles.kind}>{officeKindLabel(contest.officeKind)}</Text>
+                {session.revealed[contest.id] ? (
+                  <View style={styles.unmasked}>
+                    <Icon name="mask" size={14} strokeWidth={2} />
+                    <Text style={styles.unmaskedText}>unmasked</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.rowTitle}>{contest.title}</Text>
+              <Text style={styles.tone}>{contestTone(contest.officeKind, objective)}</Text>
+              <View style={styles.namesRow}>
+                <Text style={styles.names}>
+                  {names.length > 0 ? names.join("  ·  ") : "No candidates"}
+                </Text>
+                <Icon name="chevron" size={18} strokeWidth={2.4} />
+              </View>
+            </PressableScale>
+          </Enter>
         );
       })}
       <Note>Names stay behind characters until you lift the mask on a contest.</Note>
@@ -72,23 +103,60 @@ export default function Ballot() {
   );
 }
 
+const OFFICE_ICONS: Record<OfficeKind, IconName> = {
+  legislative: "house",
+  executive: "star",
+  regulatory: "scale",
+  judicial: "gavel",
+  board: "book",
+  measure: "scroll",
+};
+
 const styles = StyleSheet.create({
   row: {
     backgroundColor: colors.card,
     borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 20,
+    borderWidth: 2,
+    borderRadius: 10,
+    boxShadow: `inset 0 0 0 3px ${colors.card}, inset 0 0 0 4px ${colors.lineSoft}, ${shadows.paper}`,
     padding: 16,
-    marginTop: 14,
+    marginTop: 16,
   },
-  pressed: { opacity: 0.85 },
+  rowHead: { flexDirection: "row", alignItems: "center", gap: 10 },
+  unmasked: {
+    marginLeft: "auto",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: colors.gold,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+  },
+  unmaskedText: { fontFamily: fonts.bold, color: colors.line, fontSize: 12 },
+  namesRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
   kind: {
-    color: colors.gold,
+    fontFamily: fonts.bold,
+    color: colors.line,
     fontSize: 12,
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
-  rowTitle: { fontFamily: serif, color: colors.ink, fontSize: 24, lineHeight: 30, marginTop: 4 },
-  tone: { color: colors.forest, fontSize: 15, marginTop: 6 },
-  names: { color: colors.inkSoft, fontSize: 14, lineHeight: 20, marginTop: 8 },
+  rowTitle: {
+    fontFamily: fonts.display,
+    color: colors.heading,
+    fontSize: 25,
+    lineHeight: 30,
+    marginTop: 4,
+  },
+  tone: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 16, marginTop: 6 },
+  names: {
+    fontFamily: fonts.body,
+    color: colors.inkSoft,
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
+  },
 });

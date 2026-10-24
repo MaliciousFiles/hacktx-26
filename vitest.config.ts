@@ -5,7 +5,7 @@ export default defineConfig({
     include: [
       "packages/*/src/**/*.test.ts",
       "apps/api/src/**/*.test.ts",
-      "apps/mobile/src/lib/**/*.test.ts",
+      "apps/mobile/src/**/*.test.ts",
     ],
   },
 });

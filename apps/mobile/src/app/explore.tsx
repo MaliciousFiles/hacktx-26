@@ -1,17 +1,24 @@
-import type { JudicialCard, PoleCard, PolicyCard, Swipe } from "@ftb/types";
+import type { PolicyCard, Swipe } from "@ftb/types";
 import { Redirect, useRouter } from "expo-router";
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { Icon, PageScene, PaperDots, type IconName } from "@/components/art";
+import { Enter, Flourish, PressableScale, StampIn } from "@/components/motion";
 import {
   Body,
-  ChoiceButton,
+  GuideBubble,
+  GuideTile,
+  IconBox,
   Kicker,
-  Note,
+  Ornament,
   PrimaryButton,
   Progress,
+  Ribbon,
+  Rule,
   SampleMark,
   Screen,
-  StarButton,
   TextButton,
+  Tile,
   Title,
   TopBar,
 } from "@/components/ui";
@@ -19,11 +26,14 @@ import { demoBallot, issueById } from "@/fixtures/travisDemo";
 import { JUDICIAL_LABEL } from "@/labels";
 import { choiceText } from "@/matching";
 import { useSession } from "@/session";
-import { colors, serif } from "@/theme";
+import { colors, fonts, shadows } from "@/theme";
+
+type Option = { key: string; label: string; swipe: Swipe; selected: boolean };
 
 export default function Explore() {
   const session = useSession();
   const router = useRouter();
+  const [guide, setGuide] = useState(true);
   if (!session.started) return <Redirect href="/" />;
 
   const cards = demoBallot.cards;
@@ -34,181 +44,267 @@ export default function Explore() {
 
   const swipe = session.swipes.find((item) => item.cardId === card.id);
   const flipped = session.flips[card.id] === true;
-  const answer = (next: Swipe) => {
-    session.answer(next);
+  const starred = session.starred(card.id);
+  const options = optionsFor(card, swipe, starred, flipped);
+  const answered = swipe != null && swipe.chosen !== "skip";
+  const copy = cardCopy(card);
+  // The guide greets you on arrival, then steps aside so later pages have room.
+  const next = () => {
+    setGuide(false);
     session.setDeckIndex(session.deckIndex + 1);
   };
-  const starred = session.starred(card.id);
+  const back = () => {
+    if (session.deckIndex === 0) router.back();
+    else session.setDeckIndex(session.deckIndex - 1);
+  };
+  const skip = () => {
+    if (card.kind === "tradeoff") {
+      session.answer({ kind: "tradeoff", cardId: card.id, chosen: "skip", starred });
+    } else if (card.kind === "judicial_pole") {
+      session.answer({ kind: "judicial_pole", cardId: card.id, chosen: "skip", starred });
+    } else {
+      session.answer({ kind: "pole", cardId: card.id, chosen: "skip", starred });
+    }
+    next();
+  };
 
   return (
-    <Screen>
-      <TopBar
-        onBack={() => {
-          if (session.deckIndex === 0) router.back();
-          else session.setDeckIndex(session.deckIndex - 1);
-        }}
-        action={<TextButton label="Ballot" onPress={() => router.navigate("/ballot")} />}
-      />
-      <SampleMark />
-      <Progress index={session.deckIndex} total={cards.length} />
-      <StarButton on={starred} onPress={() => session.toggleStar(card.id)} />
-      <CardCopy card={card} />
-      <View style={styles.choices}>
+    <Screen
+      header={
+        <View pointerEvents="box-none" style={styles.header}>
+          <Ribbon label="Open the ballot" onPress={() => router.navigate("/ballot")} />
+          <Progress index={session.deckIndex} total={cards.length} />
+        </View>
+      }
+      footer={
+        <>
+          {guide ? (
+            <View style={styles.bubbleSlot}>
+              <GuideBubble key={card.id}>{copy.guide}</GuideBubble>
+            </View>
+          ) : null}
+          <View style={styles.turnRow}>
+            <View style={styles.swapNote}>
+              <Icon name="swap" size={18} />
+              <Text style={styles.swapText}>Pages swap sides{"\n"}at random.</Text>
+            </View>
+            <PrimaryButton label="Turn the page" arrow disabled={!answered} onPress={next} />
+          </View>
+        </>
+      }
+      tray={
+        <>
+          <Tile label="back" icon="back" onPress={back} accessibilityLabel="Previous card" />
+          <Tile label="skip" icon="skip" onPress={skip} accessibilityLabel="Skip this card" />
+          <Tile
+            label="matters"
+            icon="star"
+            on={starred}
+            onPress={() => session.toggleStar(card.id)}
+            accessibilityLabel={starred ? "Marked as matters to me" : "Mark as matters to me"}
+          />
+          <GuideTile on={guide} onPress={() => setGuide((value) => !value)} />
+        </>
+      }
+    >
+      <View key={card.id}>
+        <SampleMark />
+        <Enter style={styles.heading}>
+          <View style={styles.headingRow}>
+            <IconBox icon={copy.icon} />
+            <Text accessibilityRole="header" style={styles.headingTitle}>
+              {copy.title}
+            </Text>
+          </View>
+          <View style={styles.indent}>
+            <Rule />
+          </View>
+          <Text style={[styles.indent, styles.headingSub]}>
+            <Text style={styles.headingKicker}>{copy.kicker.toUpperCase()}</Text> · {copy.prompt}
+          </Text>
+        </Enter>
+
         {card.kind === "tradeoff" ? (
-          <TradeoffButtons
-            card={card}
-            flipped={flipped}
-            swipe={swipe}
-            starred={starred}
-            onAnswer={answer}
-          />
-        ) : (
-          <PoleButtons
-            card={card}
-            flipped={flipped}
-            swipe={swipe}
-            starred={starred}
-            onAnswer={answer}
-          />
-        )}
-        <TextButton
-          label="Skip"
-          onPress={() => {
-            if (card.kind === "tradeoff") {
-              answer({ kind: "tradeoff", cardId: card.id, chosen: "skip", starred });
-            } else if (card.kind === "judicial_pole") {
-              answer({ kind: "judicial_pole", cardId: card.id, chosen: "skip", starred });
-            } else {
-              answer({ kind: "pole", cardId: card.id, chosen: "skip", starred });
-            }
-          }}
-        />
+          <Enter delay={80} style={styles.tradeoff}>
+            <PaperDots color="rgba(196,110,88,0.10)" />
+            <Kicker>The goal</Kicker>
+            <Text style={styles.tradeoffText}>{card.policy}</Text>
+            <View style={styles.costRow}>
+              <View style={styles.costLine} />
+              <Text style={styles.costLabel}>at the cost of</Text>
+              <View style={styles.costLine} />
+            </View>
+            <Text style={styles.tradeoffText}>{card.cost}</Text>
+          </Enter>
+        ) : null}
+
+        <View
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Choose a page"
+          style={styles.pages}
+        >
+          {options.map((option, index) => (
+            <View key={option.key}>
+              {index === 1 ? (
+                <Enter kind="pop" delay={420} style={styles.orSeal}>
+                  <Text style={styles.orText}>or</Text>
+                </Enter>
+              ) : null}
+              <Enter kind="deal" delay={100 + index * 140}>
+                <PageChoice
+                  option={option}
+                  time={index === 0 ? "day" : "dusk"}
+                  tradeoff={card.kind === "tradeoff"}
+                  dimmed={answered && !option.selected}
+                  onPress={() => session.answer(option.swipe)}
+                />
+              </Enter>
+            </View>
+          ))}
+        </View>
       </View>
     </Screen>
   );
 }
 
-function CardCopy({ card }: { card: PolicyCard }) {
+function PageChoice({
+  option,
+  time,
+  tradeoff,
+  dimmed,
+  onPress,
+}: {
+  option: Option;
+  time: "day" | "dusk";
+  tradeoff: boolean;
+  dimmed: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Flourish kind="hop" trigger={option.selected}>
+      <PressableScale
+        accessibilityRole="radio"
+        accessibilityState={{ checked: option.selected }}
+        accessibilityLabel={option.label}
+        onPress={onPress}
+        depth={0.98}
+        style={[styles.page, option.selected && styles.pageChosen, dimmed && styles.pageDimmed]}
+      >
+        <View style={[styles.pageArt, time === "dusk" && styles.pageArtDusk]}>
+          <PaperDots />
+          <PageScene time={time} />
+          {option.selected ? (
+            <StampIn style={styles.stamp}>
+              <Icon name="check" size={14} strokeWidth={3} />
+              <Text style={styles.stampText}>chosen</Text>
+            </StampIn>
+          ) : null}
+        </View>
+        <View style={styles.pageText}>
+          <Text style={tradeoff ? styles.pageTitle : styles.pageBody}>{option.label}</Text>
+        </View>
+      </PressableScale>
+    </Flourish>
+  );
+}
+
+function optionsFor(
+  card: PolicyCard,
+  swipe: Swipe | undefined,
+  starred: boolean,
+  flipped: boolean,
+): Option[] {
+  let options: Option[];
   if (card.kind === "tradeoff") {
-    return (
-      <>
-        <Kicker>A tradeoff</Kicker>
-        <Title>Is this worth the cost?</Title>
-        <Text style={styles.policy}>{card.policy}</Text>
-        <Text style={styles.costLabel}>at the cost of</Text>
-        <Text style={styles.policy}>{card.cost}</Text>
-        <Note>Declining does not mean you oppose the goal. It means this cost is too high.</Note>
-      </>
-    );
+    const chosen = swipe?.kind === "tradeoff" ? swipe.chosen : undefined;
+    options = [
+      {
+        key: "accept",
+        label: "Worth this cost",
+        swipe: { kind: "tradeoff", cardId: card.id, chosen: "accept", starred },
+        selected: chosen === "accept",
+      },
+      {
+        key: "decline",
+        label: "Not worth this cost",
+        swipe: { kind: "tradeoff", cardId: card.id, chosen: "decline", starred },
+        selected: chosen === "decline",
+      },
+    ];
+  } else {
+    const chosen = swipe?.kind !== "tradeoff" ? swipe?.chosen : undefined;
+    options = (["a", "b"] as const).map((side) => ({
+      key: side,
+      label: side === "a" ? card.poleA : card.poleB,
+      swipe:
+        card.kind === "judicial_pole"
+          ? { kind: "judicial_pole", cardId: card.id, chosen: side, starred }
+          : { kind: "pole", cardId: card.id, chosen: side, starred },
+      selected: chosen === side,
+    }));
+  }
+  return flipped ? options.reverse() : options;
+}
+
+const ISSUE_ICONS: Record<string, IconName> = {
+  housing: "house",
+  mobility: "bus",
+  fiscal: "coins",
+};
+
+function cardIcon(card: PolicyCard): IconName {
+  if (card.kind === "tradeoff") return "scale";
+  if (card.kind === "judicial_pole") return "gavel";
+  return ISSUE_ICONS[card.issueId.split(".")[0] ?? ""] ?? "sparkle";
+}
+
+function cardTitle(card: PolicyCard): string {
+  if (card.kind === "tradeoff") return "Is this worth the cost?";
+  if (card.kind === "judicial_pole") return JUDICIAL_LABEL[card.dimension];
+  return issueById(card.issueId)?.label ?? "A choice";
+}
+
+function cardCopy(card: PolicyCard) {
+  const base = { icon: cardIcon(card), title: cardTitle(card) };
+  if (card.kind === "tradeoff") {
+    return {
+      ...base,
+      kicker: "A tradeoff",
+      prompt: "Pick the page you can live with.",
+      guide: "Declining does not mean you oppose the goal. It means this cost is too high.",
+    };
   }
   if (card.kind === "judicial_pole") {
-    return (
-      <>
-        <Kicker>Judicial philosophy</Kicker>
-        <Title>{JUDICIAL_LABEL[card.dimension]}</Title>
-        <Body>This is about how a judge reads the law, not about a policy.</Body>
-        <Note>Either side may be shown first. Skipping leaves it blank.</Note>
-      </>
-    );
+    return {
+      ...base,
+      kicker: "Judicial philosophy",
+      prompt: "Tap the page that sounds more like you.",
+      guide:
+        "This is about how a judge reads the law, not about a policy. Skipping leaves it blank.",
+    };
   }
-  return (
-    <>
-      <Kicker>{card.anchor ? "An anchor question" : "On this ballot"}</Kicker>
-      <Title>{issueById(card.issueId)?.label ?? "A choice"}</Title>
-      <Body>Two ends of one question. Either side may be shown first.</Body>
-      <Note>Skipping leaves this blank. It is not a neutral position.</Note>
-    </>
-  );
-}
-
-function PoleButtons({
-  card,
-  flipped,
-  swipe,
-  starred,
-  onAnswer,
-}: {
-  card: PoleCard | JudicialCard;
-  flipped: boolean;
-  swipe: Swipe | undefined;
-  starred: boolean;
-  onAnswer: (swipe: Swipe) => void;
-}) {
-  const sides: Array<"a" | "b"> = flipped ? ["b", "a"] : ["a", "b"];
-  return (
-    <>
-      {sides.map((side) => (
-        <ChoiceButton
-          key={side}
-          label={side === "a" ? card.poleA : card.poleB}
-          selected={swipe?.kind !== "tradeoff" && swipe?.chosen === side}
-          onPress={() => {
-            if (card.kind === "judicial_pole") {
-              onAnswer({ kind: "judicial_pole", cardId: card.id, chosen: side, starred });
-            } else {
-              onAnswer({ kind: "pole", cardId: card.id, chosen: side, starred });
-            }
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
-function TradeoffButtons({
-  card,
-  flipped,
-  swipe,
-  starred,
-  onAnswer,
-}: {
-  card: Extract<PolicyCard, { kind: "tradeoff" }>;
-  flipped: boolean;
-  swipe: Swipe | undefined;
-  starred: boolean;
-  onAnswer: (swipe: Swipe) => void;
-}) {
-  const options: Array<{ chosen: "accept" | "decline"; label: string }> = flipped
-    ? [
-        { chosen: "decline", label: "Not worth this cost" },
-        { chosen: "accept", label: "Worth this cost" },
-      ]
-    : [
-        { chosen: "accept", label: "Worth this cost" },
-        { chosen: "decline", label: "Not worth this cost" },
-      ];
-  return (
-    <>
-      {options.map((option) => (
-        <ChoiceButton
-          key={option.chosen}
-          label={option.label}
-          selected={swipe?.kind === "tradeoff" && swipe.chosen === option.chosen}
-          onPress={() =>
-            onAnswer({ kind: "tradeoff", cardId: card.id, chosen: option.chosen, starred })
-          }
-        />
-      ))}
-    </>
-  );
+  return {
+    ...base,
+    kicker: card.anchor ? "An anchor question" : "On this ballot",
+    prompt: "Tap the page that sounds more like you.",
+    guide: "Any pick is fine here. Skipping counts as no answer, never as neutral.",
+  };
 }
 
 function DeckDone() {
   const session = useSession();
   const router = useRouter();
+  const lastCard = () => session.setDeckIndex(Math.max(demoBallot.cards.length - 1, 0));
   return (
     <Screen
+      header={<TopBar onBack={lastCard} backLabel="Last card" />}
       footer={
         <>
-          <PrimaryButton label="Walk the ballot" onPress={() => router.navigate("/ballot")} />
-          <TextButton
-            label="Review the last card"
-            onPress={() => session.setDeckIndex(Math.max(demoBallot.cards.length - 1, 0))}
-          />
+          <PrimaryButton label="Walk the ballot" arrow onPress={() => router.navigate("/ballot")} />
+          <TextButton label="Review the last card" icon="back" onPress={lastCard} />
         </>
       }
     >
-      <TopBar onBack={() => session.setDeckIndex(Math.max(demoBallot.cards.length - 1, 0))} />
       <SampleMark />
       <Kicker>The deck is finished</Kicker>
       <Title>The names can wait.</Title>
@@ -216,34 +312,142 @@ function DeckDone() {
         Every contest on this sample is still ahead. The evidence comes first. A summary does not
         choose for you.
       </Body>
-      {demoBallot.cards.map((card) => {
-        const swipe = session.swipes.find((item) => item.cardId === card.id);
-        const title =
-          card.kind === "pole"
-            ? (issueById(card.issueId)?.label ?? "Choice")
-            : card.kind === "tradeoff"
-              ? "Tradeoff"
-              : JUDICIAL_LABEL[card.dimension];
-        return (
-          <Text key={card.id} style={styles.summary}>
-            {swipe?.starred ? "★ " : ""}
-            {title}: {choiceText(card, swipe)}
-          </Text>
-        );
-      })}
+      <Ornament />
+      <View style={styles.summary}>
+        {demoBallot.cards.map((card, index) => {
+          const swipe = session.swipes.find((item) => item.cardId === card.id);
+          const skipped = swipe == null || swipe.chosen === "skip";
+          return (
+            <Enter key={card.id} delay={120 + index * 80}>
+              <View style={[styles.summaryRow, index > 0 && styles.summaryDivider]}>
+                <IconBox icon={cardIcon(card)} />
+                <View style={styles.summaryText}>
+                  <Text style={styles.summaryTitle}>{cardTitle(card)}</Text>
+                  <Text style={[styles.summaryChoice, skipped && styles.summarySkipped]}>
+                    {choiceText(card, swipe)}
+                  </Text>
+                </View>
+                {swipe?.starred ? (
+                  <Icon name="star" size={20} strokeWidth={1.7} fill={colors.goldDeep} />
+                ) : null}
+              </View>
+            </Enter>
+          );
+        })}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  choices: { gap: 10, marginTop: 22 },
-  policy: { fontFamily: serif, color: colors.ink, fontSize: 22, lineHeight: 30, marginTop: 8 },
-  costLabel: {
-    color: colors.gold,
-    fontSize: 13,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    marginTop: 14,
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingLeft: 10,
+    // The ribbon hangs from the top edge, over the gilded corner.
+    marginTop: -14,
   },
-  summary: { color: colors.ink, fontSize: 16, lineHeight: 23, marginTop: 14 },
+  heading: { gap: 7, marginBottom: 4 },
+  headingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  headingTitle: {
+    flex: 1,
+    fontFamily: fonts.display,
+    color: colors.heading,
+    fontSize: 29,
+    lineHeight: 33,
+  },
+  indent: { marginLeft: 44 },
+  headingSub: { fontFamily: fonts.body, color: colors.ink, fontSize: 15, lineHeight: 20 },
+  headingKicker: { fontFamily: fonts.bold, color: colors.line, letterSpacing: 0.6 },
+  tradeoff: {
+    overflow: "hidden",
+    backgroundColor: colors.cream,
+    borderColor: colors.line,
+    borderWidth: 2,
+    borderRadius: 10,
+    boxShadow: shadows.paper,
+    padding: 14,
+    marginTop: 16,
+  },
+  tradeoffText: { fontFamily: fonts.display, color: colors.ink, fontSize: 20, lineHeight: 26 },
+  costRow: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 10 },
+  costLine: { flex: 1, height: 1.5, backgroundColor: colors.lineSoft },
+  costLabel: { fontFamily: fonts.displayItalic, color: colors.line, fontSize: 16 },
+  pages: { marginTop: 18, paddingHorizontal: 2, paddingBottom: 8 },
+  page: {
+    borderWidth: 2,
+    borderColor: colors.line,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: colors.page,
+    boxShadow: shadows.paper,
+  },
+  pageChosen: { boxShadow: shadows.chosen },
+  pageDimmed: { opacity: 0.62, boxShadow: "none" },
+  pageArt: { backgroundColor: colors.page, borderBottomWidth: 2, borderBottomColor: colors.line },
+  pageArtDusk: { backgroundColor: "#EBC2B4" },
+  stamp: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    height: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingLeft: 9,
+    paddingRight: 12,
+    borderRadius: 15,
+    backgroundColor: colors.gold,
+    borderWidth: 2,
+    borderColor: colors.line,
+    boxShadow: shadows.paper,
+  },
+  stampText: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 16, marginTop: -2 },
+  pageText: {
+    backgroundColor: colors.card,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
+  pageTitle: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 20, lineHeight: 24 },
+  pageBody: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 22 },
+  orSeal: {
+    alignSelf: "center",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginVertical: -12,
+    zIndex: 2,
+    backgroundColor: colors.cream,
+    borderWidth: 2,
+    borderColor: colors.line,
+    boxShadow: `0 0 0 4px ${colors.bg}, 0 2px 0 4px ${colors.bevel}`,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  orText: { fontFamily: fonts.display, color: colors.line, fontSize: 18, marginTop: -3 },
+  bubbleSlot: { alignSelf: "flex-end", maxWidth: 280, marginBottom: 8 },
+  turnRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  swapNote: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
+  swapText: { fontFamily: fonts.body, color: colors.ink, fontSize: 14, lineHeight: 18 },
+  summary: {
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 2,
+    borderRadius: 10,
+    boxShadow: shadows.paper,
+    paddingHorizontal: 14,
+  },
+  summaryRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
+  summaryDivider: { borderTopWidth: 1.5, borderTopColor: colors.lineSoft, borderStyle: "dashed" },
+  summaryText: { flex: 1, gap: 2 },
+  summaryTitle: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 18 },
+  summaryChoice: { fontFamily: fonts.body, color: colors.ink, fontSize: 15, lineHeight: 20 },
+  summarySkipped: { color: colors.inkSoft, fontFamily: fonts.displayItalic },
 });
