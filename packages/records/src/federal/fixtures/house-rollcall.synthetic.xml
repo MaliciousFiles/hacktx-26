@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC miniature roll call. Not an actual vote or a claim about these IDs.
+     Shape reference: https://clerk.house.gov/evs/2025/roll007.xml -->
+<rollcall-vote>
+  <vote-metadata>
+    <congress>119</congress>
+    <session>1st</session>
+    <chamber>U.S. House of Representatives</chamber>
+    <rollcall-num>7</rollcall-num>
+    <legis-num>H R 42</legis-num>
+    <vote-question>On Motion to Recommit</vote-question>
+    <vote-type>YEA-AND-NAY</vote-type>
+    <vote-result>Failed</vote-result>
+    <action-date>9-Jan-2025</action-date>
+    <vote-desc>Synthetic Clean Water Measure</vote-desc>
+    <vote-totals>
+      <totals-by-party>
+        <party>Not classification input</party>
+        <yea-total>999</yea-total>
+      </totals-by-party>
+      <totals-by-vote>
+        <yea-total>1</yea-total>
+        <nay-total>1</nay-total>
+        <present-total>1</present-total>
+        <not-voting-total>1</not-voting-total>
+      </totals-by-vote>
+    </vote-totals>
+  </vote-metadata>
+  <vote-data>
+    <recorded-vote>
+      <legislator name-id="C001131" party="DO-NOT-PROJECT" state="TX" role="legislator">Same Surname</legislator>
+      <vote>Nay</vote>
+    </recorded-vote>
+    <recorded-vote>
+      <legislator name-id="C001132" party="OTHER" state="TX" role="legislator">Same Surname</legislator>
+      <vote>Yea</vote>
+    </recorded-vote>
+    <recorded-vote>
+      <legislator name-id="C001133" party="OTHER">Present Member</legislator>
+      <vote>Present</vote>
+    </recorded-vote>
+    <recorded-vote>
+      <legislator name-id="C001134" party="OTHER">Nonvoting Member</legislator>
+      <vote>Not Voting</vote>
+    </recorded-vote>
+  </vote-data>
+</rollcall-vote>

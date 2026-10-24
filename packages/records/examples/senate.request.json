@@ -1,0 +1,10 @@
+{
+  "candidate": {
+    "id": "example-cruz",
+    "name": "Ted Cruz",
+    "identifiers": { "bioguide": "C001098" }
+  },
+  "position": { "office": "us_senate", "jurisdiction": "us/tx" },
+  "month": 11,
+  "year": 2026
+}

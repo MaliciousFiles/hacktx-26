@@ -1,0 +1,6 @@
+{
+  "candidate": { "id": "example-casar", "name": "Greg Casar" },
+  "position": { "office": "us_house", "jurisdiction": "us/tx", "district": "37" },
+  "month": 11,
+  "year": 2026
+}

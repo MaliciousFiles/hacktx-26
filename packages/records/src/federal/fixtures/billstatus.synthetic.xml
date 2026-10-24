@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC bill and sponsorships, not a claim about any real official.
+     Shape reference: https://www.govinfo.gov/bulkdata/BILLSTATUS/119/hr/BILLSTATUS-119hr1.xml -->
+<billStatus>
+  <version>3.0.0</version>
+  <bill>
+    <congress>119</congress><type>HR</type><number>42</number>
+    <introducedDate>2025-01-09</introducedDate>
+    <title>Synthetic Later Display Title</title>
+    <titles>
+      <item><titleType>Official Title as Enacted</titleType><titleTypeCode>10</titleTypeCode><title>Synthetic Later Display Title</title></item>
+      <item><titleType>Official Title as Introduced</titleType><titleTypeCode>6</titleTypeCode><title>Synthetic Clean Water Measure</title></item>
+    </titles>
+    <sponsors><item><bioguideId>C001131</bioguideId><fullName>Same Surname [DO-NOT-PROJECT]</fullName><party>DO-NOT-PROJECT</party><isByRequest>N</isByRequest></item></sponsors>
+    <cosponsors>
+      <item><bioguideId>C001132</bioguideId><fullName>Same Surname [OTHER]</fullName><sponsorshipDate>2025-03-15</sponsorshipDate><isOriginalCosponsor>False</isOriginalCosponsor></item>
+      <item><bioguideId>C001133</bioguideId><sponsorshipDate>2025-11-01</sponsorshipDate></item>
+    </cosponsors>
+    <actions>
+      <item><actionDate>2025-01-09</actionDate><text>Introduced in House</text><type>IntroReferral</type></item>
+      <item>
+        <actionDate>2025-07-01</actionDate><text>Passed House by recorded vote.</text>
+        <recordedVotes><recordedVote><rollNumber>190</rollNumber><url>https://clerk.house.gov/evs/2025/roll190.xml</url></recordedVote></recordedVotes>
+      </item>
+      <item><actionDate>2025-08-01</actionDate><text>Signed by President.</text><type>President</type></item>
+      <item><actionDate>2025-12-01</actionDate><text>FUTURE: Later action must not become historical context.</text></item>
+    </actions>
+    <summaries><billSummaries><item><actionDate>2025-12-01</actionDate><versionCode>49</versionCode><text>FUTURE: A later enacted summary, not introduction text.</text></item></billSummaries></summaries>
+  </bill>
+</billStatus>

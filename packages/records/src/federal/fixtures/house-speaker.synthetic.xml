@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC miniature named-choice election; not an actual vote.
+     Shape reference: https://clerk.house.gov/evs/2025/roll002.xml -->
+<rollcall-vote>
+  <vote-metadata>
+    <congress>119</congress>
+    <chamber>U.S. House of Representatives</chamber>
+    <rollcall-num>2</rollcall-num>
+    <vote-question>Election of the Speaker</vote-question>
+    <vote-type>YEA-AND-NAY</vote-type>
+    <action-date>3-Jan-2025</action-date>
+    <vote-desc/>
+    <vote-totals>
+      <totals-by-candidate><candidate>Candidate Alpha</candidate><candidate-total>1</candidate-total></totals-by-candidate>
+      <totals-by-candidate><candidate>Candidate Beta</candidate><candidate-total>1</candidate-total></totals-by-candidate>
+      <totals-by-candidate><candidate>Present</candidate><candidate-total>1</candidate-total></totals-by-candidate>
+      <totals-by-candidate><candidate>Not Voting</candidate><candidate-total>0</candidate-total></totals-by-candidate>
+    </vote-totals>
+  </vote-metadata>
+  <vote-data>
+    <recorded-vote><legislator name-id="C001131" party="DO-NOT-PROJECT">Synthetic Member</legislator><vote>Candidate Alpha</vote></recorded-vote>
+    <recorded-vote><legislator name-id="C001132">Other Member</legislator><vote>Candidate Beta</vote></recorded-vote>
+    <recorded-vote><legislator name-id="C001133">Third Member</legislator><vote>Present</vote></recorded-vote>
+  </vote-data>
+</rollcall-vote>

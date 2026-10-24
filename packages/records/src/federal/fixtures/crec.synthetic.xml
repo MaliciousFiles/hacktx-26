@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC miniature MODS granule, not actual votes or claims about these IDs.
+     Verified official shape reference (no API key):
+     https://www.govinfo.gov/metadata/granule/CREC-2025-07-23/CREC-2025-07-23-pt1-PgS4581-2/mods.xml -->
+<mods:mods xmlns:mods="http://www.loc.gov/mods/v3" ID="synthetic-granule">
+  <mods:extension><collectionCode>CREC</collectionCode><dateIngested>2025-09-03</dateIngested></mods:extension>
+  <mods:titleInfo><mods:title>Synthetic Senate Proceedings</mods:title></mods:titleInfo>
+  <mods:extension>
+    <granuleDate>2025-07-23</granuleDate>
+    <chamber>SENATE</chamber>
+    <congVote chamber="SENATE" congress="119" number="426" yescount="1" nocount="1" nvcount="1" presentcount="1">
+      <question>On the Cloture Motion (Synthetic Nomination)</question>
+      <result>Cloture Motion Agreed to</result>
+      <inDailyDigest>false</inDailyDigest>
+      <congMember bioGuideId="C001098" role="VOTED YES" party="DO-NOT-PROJECT" state="TX"><name>Same Surname</name></congMember>
+      <congMember bioGuideId="C001099" role="VOTED NO" party="OTHER"><name>Same Surname</name></congMember>
+      <congMember bioGuideId="C001100" role="PRESENT - P"><name>Third Member</name></congMember>
+      <congMember bioGuideId="C001101" role="NOT VOTING - NV"><name>Fourth Member</name></congMember>
+    </congVote>
+    <congVote chamber="SENATE" congress="119" number="427" yescount="0" nocount="1" nvcount="0">
+      <question>On Confirmation (Synthetic Nomination)</question>
+      <voteDate>2025-07-22</voteDate>
+      <inDailyDigest>false</inDailyDigest>
+      <congMember bioGuideId="C001098" role="VOTED NO" party="DO-NOT-PROJECT"><name>Same Surname</name></congMember>
+    </congVote>
+    <congMember bioGuideId="C001102" role="SPEAKING" party="SPEAKER-PARTY"><name>Not a voter</name></congMember>
+  </mods:extension>
+  <mods:relatedItem type="host">
+    <mods:extension>
+      <granuleDate>2099-01-01</granuleDate>
+      <congVote chamber="SENATE" congress="119" number="999" yescount="500" nocount="0" nvcount="0">
+        <congMember role="VOTED YES"/>
+      </congVote>
+    </mods:extension>
+  </mods:relatedItem>
+</mods:mods>

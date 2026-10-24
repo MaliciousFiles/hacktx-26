@@ -1,0 +1,6 @@
+{
+  "candidate": { "id": "example-buckley", "name": "Brad Buckley" },
+  "position": { "office": "tx_house", "jurisdiction": "us/tx", "district": "54" },
+  "month": 11,
+  "year": 2026
+}
