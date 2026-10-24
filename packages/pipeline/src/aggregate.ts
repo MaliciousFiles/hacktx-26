@@ -34,6 +34,8 @@ export interface AggregateInput {
   entities: Map<string, Entity>;
   /** ISO date string — the release's fixed reference date for recency decay. */
   asOfDate: string;
+  /** Reviewed event grouping supplied by the batch runner (not mention counts). */
+  eventIds?: Record<string, string>;
 }
 
 const SUFFICIENT_ISSUES = 3;
@@ -49,8 +51,7 @@ function recencyDecay(eventDate: EventDate, asOfDate: string): Prob {
   const date = eventDate.date;
   if (!date) return UNDATED_WEIGHT;
   const msPerYear = 1000 * 60 * 60 * 24 * 365.25;
-  const ageYears =
-    Math.max(0, new Date(asOfDate).getTime() - new Date(date).getTime()) / msPerYear;
+  const ageYears = Math.max(0, new Date(asOfDate).getTime() - new Date(date).getTime()) / msPerYear;
   // Half-life of 4 years
   return Math.pow(0.5, ageYears / 4);
 }
@@ -84,6 +85,7 @@ function aggregateStances(
   evidence: Evidence[],
   actions: OfficialAction[],
   asOfDate: string,
+  eventIds: Record<string, string> = {},
 ): Record<IssueId, StanceAgg> {
   const issueGroups = new Map<IssueId, Evidence[]>();
   for (const ev of evidence) {
@@ -112,9 +114,16 @@ function aggregateStances(
     const position: Position = totalWeight > 0 ? weightedPos / totalWeight : 0;
 
     // evidenceStrength = distinct source breadth + recency + agreement (not model confidence)
-    const distinctSources = new Set(evs.map((e) => e.sourceId)).size;
-    const avgConfidence = evs.reduce((s, e) => s + e.distribution.confidence, 0) / evs.length;
-    const evidenceStrength = Math.min(1, (distinctSources / 3) * 0.6 + avgConfidence * 0.4);
+    const distinctEvents = new Set(evs.map((e) => eventIds[e.id] ?? e.sourceId)).size;
+    const meanPosition = evs.reduce((sum, ev) => sum + ev.position, 0) / evs.length;
+    const spread = Math.sqrt(
+      evs.reduce((sum, ev) => sum + (ev.position - meanPosition) ** 2, 0) / evs.length,
+    );
+    const agreement = 1 - Math.min(1, spread);
+    const freshness =
+      evs.reduce((sum, ev) => sum + recencyDecay(ev.eventDate, asOfDate), 0) / evs.length;
+    const evidenceStrength =
+      Math.min(1, distinctEvents / 3) * (0.5 + 0.25 * freshness + 0.25 * agreement);
 
     const bySourceTypeMean: Partial<Record<SourceType, Position>> = {};
     for (const [type, positions] of Object.entries(bySourceType)) {
@@ -132,6 +141,7 @@ function aggregateStances(
 
 function computeEvidenceState(
   evidence: Evidence[],
+  eventIds: Record<string, string> = {},
 ): { overall: EvidenceState; byIssue: Record<IssueId, EvidenceState> } {
   const issueGroups = new Map<IssueId, Evidence[]>();
   for (const ev of evidence) {
@@ -142,7 +152,7 @@ function computeEvidenceState(
 
   const byIssue: Record<IssueId, EvidenceState> = {};
   for (const [issueId, evs] of issueGroups) {
-    const distinctSources = new Set(evs.map((e) => e.sourceId)).size;
+    const distinctSources = new Set(evs.map((e) => eventIds[e.id] ?? e.sourceId)).size;
     if (distinctSources >= SUFFICIENT_EVENTS_PER_ISSUE) byIssue[issueId] = "sufficient";
     else if (evs.length > 0) byIssue[issueId] = "thin";
     else byIssue[issueId] = "none";
@@ -172,7 +182,9 @@ function computeSaysVsDoes(
     const voiceEvs = evidence.filter((e) => e.issueId === issueId && e.kind === "voice");
     const actionEvs = evidence.filter((e) => e.issueId === issueId && e.kind === "action");
     const socialEvs = evidence.filter(
-      (e) => e.issueId === issueId && (e.sourceType === "social_post" || e.sourceType === "social_snippet"),
+      (e) =>
+        e.issueId === issueId &&
+        (e.sourceType === "social_post" || e.sourceType === "social_snippet"),
     );
 
     if (actionEvs.length < 1 || voiceEvs.length < 1) continue; // need both to compute gap
@@ -216,17 +228,17 @@ function aggregateFunding(
 
   const direct = flows
     .filter((f) => f.kind === "contribution" || f.kind === "transfer")
-    .reduce(
-      (acc, f) => ({ min: acc.min + f.amount.min, max: acc.max + f.amount.max }),
-      { min: 0, max: 0 },
-    );
+    .reduce((acc, f) => ({ min: acc.min + f.amount.min, max: acc.max + f.amount.max }), {
+      min: 0,
+      max: 0,
+    });
 
   const outside = flows
     .filter((f) => f.kind === "independent_expenditure" || f.kind === "electioneering")
-    .reduce(
-      (acc, f) => ({ min: acc.min + f.amount.min, max: acc.max + f.amount.max }),
-      { min: 0, max: 0 },
-    );
+    .reduce((acc, f) => ({ min: acc.min + f.amount.min, max: acc.max + f.amount.max }), {
+      min: 0,
+      max: 0,
+    });
 
   const fcc = flows
     .filter((f) => f.kind === "ad_buy" && f.sourceUrl.includes("publicfiles.fcc.gov"))
@@ -300,7 +312,11 @@ function aggregateFunding(
     ads: { fcc, meta, google },
     traced: {
       receipts: { itemized, unitemizedSmall, pacPassThrough },
-      outside: { disclosed: { min: outside.min - dark.min, max: outside.max - dark.max }, dark, unresolved: { min: 0, max: 0 } },
+      outside: {
+        disclosed: { min: outside.min - dark.min, max: outside.max - dark.max },
+        dark,
+        unresolved: { min: 0, max: 0 },
+      },
     },
     topIndustries: [], // populated separately when entity industry data is available
   };
@@ -319,13 +335,22 @@ function aggregateFunding(
  * saysVsDoes, funding). Caller fills in generated fields (platformHighlights, plans, etc.)
  * from generate.ts.
  */
-export function aggregateCandidate(input: AggregateInput): Omit<
+export function aggregateCandidate(
+  input: AggregateInput,
+): Omit<
   CandidateProfile,
-  "platformHighlights" | "plans" | "credibility" | "promiseKept" | "truthfulness" | "bipartisanship" | "judicialProfile"
+  | "platformHighlights"
+  | "plans"
+  | "credibility"
+  | "promiseKept"
+  | "truthfulness"
+  | "bipartisanship"
+  | "judicialProfile"
 > {
-  const stances = aggregateStances(input.evidence, input.actions, input.asOfDate);
+  const stances = aggregateStances(input.evidence, input.actions, input.asOfDate, input.eventIds);
   const { overall: evidenceState, byIssue: issueEvidenceState } = computeEvidenceState(
     input.evidence,
+    input.eventIds,
   );
   const coverage = evidenceState === "none" ? "objective_only" : "full";
 
@@ -360,6 +385,12 @@ export function aggregateCandidate(input: AggregateInput): Omit<
     ...(funding ? { funding } : {}),
   } as Omit<
     CandidateProfile,
-    "platformHighlights" | "plans" | "credibility" | "promiseKept" | "truthfulness" | "bipartisanship" | "judicialProfile"
+    | "platformHighlights"
+    | "plans"
+    | "credibility"
+    | "promiseKept"
+    | "truthfulness"
+    | "bipartisanship"
+    | "judicialProfile"
   >;
 }

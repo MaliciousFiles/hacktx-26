@@ -109,7 +109,7 @@ describe("blueskyFinder", () => {
 
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
-      id: "src-bluesky-p1",
+      id: expect.stringMatching(/^src-bluesky-p1-/),
       type: "social_post",
       outlet: "bluesky",
       url: "https://bsky.app/profile/fairycandidate.bsky.social/post/p1",
@@ -268,6 +268,27 @@ describe("youtubeFinder", () => {
 });
 
 describe("scrapeSocial", () => {
+  it("rejects unverified accounts without touching the network", async () => {
+    let calls = 0;
+    const f = async () => {
+      calls++;
+      return Response.json({ feed: [] });
+    };
+    const result = await scrapeSocial(
+      [
+        {
+          contestId: "c",
+          candidateId: "a",
+          accounts: [{ platform: "bluesky", handle: "a.bsky.social", verifiedVia: "" }],
+        },
+      ],
+      window,
+      socialFinders({}, { fetchedAt, maxItems: 10, fetch: f }),
+    );
+    expect(calls).toBe(0);
+    expect(result.report.find((row) => row.platform === "bluesky")?.status).toBe("error");
+  });
+
   it("reports every (candidate, platform) and gives every candidate the same window", async () => {
     const windows: unknown[] = [];
     const f = fakeFetch([["getAuthorFeed", { feed: [] }]]);

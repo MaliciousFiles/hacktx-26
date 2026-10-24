@@ -41,12 +41,26 @@ function action(over: Partial<OfficialAction> = {}): OfficialAction {
 function research(actions: OfficialAction[], coverageStatus: "complete" | "partial" = "complete") {
   return async (): Promise<HistoryResearchResult> =>
     ({
-      request: { candidate: target.candidate, position: { office: "us_senate", jurisdiction: "us/tx" }, month: 11, year: 2026 },
+      request: {
+        candidate: target.candidate,
+        position: { office: "us_senate", jurisdiction: "us/tx" },
+        month: 11,
+        year: 2026,
+      },
       actions,
       plan: { sources: [] },
       rationale: [],
       gaps: [],
-      coverage: [{ source: "s", status: coverageStatus, reason: "r", actionCount: actions.length, since: "2015-01-01", before: "2026-11-01" }],
+      coverage: [
+        {
+          source: "s",
+          status: coverageStatus,
+          reason: "r",
+          actionCount: actions.length,
+          since: "2015-01-01",
+          before: "2026-11-01",
+        },
+      ],
       snapshots: [],
       identityNotes: [],
     }) as unknown as HistoryResearchResult;
@@ -65,9 +79,17 @@ describe("targetFromContest", () => {
 
 describe("scoreDecision", () => {
   it("scores yes/author as +1 and no as -1", () => {
-    expect(scoreDecision(action({ stance: "yes" }))).toMatchObject({ scorable: true, direction: 1 });
-    expect(scoreDecision(action({ stance: "author", type: "authored" }))).toMatchObject({ direction: 1 });
-    expect(scoreDecision(action({ stance: "no" }))).toMatchObject({ scorable: true, direction: -1 });
+    expect(scoreDecision(action({ stance: "yes" }))).toMatchObject({
+      scorable: true,
+      direction: 1,
+    });
+    expect(scoreDecision(action({ stance: "author", type: "authored" }))).toMatchObject({
+      direction: 1,
+    });
+    expect(scoreDecision(action({ stance: "no" }))).toMatchObject({
+      scorable: true,
+      direction: -1,
+    });
   });
   it("never scores advisory/non-personal acts, abstentions, n/a or consent", () => {
     expect(scoreDecision(action({ type: "legal_opinion", stance: "n/a" })).scorable).toBe(false);
@@ -88,9 +110,17 @@ describe("actionToSource", () => {
       candidateId: "cand-1",
       url: "https://example.test/hb1",
       publishedAt: "2024-05-01",
+      eventDate: { date: "2024-05-01", basis: "official_record", precision: "day" },
     });
     expect(s.originalText).toContain("HB 1");
     expect(s.originalText).toContain("cut property taxes");
+  });
+  it("does not label a document date as verified action timing", () => {
+    expect(actionToSource(action({ dateBasis: "document_date" }), "contest-1").eventDate).toEqual({
+      date: "2024-05-01",
+      basis: "published",
+      precision: "day",
+    });
   });
 });
 
@@ -155,7 +185,11 @@ describe("classifyActions", () => {
     expect(byId.yes?.position).toBe(0.8);
     expect(byId.no?.position).toBe(-0.8);
     expect(byId.no?.distribution.probs).toEqual({ strong_negative: 1 });
-    expect(byId.yes).toMatchObject({ kind: "action", date: "2024-05-01", isOwnSpeech: 0 });
+    expect(byId.yes).toMatchObject({
+      kind: "action",
+      eventDate: { date: "2024-05-01", basis: "official_record", precision: "day" },
+      isOwnSpeech: 0,
+    });
     expect(seen.every((t) => !t.includes("Paxton"))).toBe(true);
     expect(notScored).toEqual([
       { actionId: "opinion", reason: "type:legal_opinion" },
@@ -175,37 +209,53 @@ describe("classifyActions", () => {
 
 describe("collectCandidateRecords", () => {
   it("returns sources and flags partial coverage as incomplete", async () => {
-    const r = await collectCandidateRecords(target, { month: 11, year: 2026 }, { research: research([action()], "partial") });
+    const r = await collectCandidateRecords(
+      target,
+      { month: 11, year: 2026 },
+      { research: research([action()], "partial") },
+    );
     expect(r.actions).toHaveLength(1);
     expect(r.sources).toHaveLength(1);
     expect(r.incomplete).toBe(true);
   });
 
   it("drops actions for other actors", async () => {
-    const r = await collectCandidateRecords(target, { month: 11, year: 2026 }, {
-      research: research([action(), action({ id: "x", actorId: "cand-2" })]),
-    });
+    const r = await collectCandidateRecords(
+      target,
+      { month: 11, year: 2026 },
+      {
+        research: research([action(), action({ id: "x", actorId: "cand-2" })]),
+      },
+    );
     expect(r.actions.map((a) => a.id)).toEqual(["act-1"]);
     expect(r.incomplete).toBe(false);
   });
 
   it("records a failed lookup as incomplete instead of throwing", async () => {
-    const r = await collectCandidateRecords(target, { month: 11, year: 2026 }, {
-      research: async () => {
-        throw new Error("boom");
+    const r = await collectCandidateRecords(
+      target,
+      { month: 11, year: 2026 },
+      {
+        research: async () => {
+          throw new Error("boom");
+        },
       },
-    });
+    );
     expect(r).toMatchObject({ actions: [], incomplete: true, error: "boom" });
   });
 
   it("passes the race sought and election date, no defaults invented", async () => {
     let seen: unknown;
-    await collectCandidateRecords(target, { month: 11, year: 2026 }, {
-      research: async (input) => {
-        seen = input;
-        return research([])();
+    await collectCandidateRecords(
+      target,
+      { month: 11, year: 2026 },
+      {
+        research: async (input) => {
+          seen = input;
+          return research([])();
+        },
       },
-    });
+    );
     expect(seen).toEqual({
       name: "Ken Paxton",
       office: "us_senate",
@@ -221,14 +271,28 @@ describe("runRecordsStage", () => {
   it("dedupes actions across sources and writes a records manifest", async () => {
     const outDir = mkdtempSync(join(tmpdir(), "ftb-records-"));
     const dup = action();
-    const result = await runRecordsStage([target], { month: 11, year: 2026 }, {
-      outDir,
-      gitSha: "abc",
-      configVersions: {},
-      options: { research: research([dup, { ...dup }, action({ id: "act-2", type: "legal_opinion", stance: "n/a" })]) },
-    });
+    const result = await runRecordsStage(
+      [target],
+      { month: 11, year: 2026 },
+      {
+        outDir,
+        gitSha: "abc",
+        configVersions: {},
+        options: {
+          research: research([
+            dup,
+            { ...dup },
+            action({ id: "act-2", type: "legal_opinion", stance: "n/a" }),
+          ]),
+        },
+      },
+    );
     expect(result.snapshot.manifest).toMatchObject({ actionsIn: 3, actionsOut: 2 });
-    expect(result.manifest.candidates[0]).toMatchObject({ actions: 3, scorable: 2, incomplete: false });
+    expect(result.manifest.candidates[0]).toMatchObject({
+      actions: 3,
+      scorable: 2,
+      incomplete: false,
+    });
     expect(readdirSync(join(outDir, "manifests")).some((f) => f.startsWith("records-"))).toBe(true);
   });
 });

@@ -19,14 +19,20 @@ import type {
   OfficialAction,
 } from "@ftb/types";
 import { cachedCall } from "./cached_call.js";
+import { requestJev, requestOllama, validateClassifierResponse } from "./providers.js";
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 
 export interface ClassifyConfig {
   jevApiKey: string;
-  geminiApiKey: string;
-  jevModelVersion: string;   // e.g. "jev-1.14" — never "latest"
-  geminiModelVersion: string; // e.g. "gemini-2.0-flash-001"
+  geminiApiKey?: string;
+  jevModelVersion: string; // e.g. "jev-1.14" — never "latest"
+  geminiModelVersion?: string; // optional when Ollama is the fallback
+  ollamaApiKey?: string;
+  ollamaModelVersion?: string;
+  ollamaModelDigest?: string;
+  /** Only enable after a separately evaluated fallback rubric has approval. */
+  fallbackEvaluated?: boolean;
   rubricVersion: string;
   outDir: string;
   /** Confidence threshold below which a classification goes to human review. */
@@ -45,14 +51,14 @@ interface JevClassifyRequest {
 }
 
 interface JevClassifyResponse {
-  stance: Distribution;         // probs over position buckets → mapped to Position
-  relevance: Distribution;      // probs { relevant, irrelevant }
-  claimType: Distribution;      // probs { promise, advocacy, value }
-  specificity: number;          // 0..1
-  proposesSpending?: number;    // Prob
-  fundingStated?: number;       // Prob
-  isOwnSpeech: number;          // Prob
-  withinAuthority: string;      // "direct" | "influence" | "none"
+  stance: Distribution; // probs over position buckets → mapped to Position
+  relevance: Distribution; // probs { relevant, irrelevant }
+  claimType: Distribution; // probs { promise, advocacy, value }
+  specificity: number; // 0..1
+  proposesSpending?: number; // Prob
+  fundingStated?: number; // Prob
+  isOwnSpeech: number; // Prob
+  withinAuthority: string; // "direct" | "influence" | "none"
 }
 
 // ── Jev client ─────────────────────────────────────────────────────────────────
@@ -86,26 +92,11 @@ async function callJev(
     model: "jev",
     modelVersion: config.jevModelVersion,
     rubricVersion: config.rubricVersion,
-    questions: req,
+    questions: { ...req, apiVersion: "typesafe-systemone-v1" },
     inputHash: createHash("sha256").update(req.text).digest("hex"),
   };
 
-  return cachedCall(spec, async () => {
-    const res = await fetch("https://api.jev.ai/v1/classify", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.jevApiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.jevModelVersion,
-        rubric_version: config.rubricVersion,
-        ...req,
-      }),
-    });
-    if (!res.ok) throw new Error(`Jev error ${res.status}: ${await res.text()}`);
-    return res.json() as Promise<JevClassifyResponse>;
-  });
+  return cachedCall(spec, () => requestJev(req, config.jevApiKey, config.jevModelVersion));
 }
 
 // ── Gemini fallback ────────────────────────────────────────────────────────────
@@ -114,6 +105,7 @@ async function callGeminiFallback(
   req: JevClassifyRequest,
   config: ClassifyConfig,
 ): Promise<JevClassifyResponse> {
+  if (!config.geminiModelVersion) throw new Error("No configured fallback model");
   const spec: CachedCallSpec = {
     model: "gemini",
     modelVersion: config.geminiModelVersion,
@@ -219,10 +211,38 @@ export async function classifyOne(
   let jevResponse: JevClassifyResponse;
   try {
     jevResponse = await callJev(req, config);
-  } catch (err) {
-    console.warn(`Jev failed for source ${source.id} / issue ${issue.id}; falling back to Gemini`, err);
-    jevResponse = await callGeminiFallback(req, config);
+  } catch {
+    // Never log provider errors that may contain credential-bearing URLs/bodies.
+    if (config.ollamaModelVersion && config.ollamaModelDigest) {
+      const spec: CachedCallSpec = {
+        model: "ollama",
+        modelVersion: `${config.ollamaModelVersion}@${config.ollamaModelDigest}`,
+        rubricVersion: config.rubricVersion,
+        questions: { ...req, apiVersion: "ollama-classify-v1" },
+        inputHash: createHash("sha256").update(req.text).digest("hex"),
+      };
+      jevResponse = await cachedCall(spec, () =>
+        requestOllama(req, {
+          apiKey: config.ollamaApiKey ?? "",
+          model: config.ollamaModelVersion!,
+          digest: config.ollamaModelDigest!,
+        }),
+      );
+    } else {
+      jevResponse = await callGeminiFallback(req, config);
+    }
+    if (!config.fallbackEvaluated) {
+      queueForReview(
+        source.id,
+        issue.id,
+        "unevaluated_fallback_probability",
+        jevResponse,
+        config.outDir,
+      );
+      return null;
+    }
   }
+  jevResponse = validateClassifierResponse(jevResponse);
 
   // Drop if irrelevant
   const relevanceProb: Prob = jevResponse.relevance.probs["relevant"] ?? 0;

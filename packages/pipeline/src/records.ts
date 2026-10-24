@@ -23,11 +23,7 @@ import type {
   OfficialAction,
   Source,
 } from "@ftb/types";
-import {
-  classifyOne,
-  type ClassifyConfig,
-  type IssuePoleLabel,
-} from "./classify.js";
+import { classifyOne, type ClassifyConfig, type IssuePoleLabel } from "./classify.js";
 import { normalizeSource, type NormalizeOptions } from "./normalize.js";
 import { snapshotSources, type SnapshotResult } from "./snapshot.js";
 
@@ -111,6 +107,11 @@ export function actionToSource(action: OfficialAction, contestId: string): Sourc
     type: "official_action",
     url: action.sourceUrl,
     publishedAt: action.date,
+    eventDate: {
+      date: action.date,
+      basis: action.dateBasis === "document_date" ? "published" : "official_record",
+      precision: "day",
+    },
     fetchedAt: action.provenance?.[0]?.fetchedAt.slice(0, 10) ?? action.date,
     contentHash: "", // stamped by snapshotSources
     originalText,
@@ -143,7 +144,8 @@ export function scoreDecision(action: OfficialAction): ScoreDecision {
     return { scorable: false, reason: `type:${action.type}` };
   }
   if (action.consent) return { scorable: false, reason: "consent_vote" };
-  if (action.stance === "yes" || action.stance === "author") return { scorable: true, direction: 1 };
+  if (action.stance === "yes" || action.stance === "author")
+    return { scorable: true, direction: 1 };
   if (action.stance === "no") return { scorable: true, direction: -1 };
   return { scorable: false, reason: `stance:${action.stance}` };
 }
@@ -228,7 +230,7 @@ export async function classifyActions(input: ClassifyActionsInput): Promise<Clas
       evidence.push({
         ...out,
         id: `ev-${action.id}-${issue.id}`,
-        date: action.date,
+        eventDate: source.eventDate,
         quoteSpan: { start: 0, end: out.quote.length },
         position: flipped ? -out.position : out.position,
         distribution: flipped ? mirrorDistribution(out.distribution) : out.distribution,
@@ -329,7 +331,12 @@ export interface RecordsManifestEntry {
   incomplete: boolean;
   error?: string;
   gaps: string[];
-  coverage: { source: string; status: RecordCoverage["status"]; actionCount: number; reason: string }[];
+  coverage: {
+    source: string;
+    status: RecordCoverage["status"];
+    actionCount: number;
+    reason: string;
+  }[];
 }
 
 export interface RecordsManifest {

@@ -14,3 +14,5 @@ packages/pipeline/.cache/
 packages/pipeline/snapshots/
 packages/records/.cache/
 packages/records/output/
+packages/scraping/.cache/
+packages/scraping/output/

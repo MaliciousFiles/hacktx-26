@@ -7,6 +7,7 @@
 import { createHash } from "node:crypto";
 import type { EventDate, ID, ISODate, Source, SourceFinder, SourceType } from "@ftb/types";
 import { fromSearchDate, fromTimestamp, googleDateRange, inWindow, type Window } from "./dates.js";
+import { publicWebUrl } from "./snapshot.js";
 
 export const SOCIAL_PLATFORMS = [
   "x",
@@ -81,7 +82,7 @@ function makeSource(
   fetchedAt: ISODate,
 ): Source {
   return {
-    id: `src-${platform}-${key}`,
+    id: `src-${platform}-${key}-${sha256(JSON.stringify([target.contestId, target.candidateId, originalText])).slice(0, 24)}`,
     contestId: target.contestId,
     ...(target.candidateId ? { candidateId: target.candidateId } : {}),
     type,
@@ -99,6 +100,7 @@ function makeSource(
 function requireHandle(vars: Record<string, string>): string {
   const h = vars.handle?.replace(/^@/, "").trim();
   if (!h) throw new Error("vars.handle is required");
+  if (!/^[a-z0-9_.-]+$/i.test(h)) throw new Error("Unsupported account handle format");
   return h;
 }
 
@@ -271,7 +273,10 @@ const SNIPPET_PLATFORMS: Record<
       if (p.path.startsWith(`/${h}/p/`) || p.path.startsWith(`/${h}/reel/`)) return true;
       return (
         (p.path.startsWith("/p/") || p.path.startsWith("/reel/")) &&
-        title.toLowerCase().includes(`@${h}`)
+        title
+          .toLowerCase()
+          .split(/[^a-z0-9_.@]+/)
+          .includes(`@${h}`)
       );
     },
   },
@@ -376,7 +381,15 @@ export function youtubeFinder(opts: FinderOptions & { serpApiKey: string }): Soc
       const body = await getJson<SerpYouTube>(f, url);
       const out: Source[] = [];
       for (const v of body.video_results ?? []) {
-        if (!v.channel?.link?.toLowerCase().endsWith(`/@${h}`)) continue;
+        const channelPath = v.channel?.link ? pathOf(v.channel.link) : null;
+        const videoPath = pathOf(v.link);
+        if (
+          channelPath?.host !== "youtube.com" ||
+          channelPath.path !== `/@${h}` ||
+          !videoPath ||
+          !["youtube.com", "youtu.be"].includes(videoPath.host)
+        )
+          continue;
         // Title + description are the channel's own words; transcripts are a separate source.
         const text = [v.title, v.description].filter(Boolean).join("\n");
         if (!text) continue;
@@ -431,7 +444,10 @@ export async function scrapeSocial(
   candidates: CandidateAccounts[],
   window: Window,
   finders: SocialFinder[],
+  maxItemsPerPlatform = 100,
 ): Promise<{ sources: Source[]; report: SocialCoverageRow[] }> {
+  if (!Number.isSafeInteger(maxItemsPerPlatform) || maxItemsPerPlatform < 1)
+    throw new Error("Invalid platform cap");
   const byPlatform = new Map(finders.map((f) => [f.platform, f]));
   const seenUrls = new Set<string>();
   const sources: Source[] = [];
@@ -446,7 +462,9 @@ export async function scrapeSocial(
         items: 0,
         undated: 0,
       };
-      const accounts = c.accounts.filter((a) => a.platform === platform);
+      const accounts = c.accounts
+        .filter((a) => a.platform === platform)
+        .sort((a, b) => (a.handle < b.handle ? -1 : a.handle > b.handle ? 1 : 0));
       if (accounts.length === 0) {
         report.push({ ...base, status: "no_account" });
         continue;
@@ -460,6 +478,8 @@ export async function scrapeSocial(
         let items = 0;
         let undated = 0;
         for (const account of accounts) {
+          if (items >= maxItemsPerPlatform) break;
+          publicWebUrl(account.verifiedVia); // explicit reviewed evidence URL, not a truthy placeholder
           const found = await finder.find({
             contestId: c.contestId,
             candidateId: c.candidateId,
@@ -467,16 +487,23 @@ export async function scrapeSocial(
             window,
           });
           for (const s of found) {
-            if (seenUrls.has(s.url)) continue;
-            seenUrls.add(s.url);
+            if (items >= maxItemsPerPlatform) break;
+            const scopedUrl = JSON.stringify([c.contestId, c.candidateId, s.url]);
+            if (seenUrls.has(scopedUrl)) continue;
+            seenUrls.add(scopedUrl);
             sources.push(s);
             items++;
             if (!s.eventDate.date) undated++;
           }
         }
         report.push({ ...base, status: "scraped", method: finder.method, items, undated });
-      } catch (err) {
-        report.push({ ...base, status: "error", method: finder.method, error: String(err) });
+      } catch {
+        report.push({
+          ...base,
+          status: "error",
+          method: finder.method,
+          error: "Account verification or fetch failed; inspect frozen responses",
+        });
       }
     }
   }

@@ -1,0 +1,67 @@
+{
+  "releaseId": "synthetic-batch-demo-v1",
+  "asOfDate": "2026-10-24",
+  "campaignWindow": { "since": "2025-11-08", "until": "2026-11-03" },
+  "election": { "month": 11, "year": 2026 },
+  "demo": true,
+  "ballot": {
+    "id": "synthetic-ballot",
+    "ballotStyleId": "SYNTHETIC-NOT-AN-OFFICIAL-STYLE",
+    "provenance": {
+      "url": "https://fixture.example/synthetic-not-official",
+      "verifiedBy": "synthetic-demo-only",
+      "verifiedAt": "2026-10-24"
+    },
+    "contests": [
+      {
+        "id": "demo-state-house",
+        "title": "Synthetic State House Race",
+        "office": "tx_house",
+        "officeKind": "legislative",
+        "level": "state",
+        "districtType": "tx_house",
+        "districtId": "0",
+        "jurisdiction": "us/tx",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "demo-a",
+            "name": "Synthetic Example A",
+            "incumbent": false,
+            "recordInOffice": "none"
+          },
+          {
+            "id": "demo-b",
+            "name": "Synthetic Example B",
+            "incumbent": false,
+            "recordInOffice": "none"
+          }
+        ]
+      },
+      {
+        "id": "demo-measure",
+        "title": "Synthetic Proposition",
+        "office": "measure",
+        "officeKind": "measure",
+        "level": "local",
+        "districtType": "city",
+        "districtId": "demo",
+        "jurisdiction": "us/tx/demo",
+        "partisan": false,
+        "seats": 1,
+        "candidates": []
+      }
+    ]
+  },
+  "web": {
+    "allowedPageHosts": [],
+    "speechDomains": [],
+    "campaignSites": [],
+    "resultsPerQuery": 5,
+    "maxPagesPerChannel": 2,
+    "maxQuotesPerSource": 5,
+    "maxSocialItems": 5
+  },
+  "records": { "documentCap": 2, "houseRollCap": 2, "includeTloFtp": false }
+}

@@ -4,7 +4,11 @@
 
 **Scope:** automatically process **every contest** on the Travis County, Nov 3 2026 ballot (early voting Oct 19–30). The pipeline attempts full evidence treatment for each; only a contest that fails source/quality gates falls back to objective information. Use a few different races for end-to-end QA, **not** as an artificial coverage limit. Architecture supports other jurisdictions via adapters. Check HackTX dates before claiming election-day reach.
 **Platform:** Expo + React Native mobile app, plus a small web page for share links.
-**Status:** planning only. Types are a proposed integration contract, not an implemented app.
+**Status:** implementation in progress. Official-record and contemporary-web collectors,
+pinned Jev/Ollama classification adapters, and a ballot-roster batch runner exist.
+This is not a complete deployed product: automatic verified ballot ingestion,
+debate transcription, finance, reviewed generation/cards and serving integration
+still have gaps. See `packages/pipeline/README.md` for the current execution path.
 
 ---
 
@@ -121,6 +125,10 @@ These are non-negotiable. Each has at least one test (§8).
 **Models**
 - **Jev** (pin a version *after access is confirmed*): preferred typed decisions — relevance, stance, claim type, source type, specificity, funding stated, entailment, industry. Its probabilities are not proof of correctness.
 - **Fallback if no Jev access:** pinned structured-output LLM with the same rubrics, cache and golden-set evaluation; low-confidence outputs are reviewed or withheld. Do not pretend LLM logprobs and Jev confidence are interchangeable.
+  The current classifier implements TypeSafe's actual System One API with explicit
+  Jev versions and an Ollama Cloud JSON fallback checked against a frozen digest.
+  Both passed live synthetic protocol smoke tests; this is not a golden-set
+  accuracy/calibration result. Unevaluated fallback outputs are queued, not published.
 - **Frontier LLM** (pinned): text only — highlights, plan slots, claim extraction — always followed by validators.
 - **Local embedding model** (pinned weights): retrieval, de-duplication, promise-to-action matching.
 - Politicosmos Doc2Vec is **topic** similarity, not stance. Reuse it only for related bills and de-duplication.
@@ -194,6 +202,19 @@ VoteTravis consolidated ballot PDF (all eligible contests) + public district/pre
 
 ### Context
 SerpApi News/Web with fixed templates + official docs. Outlet allowlist lives in `config/sources.yaml` and is published in the app.
+
+**Contemporary collector:** `packages/scraping/src/voice.ts` and its `collect` CLI
+now provide fixed, symmetric campaign/questionnaire/forum/news discovery, bounded
+campaign-page fetching and exact-span quote leads. Raw HTTP responses are frozen
+for offline replay. Debates have dedicated candidate and contest-wide searches,
+forum/town-hall discovery and a YouTube recording search; potential debates are
+prioritized for review without assuming participation or transcript availability.
+Search intent does not establish document type or speaker;
+transcripts/questionnaires need reviewed mappings and third-party quotes need
+approved attribution before publication. YouTube captions/transcription and
+automatic campaign/account identity verification remain gaps. See
+[`packages/scraping/README.md`](packages/scraping/README.md) for configuration,
+coverage limitations and the distinction between acquisition and publication.
 
 ### Money
 | Kind | Source |

@@ -50,8 +50,9 @@ export function fromSearchDate(raw: string | undefined, fetchedAt: ISODate): Eve
   const abs = /^([a-z]{3})[a-z]*\.? (\d{1,2}), (\d{4})$/.exec(s);
   if (abs) {
     const m = MONTHS[abs[1]!];
-    if (m)
-      return { date: iso(Number(abs[3]), m, Number(abs[2])), basis: "published", precision: "day" };
+    const date = m ? iso(Number(abs[3]), m, Number(abs[2])) : "";
+    if (m && !Number.isNaN(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date)
+      return { date, basis: "published", precision: "day" };
   }
 
   const rel = /^(\d+|an?) (minute|hour|day|week|month|year)s? ago$/.exec(s);

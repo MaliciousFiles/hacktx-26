@@ -47,10 +47,7 @@ function canonicalJson(value: unknown): string {
 /**
  * Validate, hash, and publish a release.
  */
-export function publishRelease(
-  payload: PublishPayload,
-  options: PublishOptions,
-): PublishResult {
+export function publishRelease(payload: PublishPayload, options: PublishOptions): PublishResult {
   // 1. Validate publication integrity (citations and references)
   const pubValidation = validatePublication(
     payload.release,
@@ -84,15 +81,25 @@ export function publishRelease(
   }
 
   // 3. Compute manifestHash over canonical JSON
-  const manifestHash = createHash("sha256").update(canonicalJson(payload)).digest("hex");
-  payload.release.manifestHash = manifestHash;
+  // Hash the JSON representation actually written to disk (optional undefined
+  // properties must not produce a different hash after reading that JSON back).
+  const canonicalPayload = JSON.parse(
+    JSON.stringify({ ...payload, release: { ...payload.release, manifestHash: "" } }),
+  );
+  const manifestHash = createHash("sha256").update(canonicalJson(canonicalPayload)).digest("hex");
+  const published = { ...payload, release: { ...payload.release, manifestHash } };
 
   // 4. Write release to disk
   const distDir = join(options.outDir, "releases");
   mkdirSync(distDir, { recursive: true });
 
   const releaseFilePath = join(distDir, `${payload.release.id}.json`);
-  writeFileSync(releaseFilePath, JSON.stringify(payload, null, 2), "utf-8");
+  if (!/^[a-zA-Z0-9_-]+$/.test(payload.release.id)) throw new Error("Invalid release ID");
+  const serializedRelease = JSON.stringify(published, null, 2);
+  if (existsSync(releaseFilePath) && readFileSync(releaseFilePath, "utf8") !== serializedRelease) {
+    throw new Error("Release ID is immutable; publish changed data under a new release ID");
+  }
+  writeFileSync(releaseFilePath, serializedRelease, "utf-8");
 
   return {
     success: true,

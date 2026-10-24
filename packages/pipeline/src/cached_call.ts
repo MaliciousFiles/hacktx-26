@@ -4,9 +4,19 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { CachedCallSpec } from "@ftb/types";
 
 const CACHE_DIR = join(process.cwd(), ".cache", "model-calls");
+const cacheContext = new AsyncLocalStorage<{ directory: string; offline: boolean }>();
+
+/** Scope a batch's model cache and forbid every cache-miss model call offline. */
+export function withModelCache<T>(
+  options: { directory: string; offline: boolean },
+  run: () => Promise<T>,
+): Promise<T> {
+  return cacheContext.run(options, run);
+}
 
 /** Canonical JSON: keys sorted recursively so sha256 is stable regardless of insertion order. */
 function canonicalJson(value: unknown): string {
@@ -30,8 +40,9 @@ interface CacheEntry<T> {
 }
 
 function cachePath(key: string): string {
-  mkdirSync(CACHE_DIR, { recursive: true });
-  return join(CACHE_DIR, `${key}.json`);
+  const directory = cacheContext.getStore()?.directory ?? CACHE_DIR;
+  mkdirSync(directory, { recursive: true });
+  return join(directory, `${key}.json`);
 }
 
 /**
@@ -45,8 +56,12 @@ export async function cachedCall<T>(spec: CachedCallSpec, fn: () => Promise<T>):
 
   if (existsSync(path)) {
     const entry = JSON.parse(readFileSync(path, "utf-8")) as CacheEntry<T>;
+    if (entry.key !== key || cacheKey(entry.spec) !== key)
+      throw new Error("Invalid model cache entry");
     return entry.result;
   }
+
+  if (cacheContext.getStore()?.offline) throw new Error("Offline model cache miss");
 
   const result = await fn();
 

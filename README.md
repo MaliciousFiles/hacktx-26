@@ -7,6 +7,10 @@ documents the shared `CandidateResearchRequest`, additive action-provenance fiel
 and source coverage. Pipeline owns ballot discovery; records and scraping receive
 the same per-candidate election context.
 
+Contemporary web collection: [packages/scraping/README.md](./packages/scraping/README.md)
+covers campaign platforms, dedicated debate/forum discovery, news, social accounts,
+exact-span quote leads, and frozen offline replay.
+
 ## Layout
 
 | Path                | Package         | What                                                                          |
@@ -40,3 +44,7 @@ pnpm format
 ```
 
 Add deps to a single workspace with `pnpm -F <pkg> add <dep>`. In `apps/mobile`, use `npx expo install <dep>` so versions match the SDK.
+
+Pipeline now requires an explicit verified ballot run config (or explicit
+`--fixture` demo mode). See [packages/pipeline/README.md](packages/pipeline/README.md)
+for the connected batch stages, Jev/Ollama setup, offline replay and remaining gaps.

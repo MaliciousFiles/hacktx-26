@@ -1,0 +1,24 @@
+{
+  "fetchedAt": "2026-10-24",
+  "window": { "since": "2025-11-08", "until": "2026-10-24" },
+  "targets": [
+    {
+      "contestId": "fixture-contest",
+      "searchContext": "Texas House District 1",
+      "request": {
+        "candidate": { "id": "fixture-candidate", "name": "Example Candidate" },
+        "position": { "office": "tx_house", "jurisdiction": "us/tx", "district": "1" },
+        "month": 11,
+        "year": 2026
+      },
+      "accounts": []
+    }
+  ],
+  "campaignSites": [],
+  "allowedPageHosts": ["www.texastribune.org", "www.kut.org"],
+  "speechDomains": ["texastribune.org", "kut.org"],
+  "resultsPerQuery": 10,
+  "maxPagesPerChannel": 3,
+  "maxQuotesPerSource": 10,
+  "maxSocialItems": 20
+}
