@@ -1,3 +1,23 @@
-// Official-record adapters (Person 1, PLAN.md §5 "Records"): TLO, journals, Congress,
-// executive/regulatory, local minutes, judicial. Each implements RecordProvider.
-export type { OfficialAction, RecordProvider } from "@ftb/types";
+// Server/offline package. Never import these fetchers into the mobile client.
+export type { CandidateResearchRequest, OfficialAction, RecordProvider } from "@ftb/types";
+export { RecordsCollector, planSchema } from "./collector";
+export type { RecordsPlan, IdentityResolution, IdentityResolver } from "./collector";
+export { SnapshotClient, publicUrl, sha256 } from "./fetch";
+export type { CacheMode } from "./fetch";
+export type { RecordsAdapter, AdapterContext, AdapterResult } from "./adapters";
+export type { RecordsResult, RecordCoverage, Snapshot, DateWindow } from "./model";
+export { dateWindow, isContested } from "./model";
+export { createRecordsCollector } from "./factory";
+export * from "./federal";
+export * from "./local";
+export * from "./texas";
+export * from "./identity";
+export * from "./judicial";
+export * from "./executive";
+export * from "./minutes";
+export * from "./ballot";
+export * from "./extract";
+export * from "./history";
+export { htmlToPlainText, extractPdfText, decodeEntities, textSpanLocator } from "./document";
+export { discoverRecordUrls, discoverySchema } from "./discovery";
+export type { DiscoverySpec } from "./discovery";

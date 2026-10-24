@@ -9,7 +9,8 @@ import { normalizeSource } from "./normalize.js";
 import { classifyOne } from "./classify.js";
 import { generateHighlights, generatePlans } from "./generate.js";
 import { validateQuote } from "./validate.js";
-import type { Source, IssuePoleLabel } from "./classify.js";
+import type { Source } from "@ftb/types";
+import type { IssuePoleLabel } from "./classify.js";
 
 async function main() {
   console.log("🧚 [Fairy Tale Ballot] Running Live AI Pipeline Test...\n");

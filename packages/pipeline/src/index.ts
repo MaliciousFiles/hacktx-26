@@ -9,6 +9,7 @@ export * from "./generate.js";
 export * from "./validate.js";
 export * from "./cards.js";
 export * from "./publish.js";
+export * from "./records.js";
 
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";

@@ -7,9 +7,20 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "collect": "tsx --env-file-if-exists=../../.env src/cli.ts",
+    "history": "tsx --env-file-if-exists=../../.env src/history-cli.ts",
+    "playground": "tsx --env-file-if-exists=../../.env src/playground.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ftb/types": "workspace:*"
+    "@ftb/types": "workspace:*",
+    "basic-ftp": "^6.2.3",
+    "fast-xml-parser": "^5.11.2",
+    "unpdf": "^1.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15"
   }
 }

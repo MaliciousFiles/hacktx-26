@@ -213,6 +213,35 @@ export type PresentedEvidence = Omit<Evidence, "quote"> & {
 };
 
 // ---------- Official records ----------
+/** Shared input to records and scraping. The pipeline discovers the ballot first. */
+export interface CandidateResearchRequest {
+  candidate: {
+    id: ID; // pipeline's candidate ID, not a guessed government identifier
+    name: string;
+    aliases?: string[]; // verified full-name aliases, never fuzzy surname matches
+    identifiers?: Record<string, string>; // e.g. { bioguide: "C001131" }
+  };
+  position: {
+    office: string; // e.g. "us_house", "tx_house", "city_council"
+    jurisdiction: string; // stable jurisdiction key, configured by the pipeline
+    district?: string;
+  };
+  month: number; // election month (1..12), NOT a one-month records window
+  year: number;
+}
+
+export type RecordExtraction = "xml" | "json" | "csv" | "xlsx" | "html" | "pdf" | "manual";
+
+/** Pointer into an immutable raw artifact; never sent in the masked ballot payload. */
+export interface RecordProvenance {
+  snapshotId: ID;
+  contentHash: string; // SHA-256 of original bytes
+  sourceUrl: string; // credentials removed
+  fetchedAt: string; // ISO timestamp, UTC
+  adapter: string; // includes parser version
+  locator: string; // XPath-like path or JSON Pointer within the raw artifact
+}
+
 export type ActionType =
   | "floor_vote"
   | "committee_vote"
@@ -238,11 +267,40 @@ export interface OfficialAction {
   body?: string;
   type: ActionType;
   stance: "yes" | "no" | "abstain" | "author" | "n/a";
-  margin?: { yes: number; no: number }; // contested votes weigh more
+  margin?: {
+    yes: number;
+    no: number;
+    present?: number;
+    notVoting?: number; // not necessarily absent
+    abstain?: number;
+    absent?: number;
+    recused?: number;
+  }; // Only yes/no votes enter the contested-vote denominator.
   date: ISODate;
   title: string;
   officialText: string; // e.g. HRO/SRC analysis, CRS summary, order text
-  sourceUrl: string;
+  sourceUrl: string; // vote/action evidence URL (e.g. Clerk roll-call XML)
+  /** When known, official page for the measure/bill/motion text the actor voted on. */
+  measureUrl?: string;
+  dateBasis?: "action_date" | "document_date"; // document date is not verified vote timing
+  extraction?: RecordExtraction;
+  provenance?: RecordProvenance[];
+  consent?: boolean; // set only when the source explicitly identifies consent
+  attribution?: {
+    method: "member_id" | "named_record" | "office_tenure";
+    sourceActorId?: string;
+    tenure?: { start: ISODate; end?: ISODate; sourceUrl: string }; // inclusive civil dates
+  };
+  /** Preserve distinctions that the legacy stance field cannot represent. */
+  vote?: {
+    value: "yes" | "no" | "present" | "not_voting" | "abstain" | "recused" | "other";
+    raw: string;
+    question: string; // voting on cloture/amendments is NOT voting on final passage
+    questionBasis?: "vote_question" | "document_title";
+    method: "roll_call" | "voice" | "unknown";
+    /** Raw chamber label for the measure when present, e.g. "H R 4275". */
+    legisNum?: string;
+  };
 }
 
 // ---------- Candidate ----------

@@ -37,6 +37,7 @@ function today(): string {
  * - Set contentHash = sha256(originalText) on each source.
  * - Set fetchedAt to today's date if missing.
  * - Deduplicate sources by (url, contentHash) — identical wire reposts count once.
+ * - Deduplicate actions by id.
  * - Write a stage manifest to dist/manifests/snapshot-<timestamp>.json.
  */
 export function snapshotSources(
@@ -65,6 +66,15 @@ export function snapshotSources(
     deduped.push(s);
   }
 
+  // Deduplicate actions by id: the same vote can arrive from overlapping record sources.
+  const seenActions = new Set<string>();
+  const actions: OfficialAction[] = [];
+  for (const a of rawActions) {
+    if (seenActions.has(a.id)) continue;
+    seenActions.add(a.id);
+    actions.push(a);
+  }
+
   const manifest: SnapshotManifest = {
     stage: "snapshot",
     createdAt: new Date().toISOString(),
@@ -73,7 +83,7 @@ export function snapshotSources(
     sourcesIn: rawSources.length,
     sourcesOut: deduped.length,
     actionsIn: rawActions.length,
-    actionsOut: rawActions.length, // actions are not deduplicated here
+    actionsOut: actions.length,
     inputHashes: deduped.map((s) => s.contentHash),
   };
 
@@ -86,5 +96,5 @@ export function snapshotSources(
     "utf-8",
   );
 
-  return { sources: deduped, actions: rawActions, manifest };
+  return { sources: deduped, actions, manifest };
 }

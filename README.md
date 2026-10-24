@@ -2,6 +2,11 @@
 
 HackTX '26. See [PLAN.md](./PLAN.md) for the product, invariants and the type contract.
 
+Records integration: [packages/records/README.md](./packages/records/README.md)
+documents the shared `CandidateResearchRequest`, additive action-provenance fields,
+and source coverage. Pipeline owns ballot discovery; records and scraping receive
+the same per-candidate election context.
+
 ## Layout
 
 | Path                | Package         | What                                                                          |
