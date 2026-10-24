@@ -21,7 +21,6 @@ import type {
   FundingMap,
   MoneyRange,
   Position,
-  UserIssueStance,
 } from "./index";
 
 /** Per-issue proximity: 1 when identical, 0 at opposite poles (PLAN.md §6.5). */
@@ -100,7 +99,7 @@ export function computeUserVector(
 export function computeMatchResult(
   userVector: UserVector,
   candidateId: string,
-  contestId: string,
+  _contestId: string,
   stances: Record<IssueId, StanceAgg>,
   issueEvidenceState: Record<IssueId, EvidenceState>,
   evidenceIds: { agreements: string[]; disagreements: string[] },
