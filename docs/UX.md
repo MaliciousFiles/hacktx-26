@@ -4,7 +4,22 @@
 > Product rules come from [`PLAN.md`](../PLAN.md); §3 Invariants override anything here.
 > Visual tokens and components are in [`VISUAL_DESIGN.md`](./VISUAL_DESIGN.md). How to build it is in [`APP_BUILD.md`](./APP_BUILD.md).
 >
-> **Status:** proposed design. Items marked **[decide]** are open and need a team call. Items marked **[contract]** need a change to `packages/types/src/index.ts` and sign-off from every owner (see `APP_BUILD.md` §9).
+> **Status:** proposed design. The calls in §0 were made by the team. Items marked **[decide]** are open and need a team call. Items marked **[contract]** need a change to `packages/types/src/index.ts` and sign-off from every owner (see `APP_BUILD.md` §9).
+
+---
+
+## 0. Decisions made (Oct 24)
+
+| Topic | Decision |
+|---|---|
+| Look | The `mobile-dev-build` theme (parchment, forest, gold, rose; Georgia headings). Light only. See `VISUAL_DESIGN.md` |
+| Navigation | A single stack, as built on `mobile-dev-build`. No tab bar |
+| Unmasking | **One big reveal at the end** for the whole ballot. This replaces the per-contest "Lift the mask" button on `mobile-dev-build` |
+| Alignment buckets | Collapsed, opt-in, never on the ballot list or the share card |
+| Ballot lookup | Manual ballot-style list first; on-device location lookup only if time allows |
+| Share card | Stats only. No picks, names or parties |
+| Mascot | Minimal: the Fairy Godmother appears in onboarding and the Unmasking only |
+| Extras kept | Guess the party, Compare side by side, Daily Challenge, My ballot notes |
 
 ---
 
@@ -18,7 +33,7 @@ Use these to settle questions this doc doesn't answer.
 4. **Masks are fun, not a promise.** The masquerade makes the product feel like a game, but we say plainly that masks can be seen through (Inv. 7).
 5. **Private by construction.** Picks, swipes and location stay on the phone. When the UI talks about privacy, it describes what the code really does (Inv. 5).
 6. **Same treatment for everyone.** Every candidate in a contest gets the same layout, the same section order and the same empty states. Their order is random per device (Inv. 9, 15).
-7. **Playful voice, serious substance.** The Fairy Godmother's whimsy goes in transitions and empty states. Evidence text is always neutral and plain.
+7. **Calm storybook, serious substance.** Whimsy lives in the masks, the onboarding Godmother and the Unmasking. Everywhere else the copy is plain and neutral.
 
 ---
 
@@ -29,8 +44,8 @@ Use these to settle questions this doc doesn't answer.
  ─────────                                                  ─────────
  Splash ─► Welcome (Godmother) ─► How this works (3 panels)    App opens on the
         ─► Privacy promise ─► Find my ballot                   last phase reached
-              │                                                (tab bar shown
-              ├─ Use my location (on-device lookup)            after onboarding)
+              │                                                (opens on My
+              ├─ Use my location (on-device lookup)            Ballot)
               │      ├─ resolved ──────────────┐
               │      └─ ambiguous/failed ──┐   │
               └─ Choose my ballot style ◄──┘   │
@@ -70,12 +85,20 @@ Users can go back to Explore at any time before the reveal. Changing an answer r
 
 ### 2.2 Navigation model
 
-- **Onboarding** is a full-screen stack with no tab bar.
-- **After onboarding**, a 4-tab bar:
-  `🗳️ Ballot` · `✨ Explore` · `🧩 Daily` · `📖 More`
-  The Ballot tab is the home tab. Once revealed, the Ballot tab shows names.
-- Candidate cards, Compare, citations and pick sheets open as **stack pushes** or **bottom sheets** on top of the Ballot tab.
-- The Unmasking is a full-screen modal flow started from the Ballot tab ("Ready for the Unmasking?").
+A **single stack** with no tab bar, as built on `mobile-dev-build`:
+
+```
+Home/onboarding ─► Explore deck ─► My Ballot ─► Contest ─► Candidate / Compare
+                                       │
+                                       ├─► Unmasking (U1–U4) ─► Share
+                                       └─► ☰ menu: Daily · My ballot notes · How it works · Report an error · Settings
+```
+
+- **My Ballot** is the hub after onboarding. Its `TopBar` has "Deck" (back to Explore) on the left and a **☰ menu** on the right.
+- Contest screens use `TopBar` back links ("Ballot", "Evidence"), as built.
+- Citations and the pick sheet open as **form sheets** over the current screen.
+- The Unmasking is started only from My Ballot ("Ready for the Unmasking?"). Contest screens have **no** per-contest reveal button.
+- Once revealed, My Ballot and every contest screen show the names.
 
 ---
 
@@ -134,9 +157,9 @@ ASCII wireframes are for structure only. Spacing, color and type come from `VISU
 │  Travis County · Nov 3, 2026 │
 └──────────────────────────────┘
 ```
-- If the location lookup returns `needs_manual_ballot_style`, or a point is ambiguous, go to O5 with the Godmother line "This spot sits near a boundary. Let's pick from the official list so we don't guess."
+- If the location lookup returns `needs_manual_ballot_style`, or a point is ambiguous, go to O5 with the note "This spot is near a district boundary. Pick your style from the official list so we don't guess."
 - If location permission is denied, show O5. No nagging.
-- **[decide]** Whether the MVP ships offline geocoding at all, or only the manual selector (PLAN §12 #12). The manual selector is required either way.
+- **Decided:** build the manual selector (O5) first. The location and address options appear only if on-device lookup is finished in time (PLAN §12 #12).
 
 **O5 · Choose my ballot style**: a searchable list of official ballot styles (precinct number, style code, a plain-language label). Includes a "Where do I find this?" helper that points to the voter registration card and the VoteTravis personalized ballot lookup.
 
@@ -201,8 +224,8 @@ ASCII wireframes are for structure only. Spacing, color and type come from `VISU
 **B1 · My Ballot (home)**
 ```
 ┌──────────────────────────────┐
-│ My Ballot          data-v3 ⓘ │
-│ 5 of 14 looked at · 3 picked │
+│ ‹ Deck   My Ballot         ☰ │
+│ data-v3 · 5 of 14 looked at  │
 │ ───────────────────────────  │
 │ STATE                        │
 │ ▸ TX House, District 49      │
@@ -342,6 +365,7 @@ Fixed order:
 **U2 · Guess the party** *(optional, local only)*: for each partisan contest where the user picked someone, the question "Which party do you think *The Lantern Keeper* is?" with the parties on that contest as options, plus "No idea". The guesses feed the U4 stats, never leave the phone, and are deleted with the session.
 
 **U3 · Reveal ceremony**
+- The Godmother returns here: "Masks off, everyone."
 - Contests reveal one at a time in ballot order. Each mask "lifts" (Reduce Motion: a crossfade) to show the name, party (when partisan), photo and website.
 - The user's pick gets a "Your pick" ribbon. Undecided races say "You hadn't decided. Here's who's who."
 - Citation links unlock on every screen after this step.
@@ -357,7 +381,7 @@ All stats are computed on the device from picks, guesses and the identities retu
 
 ### 3.5 After the reveal
 
-**A1 · Share card**: preview of the locally rendered image (see `VISUAL_DESIGN.md` §6) with "Share" (OS share sheet) and "Save image". The card **does not include picks, names or alignment** by default. **[decide]** Whether an opt-in "include my picks" exists at all. The default proposal is no.
+**A1 · Share card**: preview of the locally rendered image (see `VISUAL_DESIGN.md` §8) with "Share" (OS share sheet) and "Save image". The user chooses which stat to feature. **Decided:** the card shows stats only and never includes picks, names, parties or alignment.
 
 **A2 · My ballot notes**: a printable, screenshot-friendly list of contests in ballot order with the user's pick or "undecided".
 - Helper: "Texas lets you bring written notes to the polls, but not use your phone in the voting booth. Print or write this down." **[verify wording against current Texas Election Code before shipping]**
@@ -365,7 +389,7 @@ All stats are computed on the device from picks, guesses and the identities retu
 
 **A3 · Release changed banner**: if a newer release exists, show "Updated data is available (data-v4). Your walkthrough uses data-v3." with "See what changed" (release diff) and "Switch". Switching keeps the swipes but resets the masks and the picks for contests that changed. Never switch silently (Inv. 4).
 
-### 3.6 More tab
+### 3.6 Menu screens (☰ on My Ballot)
 
 - **How it works**: sources, methods, outlet allowlist, fact-check rating mapping, office-authority matrix, test results, research findings (only if the PLAN §6 gates pass). The same content as the web page.
 - **About & nonpartisan statement**: "We don't endorse candidates." Includes the data release date, sources and limitations (Inv. 21).
@@ -376,7 +400,7 @@ All stats are computed on the device from picks, guesses and the identities retu
   - Reduce motion follows the OS, with an in-app override.
   - "Start over on a different ballot".
   - "Delete everything on this phone".
-- **Demo data banner**: if the app runs on synthetic fixtures, a persistent "Demo data, not real candidates" banner is shown on every screen (PLAN §10 "If data fails").
+- **Demo data mark**: if the app runs on synthetic fixtures, the built `SampleMark` ("Sample release · not a live ballot") is shown on every screen (PLAN §10 "If data fails").
 
 ### 3.7 Daily Challenge
 
@@ -390,20 +414,21 @@ All stats are computed on the device from picks, guesses and the identities retu
 
 | State | Treatment |
 |---|---|
-| First load / release download | Godmother "sprinkling" loader with real progress text ("Fetching 14 contests…"). Never a blank screen |
+| First load / release download | Gold `Ornament` loader with real progress text ("Fetching 14 contests…"). Never a blank screen |
 | Offline after download | Everything works, because the release is cached by `releaseId`. Only `/reveal`, `/daily` and reports need the network; they show "Needs a connection" with a retry |
 | `/reveal` fails | Masks stay on, nothing is destroyed until identities arrive, and a retry is shown |
 | Unknown or superseded release | "This data release is no longer available. Let's load the current one." A diff link appears if one exists |
 | Contest with 0 evidence | Objective Info Mode, never an error |
 | Unopposed contest | "Unopposed: one candidate is on the ballot." Objective info only and no comparison |
 | Mask session expired (24h) before reveal | "Your masks were refreshed for privacy." New random masks are dealt and the picks are kept |
-| Errors | The Godmother apologizes in one line, then states the plain cause and a retry. No stack traces |
+| Errors | One plain sentence with the cause and a retry. No stack traces |
 
 ---
 
 ## 5. Voice and copy
 
-**Fairy Godmother voice:** warm, brief, a little wry. She narrates transitions and empty states, and never evidence.
+**App voice:** plain, calm and second person, like the built copy ("Every contest is here.", "Nothing is dropped because the evidence is thin.").
+**Fairy Godmother voice** (onboarding and the Unmasking only): warm, brief, a little wry. She never speaks on evidence screens.
 
 | Do | Don't |
 |---|---|
@@ -429,5 +454,5 @@ All stats are computed on the device from picks, guesses and the identities retu
 - Color is never the only signal: every chip pairs color with an icon and text.
 - Minimum tap target is 44×44 pt.
 - Reduce Motion replaces the swipe fling, mask lift and confetti with fades.
-- Contrast is WCAG AA minimum (4.5:1 for body text) in both light and dark themes.
+- Contrast is WCAG AA minimum (4.5:1 for body text) in the light theme. Dark mode is out of scope for now.
 - Avoid any red-vs-blue pairing that could read as a party signal. See `VISUAL_DESIGN.md` §2.

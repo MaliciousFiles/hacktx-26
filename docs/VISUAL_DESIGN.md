@@ -1,160 +1,184 @@
 # 🧚 Fairy Tale Ballot — Visual Design System
 
 > Tokens, type, components, motion and art direction for `apps/mobile` and `apps/web`.
-> Screen structure is in [`UX.md`](./UX.md). **Status:** proposed. Swap values freely, but keep the rules.
+> Screen structure is in [`UX.md`](./UX.md).
+> **Source of truth:** the theme already built on the `mobile-dev-build` branch (`apps/mobile/src/theme.ts` and `apps/mobile/src/components/ui.tsx`). This doc writes that theme down and extends it. It doesn't replace it. If this doc and that code disagree, change the code to match **only after** the team agrees.
+
+---
+
+## 0. Decisions (made by the team, Oct 24)
+
+| Decision | Choice |
+|---|---|
+| Aesthetic and palette | The `mobile-dev-build` theme: parchment, forest, gold, rose |
+| Fonts | System serif (Georgia on iOS, `serif` on Android) for headings; system sans for body text. No custom font loading |
+| Theme | **Light only** for now (`userInterfaceStyle: "light"`) |
+| Mascot | **Minimal**: the Fairy Godmother appears only in onboarding and the Unmasking |
+| Navigation | A single stack, as built. No tab bar (UX.md §2.2) |
+| Share card | Stats only. No picks, names or parties |
 
 ---
 
 ## 1. Art direction
 
-**"Storybook at midnight."** A parchment-and-ink storybook lit by a violet-and-gold glow. It should feel whimsical where it narrates (the Godmother, masks, the reveal) and sober and readable where it shows evidence.
+**"An illuminated storybook page."** Warm parchment, deep forest ink, gold for ornament, and rose kept for warnings. The look comes from typography and thin gold rules, not illustration. The app reads as a carefully set book.
 
-- **Narration layer:** illustrated, rounded, with soft gradients and sparkles. Used by the Godmother, onboarding, the Unmasking, the share card and empty states.
-- **Evidence layer:** flat parchment cards, generous line height, no decoration inside quotes or numbers. Evidence never sits on a gradient.
+- **Ornament:** the gold kicker above titles (small caps, letter-spaced), the `Ornament` divider (a gold line, a dot, a gold line), and rounded parchment `Panel`s with a 1pt border.
+- **Evidence:** the same flat panels, generous line height, no decoration inside quotes or numbers.
+- **Whimsy** is limited to the mask characters, the onboarding Godmother panel and the Unmasking. Everything else is calm.
 - **Never:** flags, elephants, donkeys, red-vs-blue pairs, ballot-box clip art with check marks, or anything that suggests a "correct" answer.
 
 ---
 
 ## 2. Color
 
-Define these as tokens in one theme module (`apps/mobile/src/theme/tokens.ts`, mirrored in `apps/web/src/theme.css` as CSS variables). Components never use hex literals.
+These are the tokens in `apps/mobile/src/theme.ts` on `mobile-dev-build`. Components import `colors` and never use hex literals. The web mirrors them as CSS variables in `apps/web/src/theme.css`.
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `bg` | `#FBF6EC` parchment | `#15122B` midnight | App background |
-| `surface` | `#FFFFFF` | `#1F1B3A` | Cards |
-| `surfaceSunken` | `#F3ECDD` | `#100E22` | Verbatim ballot text, quote blocks |
-| `ink` | `#1F1B3A` | `#F4EFFF` | Primary text |
-| `inkMuted` | `#5B5675` | `#B9B2D6` | Secondary text, captions |
-| `line` | `#E4DAC6` | `#2E2950` | Dividers, pole lines |
-| `primary` | `#6B4FD8` godmother violet | `#A08BFF` | Primary buttons, focus ring, user's ◆ marker |
-| `onPrimary` | `#FFFFFF` | `#15122B` | Text on primary |
-| `accent` | `#E0A526` gold | `#F2C14E` | Stars ⭐, sparkles, reveal highlights |
-| `documented` | `#1E7F78` teal | `#4FC3B8` | ✅ Documented, "Funded", evidence present |
-| `notStated` | `#B8433A` brick | `#FF8A7A` | **"Not stated"** pills, 🚩 flags (always with icon + text) |
-| `caution` | `#A86A00` amber | `#FFB547` | ⚠️ Needs others to act, thin evidence |
-| `unknown` | `#7A7590` | `#8E88A8` | ❓ Disputed/unknown, no evidence, "not applicable" |
-| `demoBanner` | `#FFE9A8` | `#4A3B00` | Synthetic-data banner |
+| Token | Hex | Use |
+|---|---|---|
+| `bg` | `#F3EDE2` | App background (parchment) |
+| `card` | `#FFFBF6` | Panels, choice buttons, list rows |
+| `ink` | `#1C1915` | Primary text |
+| `inkSoft` | `#5E564C` | Notes, captions, text buttons |
+| `line` | `#E0D3C2` | Borders, dividers, pole lines |
+| `forest` | `#1E4636` | Primary buttons, selected choices, progress, back links, the user's ◆ marker |
+| `forestSoft` | `#E4EFE8` | "Documented" / positive-evidence banners |
+| `gold` | `#8A6830` | Kicker, ornament, ⭐ "Matters to me", sample mark |
+| `goldSoft` | `#F4E7CB` | Default banner, starred state, alignment chips |
+| `rose` | `#8E3344` | **"Not stated"** pills, 🚩 flags (always with icon + text) |
+| `roseSoft` | `#F8E8EA` | Warning banners |
+
+**Proposed additions** (not in the built theme yet):
+
+| Token | Hex | Use |
+|---|---|---|
+| `unknown` | `#7A7268` | ❓ Disputed/unknown, "no evidence", "not applicable" |
+| `progressOff` | `#D3C4AE` | Unfilled progress segments (already hard-coded in `ui.tsx`; promote it to a token) |
 
 **Rules**
-- **No party colors.** Candidate dots on pole lines and Compare columns use a **neutral categorical set** in an order assigned by mask: `#6B4FD8` violet, `#1E7F78` teal, `#C27C0E` ochre, `#8A4F7D` plum, `#3D6B99` slate. Red and blue never appear together as two candidates. After the reveal, party labels are text only and are **never colored by party**.
-- `notStated` red is reserved for missing plan slots and 🚩 flags (PLAN §2). It is never used for a candidate, a pole or an alignment bucket.
-- **Buckets** use a single-hue violet ramp that goes from strong to faint. That way none of them looks like "good" or "bad", and it matches the collapsed, secondary role buckets have:
-  ✨ `#6B4FD8` (white text) · 🤝 `#8C76E2` · 🧭 `#AE9FEC` · 🌙 `#CFC6F5` (ink text on these three) · 🪞 Clouded: `unknown` grey with a dashed border.
-- Every text-on-color pairing must reach 4.5:1 contrast. Check both themes.
+- **No party colors.** Forest and rose must never stand for two candidates or two sides. Candidates are told apart by **mask and shape, not color**: on pole lines each candidate gets an ink-colored shape (● ■ ▲ ◆ …) labeled with the mask title. The user is always the forest ◆. After the reveal, party names are plain text and **never colored by party**.
+- **Rose** is only for missing plan slots, 🚩 flags and warnings (PLAN §2). It is never used for a candidate, a pole or an alignment bucket.
+- **Buckets** all use the same `goldSoft` chip with `ink` text and are told apart only by emoji and label. That keeps any one of them from looking "good" or "bad". 🪞 Clouded uses a dashed `line` border instead.
+- **Contrast:**
+  - `gold` on `bg` is about **4.4:1**, just under AA (4.5:1) for small text. It's fine for the 13pt uppercase kicker as a decorative label, but **don't use `gold` for body text or for information the user needs**. If it's ever needed for that, darken it to about `#7A5B28`. **[team check]**
+  - Every other text pairing passes AA: `ink`, `inkSoft`, `rose` and `forest` on `bg`/`card`, and `card` on `forest`.
 
 ---
 
 ## 3. Typography
 
-| Role | Font | Size / line height (pt) | Weight |
-|---|---|---|---|
-| Display (titles, reveal names) | **Fraunces** (storybook serif) | 32/38 | 600 |
-| Heading 1 | Fraunces | 24/30 | 600 |
-| Heading 2 | Atkinson Hyperlegible | 18/24 | 700 |
-| Body | **Atkinson Hyperlegible** (built for low vision) | 16/24 | 400 |
-| Quote / ballot text | Atkinson Hyperlegible | 16/26 | 400, in a `surfaceSunken` block with a 3pt `line` left rule |
-| Caption / chip | Atkinson Hyperlegible | 13/18 | 700 |
-| Numbers (money, %) | Atkinson Hyperlegible, tabular figures | inherit | 700 |
+From `ui.tsx`:
 
-- Both fonts are free on Google Fonts. Mobile loads them via `@expo-google-fonts/*` and `expo-font`, installed with `npx expo install`. Web loads them from Google Fonts.
-- All sizes scale with the OS text size. Never use a fixed `maxFontSizeMultiplier` below 2 on evidence text.
-- Never put quotes in italics; italics are hard to read at length. Use quotation marks plus the sunken block instead.
+| Role | Font | Size / line height (pt) | Color |
+|---|---|---|---|
+| Kicker | serif, uppercase, letter-spacing 1.2 | 13 | `gold` |
+| Title (`accessibilityRole="header"`) | serif | 34/40 | `ink` |
+| Section title | serif | 20/26 | `ink` |
+| Banner title / primary button label | serif | 16 | `ink` / `card` |
+| Body | system sans | 17/25 | `ink` |
+| Choice label | system sans | 16/22 | `ink` (`card` when selected) |
+| Note | system sans | 14/21 | `inkSoft` |
+| Sample mark | system sans, uppercase, letter-spacing 0.6 | 12 | `gold` |
+
+- `serif` is `Platform.select({ ios: "Georgia", android: "serif", default: "Georgia" })`.
+- **Quotes and verbatim ballot text:** body size with a 26 line height, in a `Panel` with a 3pt `line` left rule. Use quotation marks, not italics.
+- **Numbers** (money, %): body font with `fontVariant: ["tabular-nums"]`.
+- All text scales with the OS text size. Don't set `maxFontSizeMultiplier` below 2 on evidence text.
 
 ---
 
-## 4. Spacing, shape, elevation
+## 4. Layout, shape, elevation
 
-- **Spacing scale:** 4 · 8 · 12 · 16 · 24 · 32 · 48. Screen side gutter is 16; the gap between cards is 12.
-- **Radius:** chips 999, buttons 14, cards 20, sheets 28 (top corners).
-- **Elevation:** a single soft shadow (`0 4 16 rgba(31,27,58,0.08)`) on cards. Dark mode uses a 1pt `line` border instead of a shadow.
-- **Max content width** on tablets and web: 640 for reading screens and 960 for Compare.
+From `ui.tsx`:
+- **Column:** max width 520, side padding 22, centered. Compare may widen to 960 on tablets and web.
+- **Footer** actions are pinned to the bottom with a 10 gap and respect the safe area.
+- **Radius:** panels and list rows 20; buttons, choices and banners 16; chips and the star pill 999.
+- **Elevation:** none. Panels use a 1pt `line` border instead of shadows. Keep it that way.
+- **Spacing in use:** 4 · 6 · 8 · 10 · 12 · 14 · 16 · 18 · 22. Panels sit 12 apart and sections 22 apart.
+- **Pressed state:** opacity 0.82.
 
 ---
 
 ## 5. Masks (the cast)
 
-Mask art is a **bundled local asset**, never fetched, so a URL can't correlate with a candidate (Inv. 7, 8). `Mask.imageUrl` holds the local asset key.
+The built app stores `mask.character` per candidate. Mask art, if added, is a **bundled local asset**, never fetched, so a URL can't correlate with a candidate (Inv. 7, 8).
 
 Rules:
 - Protagonists only, and nothing villain-coded.
 - No gender, race or age cues that could read as describing the candidate behind the mask.
-- Each mask is one object or creature in a neutral palette.
-- At least 16 masks, so a contest with many candidates never repeats one.
+- At least 16 characters, so a contest with many candidates never repeats one.
 
-Proposed starter cast (title · motif):
+Proposed starter cast (title · motif). **[team check: names and whether masks get illustrations]**
 
 | | | | |
 |---|---|---|---|
 | The Lantern Keeper · lantern | The Glass Cobbler · slipper | The Map Mender · scroll | The Star Baker · star loaf |
 | The Lighthouse Owl · owl | The Paper Dragon · origami dragon | The Quiet Giant · mountain | The Kite Rider · kite |
 | The Bell Ringer · bell | The Tea Gardener · teapot | The Moth Knight · moth | The River Weaver · loom |
-| The Clockwork Fox · fox | The Moon Gardener · crescent | The Bridge Builder · arch | The Story Spinner · spindle |
+| The Clockwork Fox · fox | The Moon Gardener · crescent | The Arch Builder · arch | The Story Spinner · spindle |
 
-> "The Bridge Builder" overlaps with the Bipartisanship label "Bridge-builder". Rename it if design (b) ships.
-
-**Mask tile:** a circle of 56pt (mini card) or 120pt (candidate header). Its background is the candidate's categorical color at 15% opacity, with the motif illustration in ink.
+**Mask tile** (if illustrated): a 56pt circle (rows) or 120pt circle (candidate header) with a `goldSoft` fill, a 1pt `gold` border and the motif in `ink`. With no art, show the character title in serif inside the same circle as a monogram.
 
 ---
 
 ## 6. Components
 
-Build these once in `apps/mobile/src/components/`. Each component is described by its props and states.
+The components in `ui.tsx` today are: `Screen`, `SampleMark`, `Kicker`, `Title`, `Body`, `Note`, `Ornament`, `BackButton`, `TopBar`, `Progress`, `ChoiceButton`, `PrimaryButton`, `TextButton`, `StarButton`, `Panel`, `Section`, `Banner` (tones `quiet`, `rose`, `forest`), and `CandidateCard`.
 
-| Component | Purpose | Key states / notes |
+To add, in the same style:
+
+| Component | Purpose | Notes |
 |---|---|---|
-| `Button` | primary / secondary / ghost | pressed, disabled, loading; min 44pt |
-| `Chip` | coverage, source type, tier, status | icon + text always |
-| `CitationChip` | superscript-style `[1]` → opens `CitationSheet` | locked icon pre-reveal |
-| `CitationSheet` | excerpt, Verbatim/Excerpt label, outlet, date, link-after-reveal, report | — |
-| `CitedText` | renders a `CitedSentence[]` with chips | drops nothing; pipeline already validated |
-| `SwipeCard` | wraps pole/tradeoff/judicial content; gesture + buttons | fling, snap-back, reduce-motion |
-| `PoleLine` | horizontal axis with neutral pole labels; candidate dots, user ◆, "no evidence" hollow ring | used in Compare, Says vs. Does, Judicial |
-| `SlotRow` | one Plan Explorer slot | documented / **Not stated** (red pill) / not applicable (grey + reason) |
-| `FlagBadge` | 🚩 ⚠️ 💸 ✅ with count | tap → evidence |
-| `RangeBar` | money ranges; min–max band, exact = tick | separate bars for direct vs outside, never stacked |
-| `ClarityMeter` | 5-segment meter + "Compared on N issues" | — |
-| `BucketChip` | only inside the collapsed alignment section | Clouded = dashed |
-| `ContextBrief` | four labelled groups + system notes | equal visual weight for supporters/opponents |
-| `MaskAvatar` | mask art + title | post-reveal: crossfades to photo/name |
-| `ObjectiveInfoNotice` | explains why no comparison | — |
-| `GodmotherBubble` | mascot + one-line speech bubble | narration layer only |
-| `DemoBanner` | sticky synthetic-data banner | — |
+| `Chip` | coverage, source type, tier, status | `goldSoft`/`forestSoft`/`roseSoft` fill + ink text + icon; never color alone |
+| `CitationChip` | small `[1]` → opens `CitationSheet` | 🔒 icon before the reveal |
+| `CitationSheet` | excerpt, Verbatim/Excerpt label, outlet, date, link-after-reveal, report | a `Panel` in a form sheet |
+| `CitedText` | renders `CitedSentence[]` with chips | — |
+| `SwipeCard` | wraps the existing choice layout with an optional swipe gesture | buttons stay the primary input |
+| `PoleLine` | horizontal `line` axis with pole labels in `inkSoft` at the ends; candidate shapes in ink; user ◆ in `forest`; hollow ring = no evidence | Compare, Says vs. Does, judicial |
+| `SlotRow` | one Plan Explorer slot | documented / **Not stated** (`rose` pill) / not applicable (`unknown` pill + reason) |
+| `FlagBadge` | 🚩 ⚠️ 💸 ✅ + count; copy from `FLAG_COPY` in `labels.ts` | tap → evidence |
+| `RangeBar` | money range band on a `line` track, `ink` fill; exact amount = tick | separate bars for direct vs. outside spending, never stacked |
+| `ClarityMeter` | 5 segments (same style as `Progress`) + "Compared on N issues" | — |
+| `BucketChip` | only inside the collapsed alignment section | Clouded = dashed border |
+| `ContextBrief` | four labeled groups + system notes | supporters and opponents look identical |
+| `Accordion` | collapsed "How your answers line up (optional)" | closed by default |
+| `MenuButton` | header action that opens Daily, How it works, Notes, Report, Settings | lives in `TopBar` `action` |
 
-**Supporter/opponent symmetry:** the two groups always render with the same width, the same style and the same per-side cap (Inv. 17). Supporters is always shown first. That order is fixed, not randomized, and it is never visually emphasized.
+**Supporter/opponent symmetry:** the two groups always use the same width, the same style and the same per-side cap (Inv. 17). Supporters is always shown first; that order is fixed, not randomized, and it is never visually emphasized.
 
 ---
 
 ## 7. Motion
 
+Keep motion restrained so it fits the book look.
+
 | Moment | Motion | Reduce Motion |
 |---|---|---|
-| Card swipe | Follows the finger, rotates up to 8°, flings out over 250 ms; a sparkle trail on ⭐ | Instant swap + fade |
-| Screen transitions | Platform default stack | Default (OS) |
-| Mask lift (reveal) | The mask floats up and rotates while gold sparkles burst and the name fades in. 900 ms per contest; tap to skip | 300 ms crossfade |
+| Screen transitions | `slide_from_right` (as built) | OS default |
+| Card answer | The choice fills `forest`, then the next card slides in. An optional swipe follows the finger and rotates up to 6° | Instant |
+| Unmasking | Contest by contest: the mask monogram fades and lifts while the name fades in under a gold `Ornament` flourish. About 700 ms per contest; tap to skip | 250 ms crossfade |
 | "Surprised?" stats | Count-up numbers, 600 ms | Static |
-| Loading | The Godmother's wand draws a looping sparkle path | Static icon + text |
 
-Use `react-native-reanimated` and `react-native-gesture-handler`, installed with `npx expo install`. No motion ever carries information on its own.
+If swipe gestures ship, add `react-native-gesture-handler` and `react-native-reanimated` with `npx expo install`. No motion ever carries information on its own.
 
 ---
 
 ## 8. Share card
 
-- **Size:** 1080 × 1350 (4:5), rendered **on the device** from a hidden view (`react-native-view-shot`), then passed to the OS share sheet (`expo-sharing`). Nothing is uploaded (Inv. 5, `Api` comment "no POST /share").
-- **Layout:** midnight gradient, the Godmother at top left, the headline "My Fairy Tale Ballot", and one big stat chosen by the user from U4 ("I looked at **9 races** before seeing a single name"). Below that, a row of 5 random masks from the cast as decoration (**not** the user's actual masks), and the footer `fairytaleballot.tech` (domain TBD).
+- **Size:** 1080 × 1350 (4:5), rendered **on the device** from a hidden view (`react-native-view-shot`), then passed to the OS share sheet (`expo-sharing`). Nothing is uploaded (Inv. 5).
+- **Layout:** a `bg` parchment field with a `gold` double rule border. The kicker reads "MY FAIRY TALE BALLOT", then one big serif stat the user picks from U4 ("I looked at **9 races** before seeing a single name"), then an `Ornament`, then the domain in `inkSoft`.
 - **Must not contain:** picks, candidate names or masks tied to them, parties, alignment buckets, ballot style, precinct or district.
+- The built reveal screen shares a **text** message today (`Share.share({ message })`). The image is an upgrade, and text sharing stays as the fallback.
 
 ---
 
 ## 9. App icon & splash
 
-- **Icon:** a gold domino mask with a single sparkle, on godmother violet. Replace the default Expo assets in `apps/mobile/assets/` and set `android.adaptiveIcon.backgroundColor` to `#6B4FD8` in `app.json`.
-- **Splash:** the icon centered on midnight `#15122B`.
-- **Light/dark:** change `userInterfaceStyle` in `app.json` from `"light"` to `"automatic"` once both themes pass contrast checks.
+- **Icon:** a gold domino-mask line drawing on `forest`. Replace the default Expo assets in `apps/mobile/assets/`. The Android adaptive background is already `#F3EDE2` on `mobile-dev-build`; switch it to `forest` only if the icon foreground needs the contrast.
+- **Splash:** the icon centered on `bg`.
 
 ---
 
 ## 10. Web (`apps/web`)
 
-The site uses the same tokens as CSS variables, plus `prefers-color-scheme` for dark mode. It is a reading layout: a 640px column, Fraunces headings and Atkinson body text. The mobile breakpoint is the default, with a 16px gutter and no horizontal scroll. Page list is in `APP_BUILD.md` §6.
+The site uses the same tokens as CSS variables, light only, and the same type roles: a Georgia stack for headings and the system sans stack for body text. It is a reading layout with a 520–640px column, a 16px phone gutter and no horizontal scroll. Page list is in `APP_BUILD.md` §6.

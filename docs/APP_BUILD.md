@@ -14,10 +14,16 @@
 | `@ftb/pipeline` | Stages, validators and `publishRelease` implemented. It writes one `/ballot`-shaped JSON per release |
 | `fixtures/release-fixture.json` | 1 ballot, 3 contests (legislative, measure, judicial), 5 cards |
 | `apps/api` | Only `/health` exists |
-| `apps/mobile` | Default Expo template (`App.tsx`). No router and no screens |
+| `apps/mobile` | On `main`: the default Expo template. On **`mobile-dev-build`**: a working Expo Router demo (home/onboarding, explore deck, ballot, contest, per-contest reveal) on a hand-written fixture (`src/fixtures/travisDemo.ts`), with the theme and UI kit this design builds on |
 | `apps/web` | Default Vite template |
 
-The critical path for the demo is **mobile + API**, built against the fixture from hour 0 (PLAN §10).
+The critical path for the demo is **mobile + API**, built against the fixture from hour 0 (PLAN §10). **Build on `mobile-dev-build`** rather than starting over: merge it into `main` first, then apply this guide as changes to it.
+
+**Changes this design asks of `mobile-dev-build`:**
+1. Remove the per-contest "Lift the mask" footer and `session.revealContest`; add the single end-of-ballot Unmasking flow (`unmask/*`).
+2. Add the ☰ menu on My Ballot (Daily, Notes, How it works, Report, Settings).
+3. Persist the session (today it is in-memory `useState`).
+4. Add the missing screens: priorities summary, candidate detail, Compare, pick sheet, citation sheet, Guess the party, Surprised?, share image, notes, Daily.
 
 ---
 
@@ -31,12 +37,11 @@ Install every one with `npx expo install` and check it against the SDK 58 docs.
 
 | Need | Package | Notes |
 |---|---|---|
-| Routing | `expo-router` (+ its peer deps per docs) | Set `"main": "expo-router/entry"` in `package.json`, then delete `App.tsx`/`index.ts` |
-| Gestures / animation | `react-native-gesture-handler`, `react-native-reanimated` | Swipe cards, mask lift |
-| Fonts | `expo-font`, `@expo-google-fonts/fraunces`, `@expo-google-fonts/atkinson-hyperlegible` | |
+| Routing | `expo-router` | Already set up on `mobile-dev-build` |
+| Gestures / animation *(optional)* | `react-native-gesture-handler`, `react-native-reanimated` | Only if swipe gestures ship; buttons are the primary input |
 | Secure small values | `expo-secure-store` | Mask map + session key |
 | Files | `expo-file-system` | Cached releases, encrypted session blob |
-| Randomness | `expo-crypto` | `getRandomValues` for masks and the device seed |
+| Randomness | `expo-crypto` | Only if `globalThis.crypto.getRandomValues` (used by the built `random.ts`) is missing on a target |
 | Location *(if offline lookup ships)* | `expo-location` | Foreground only. Coordinates never leave `src/lib/lookup` |
 | Share | `react-native-view-shot`, `expo-sharing`, `expo-media-library` (save image) | |
 | In-app browser | `expo-web-browser` | Opens How it works and the full source links after the reveal |
@@ -46,72 +51,68 @@ Not needed: a state library. React context + `useReducer` covers the app's singl
 
 ### 1.2 Directory layout
 
+This extends what's on `mobile-dev-build`. Files marked *(built)* exist there.
+
 ```
 apps/mobile/
-├─ app.json
+├─ app.json · eas.json        (built)
 ├─ assets/
-│  ├─ masks/              16+ PNG/SVG mask illustrations (bundled; never fetched)
-│  ├─ godmother/          mascot poses
-│  └─ lookup/             offline ballot-style lookup data (if shipped)
+│  ├─ masks/                  optional mask illustrations (bundled; never fetched)
+│  └─ lookup/                 offline ballot-style list (+ polygons if lookup ships)
 └─ src/
-   ├─ app/                ROUTES ONLY (Expo Router)
-   ├─ components/         UI from VISUAL_DESIGN.md §6
-   ├─ theme/              tokens.ts, typography.ts, useTheme.ts
-   ├─ state/              session.ts (reducer + types), SessionProvider.tsx, persistence.ts
-   ├─ data/               apiClient.ts, releaseCache.ts, fixtureSource.ts
-   ├─ lib/                PURE TS, no React Native imports (unit-tested with vitest)
-   │  ├─ random.ts        seeded PRNG (T1) + crypto helpers wrapper
-   │  ├─ deck.ts          deck order, pole side assignment, display→data mapping
-   │  ├─ masks.ts         deal masks per contest from the cast (R)
-   │  ├─ order.ts         seeded candidate order per contest (Inv. 15)
-   │  ├─ contestView.ts   builds screen view models from the release + session
-   │  ├─ unanswered.ts    "questions nobody answered"
-   │  ├─ surprise.ts      Unmasking stats
-   │  ├─ lookup.ts        offline point-in-polygon → ballot style (device-only)
-   │  └─ copy.ts          all UI strings (lintable; see §8)
-   └─ analytics/          opt-in funnel events only
+   ├─ app/                    ROUTES ONLY (Expo Router)
+   ├─ components/             ui.tsx, CandidateCard.tsx (built) + VISUAL_DESIGN.md §6 additions
+   ├─ theme.ts                (built) colors + serif
+   ├─ labels.ts · format.ts   (built) UI strings and formatters → grow into the copy table
+   ├─ session.tsx             (built) SessionProvider → add persistence + phases
+   ├─ random.ts               (built) crypto-random shuffle / ids (masks, order, flips)
+   ├─ matching.ts             (built) UI helpers over @ftb/types/scoring
+   ├─ fixtures/travisDemo.ts  (built) hand-written demo data
+   ├─ data/                   apiClient.ts, releaseCache.ts (new)
+   └─ lib/                    PURE TS, no React Native imports (vitest), new:
+      ├─ deck.ts              deck order, display→data pole mapping
+      ├─ contestView.ts       screen view models from release + session
+      ├─ unanswered.ts        "questions nobody answered"
+      ├─ surprise.ts          Unmasking stats
+      └─ lookup.ts            offline point-in-polygon (only if shipped)
 ```
+
+Move `random.ts` and `matching.ts` under `lib/` when they need tests. They're already free of React Native imports.
 
 ### 1.3 Route tree (`src/app/`)
 
+It's a single stack with no tab bar (UX.md §2.2). Expo Router can't have both `contest/[id].tsx` and a `contest/[id]/` folder without converting the file to `contest/[id]/index.tsx`, so sibling routes use their own folders.
+
 ```
-_layout.tsx                    Root Stack: fonts, theme, SessionProvider, DemoBanner, gesture root
-index.tsx                      Redirects by session.phase
-(onboarding)/_layout.tsx       Stack, no header
-  welcome.tsx                  O1
-  intro.tsx                    O2 (3 panels)
-  privacy.tsx                  O3
-  find-ballot.tsx              O4
-  choose-style.tsx             O5
-  confirm.tsx                  O6
-(tabs)/_layout.tsx             Tabs: ballot · explore · daily · more
-  ballot/_layout.tsx           Stack
-    index.tsx                  B1 My Ballot
-    [contestId]/index.tsx      B2 / B5 / B8: switches on contest.officeKind
-    [contestId]/compare.tsx    B4
-    [contestId]/[candidateId].tsx  B3 candidate card
-  explore/_layout.tsx          Stack
-    index.tsx                  E1 → E2/E3 deck (single screen, card state in reducer)
-    judicial.tsx               E4
-    summary.tsx                E5
-  daily/index.tsx              Daily Challenge
-  more/_layout.tsx
-    index.tsx                  links
-    about.tsx                  nonpartisan statement + release info
-    report.tsx                 corrections form
-    settings.tsx               analytics, motion, start over, delete everything
-    notes.tsx                  A2 My ballot notes
-unmask/_layout.tsx             fullScreenModal Stack
-  index.tsx                    U1 Ready?
-  guess.tsx                    U2
-  reveal.tsx                   U3
-  surprised.tsx                U4
-  share.tsx                    A1
-citation/[id].tsx              CitationSheet as a formSheet modal
-pick/[contestId].tsx           B6 as a formSheet modal
+_layout.tsx               (built) Root Stack, SessionProvider, safe area, bg color
+index.tsx                 (built) O1 Welcome + Godmother panel + ballot style → redirects by phase
+onboarding/intro.tsx      O2
+onboarding/privacy.tsx    O3
+onboarding/find.tsx       O4 (only if location lookup ships)
+onboarding/style.tsx      O5 manual ballot-style list
+onboarding/confirm.tsx    O6
+explore.tsx               (built) E1–E4 deck, judicial cards inline
+priorities.tsx            E5 What matters to you
+ballot.tsx                (built) B1 My Ballot + ☰ menu + "Ready for the Unmasking?"
+contest/[id].tsx          (built) B2 / B5 / B8 by officeKind; footer becomes "Make your pick"
+candidate/[id].tsx        B3 full candidate card
+compare/[id].tsx          B4 (id = contestId)
+pick/[id].tsx             B6 form sheet
+citation/[id].tsx         CitationSheet form sheet
+menu.tsx                  ☰ form sheet: Daily · Notes · How it works · Report · Settings
+unmask/index.tsx          U1 Ready?
+unmask/guess.tsx          U2 Guess the party
+unmask/reveal.tsx         U3 ceremony (replaces the built reveal/[id].tsx)
+unmask/surprised.tsx      U4
+unmask/share.tsx          A1
+notes.tsx                 A2 My ballot notes
+daily.tsx                 Daily Challenge
+report.tsx                Report an error
+settings.tsx              analytics, motion, start over, delete everything
+about.tsx                 nonpartisan statement + release info
 ```
 
-`index.tsx` redirects as follows: no session goes to `/welcome`. `onboarding` resumes the last onboarding step. `explore`, `walkthrough` and `revealed` go to `/(tabs)/ballot`, and Explore is offered first when anchors are unanswered.
+`index.tsx` redirects by phase: `explore` goes to `/explore`, `walkthrough` and `revealed` go to `/ballot`.
 
 ### 1.4 Session state
 
@@ -127,7 +128,8 @@ interface LocalSession {
   onboardingStep?: "welcome" | "intro" | "privacy" | "find" | "choose" | "confirm";
   releaseId: string;              // pinned for the whole walkthrough (Inv. 4)
   ballotStyleId: string;
-  deviceSeed: string;             // crypto-random once per install; drives T1 orders
+  order: Record<ID, ID[]>;        // (built) crypto-shuffled candidate order per contest, persisted
+  flips: Record<ID, boolean>;     // (built) which pole shows first per card, persisted
   swipes: Swipe[];                // @ftb/types Swipe; last write per cardId wins
   salience: Record<IssueId, number>;  // from ⭐ (e.g. 2 when starred, else 1); never changes sign
   picks: Record<ID, ContestPick>;
@@ -145,7 +147,7 @@ type ContestPick =
   | { kind: "skip" };
 ```
 
-- **Masks are separate** from the session. They live in a `MaskSession` (`@ftb/types`) stored in `expo-secure-store` as `candidateId → cast index`, which stays small enough for SecureStore. The `MaskSession` is deleted the moment `/reveal` succeeds and when it expires after 24h.
+- **Masks are separate** from the session (`session.masks` on `mobile-dev-build` today). They live in a `MaskSession` (`@ftb/types`) stored in `expo-secure-store` as `candidateId → cast index`, which stays small enough for SecureStore. The `MaskSession` is deleted the moment `/reveal` succeeds and when it expires after 24h.
 - **Persistence:**
   - The session is serialized to JSON in `expo-file-system`'s document directory.
   - If SDK 58 `expo-crypto` offers AES-GCM, encrypt that file with a random key kept in SecureStore. If it doesn't, rely on the OS app sandbox and note that on the privacy screen. **[verify in SDK 58 docs]**
@@ -164,7 +166,7 @@ releaseCache.ts   releases/<releaseId>/<ballotStyleId>.json, immutable once writ
 fixtureSource.ts  reads fixtures/release-fixture.json; sets demo=true
 ```
 
-- **Source switch:** when `EXPO_PUBLIC_API_URL` is unset, the app reads the fixture and shows `DemoBanner` everywhere (PLAN §10). Demo data must never mix with real data.
+- **Source switch:** when `EXPO_PUBLIC_API_URL` is unset, the app reads the fixture and shows the built `SampleMark` ("Sample release · not a live ballot") on every screen (PLAN §10). Demo data must never mix with real data.
 - **Release pinning:**
   1. On confirm (O6), fetch `GET /ballot?ballotStyleId&releaseId` and write it to the cache.
   2. From then on, every screen reads only from the cache.
@@ -178,10 +180,10 @@ fixtureSource.ts  reads fixtures/release-fixture.json; sets demo=true
 
 | Module | Contract |
 |---|---|
-| `random.ts` | `seeded(seed, ...keys) → () => number` (e.g. mulberry32 over a SHA-256 of `seed:key`). It's T1: the same seed and key always give the same sequence. `cryptoInt(n)` wraps `expo-crypto`, which is injected so tests can stub it. |
-| `deck.ts` | `orderDeck(cards, seed)`: anchors first, then the rest, each group in seeded order; the judicial deck stays separate. `sideFor(cardId, seed) → "aTop" \| "bTop"`. `toSwipe(card, displaySlot)` maps a tap or swipe on the top or bottom option back to `"a"`/`"b"` in the data. **This mapping gets its own tests** (Suite D side-swap). |
-| `masks.ts` | `dealMasks(contests, cast, cryptoInt)`: shuffles the cast with crypto randomness for each contest and gives no repeats within a contest. It never takes a candidate ID as an input to the choice, so masks stay independent of candidates (Inv. 8). |
-| `order.ts` | `candidateOrder(contestId, candidateIds, seed)` returns a seeded shuffle. It never takes an argument that depends on alignment or tier (Inv. 15, 22). |
+| `random.ts` *(built)* | Crypto-random `shuffle`, `randomBit` and `randomId`. Candidate order and pole-side flips are drawn once per session and **persisted**. That gives each device a stable random order without a separate seeded PRNG. Inject the random source so tests can stub it. |
+| `deck.ts` | `orderDeck(cards)`: anchors first, then the rest; the judicial deck stays separate. The built `session.flips[cardId]` decides which pole shows first. `toSwipe(card, displaySlot)` maps a tap or swipe on the top or bottom option back to `"a"`/`"b"` in the data. **This mapping gets its own tests** (Suite D side-swap). |
+| masks (in `session.tsx` today) | Shuffle the cast with crypto randomness for each contest, with no repeats within a contest. Never use a candidate ID as an input to the choice, so masks stay independent of candidates (Inv. 8). |
+| order (in `session.tsx` today) | `session.order[contestId]` is a crypto shuffle. It must never take anything that depends on alignment or tier (Inv. 15, 22). |
 | `contestView.ts` | `(release, session) → ContestViewModel` with fully resolved sections, empty-state reasons and citation lookups. Screens only render view models. That's what makes the leak test in §8 possible. |
 | `unanswered.ts` | Lists ballot-relevant issues where every candidate's `issueEvidenceState` is `none`, plus slots that are `not_stated` for all candidates. |
 | `surprise.ts` | U4 stats from `picks`, `guesses` and `revealed`. It returns only the stats whose inputs exist; with too few partisan picks it returns none rather than a misleading %. |
@@ -320,10 +322,10 @@ Add `apps/mobile/src/lib/**/*.test.ts` and `apps/web/src/**/*.test.ts` to `vites
 
 | Test | Suite (PLAN §8) | Assertion |
 |---|---|---|
-| Side-swap mapping | D | For every card and seed, a tap on either displayed slot records the same `"a"`/`"b"` as the data pole shown there |
-| Deck determinism | H | `orderDeck(cards, seed)` is stable; anchors first |
+| Side-swap mapping | D | For every card and flip value, a tap on either displayed slot records the same `"a"`/`"b"` as the data pole shown there |
+| Deck order | H | `orderDeck(cards)` is stable; anchors first |
 | Mask independence | D, G | Over many crypto-stubbed deals, the mask distribution is uniform and independent of `candidateId`; no repeats within a contest |
-| Candidate order | D | Order depends only on `(seed, contestId)`; changing stances or tiers never changes it |
+| Candidate order | D | Order comes only from the persisted crypto shuffle; changing stances or tiers never changes it |
 | Pre-reveal leak test | G | Build every `ContestViewModel` for the fixture, collect every string, and assert no identity name, alias, party label or URL from `identities-fixture.json` appears |
 | Network allowlist | G | `apiClient` throws on any extra query key or body key; the session reducer has no import path to `apiClient` |
 | Copy lint | — | No banned word (UX.md §5) in `copy.ts`; every evidence-facing string uses the neutral templates |
@@ -350,7 +352,7 @@ These come up when building the UX above against the current `packages/types/src
 |---|---|---|---|
 | 1 | The app can't discover the current `releaseId`, which `/ballot` requires | Add `"GET /releases/current": { query: {}; res: { releaseId: string; asOfDate: ISODate } }` | Ship `EXPO_PUBLIC_RELEASE_ID` in the app config |
 | 2 | No endpoint for corrections (PLAN §10 report form) | Add `"POST /reports"` with body `{ releaseId, contestId, refId?, message, evidenceUrl?, contact? }` and no picks | A `mailto:` or form link on `/corrections` |
-| 3 | `/ballot` doesn't include `Issue` labels/poles, so the app can't name issues or label pole lines | Add `issues: Issue[]` (only the ones referenced in the response) to `GET /ballot` res | Bundle `config/issues.yaml` as JSON in the app at build time (risk: version drift from `release.configVersions.issues`) |
+| 3 | `/ballot` doesn't include `Issue` labels/poles, so the app can't name issues or label pole lines | Add `issues: Issue[]` (only the ones referenced in the response) to `GET /ballot` res | Bundle the issue labels in the app, as `travisDemo.ts` already does (risk: version drift from `release.configVersions.issues`) |
 | 4 | `coverage: "objective_only"` has no reason, so the Objective Info explainer can't say *why* | Add an optional `coverageReason?: "no_sources" \| "failed_gates" \| "unopposed" \| "not_evaluated"` to `CandidateProfile` | Generic explainer text |
 | 5 | Identities have no storage location in the published release | Pipeline writes `identities.json` separately (§3.2) | Fixture identities file. *No type change needed* |
 | 6 | `Bucket` "clouded" is never produced by scoring | Decide in `@ftb/types/scoring` (§1.6) | UI Clouded rule |
@@ -361,13 +363,13 @@ These come up when building the UX above against the current `packages/types/src
 
 | When | Mobile | API / Web |
 |---|---|---|
-| **H0–2** | Install the router and deps; theme tokens; `SessionProvider`; fixture data source + DemoBanner; route skeleton with placeholder screens | `/ballot` and `/reveal` from fixtures; identities fixture; agree on §9 gaps 1 & 3 |
-| **H2–6** | Onboarding O1–O6 (manual ballot-style selector only); Explore deck with buttons first, swipe second; E5 summary | Allowlisted `apiClient` tests; `RELEASES_DIR` layout |
+| **H0–2** | Merge `mobile-dev-build`; session persistence; route skeleton for the new screens; switch the fixture source to `fixtures/release-fixture.json` (keep the sample mark) | `/ballot` and `/reveal` from fixtures; identities fixture; agree on §9 gaps 1 & 3 |
+| **H2–6** | Onboarding O2–O6 (manual ballot-style list); E5 priorities; ☰ menu | Allowlisted `apiClient` tests; `RELEASES_DIR` layout |
 | **H6–10** | B1 ballot list, B2 contest, B3 candidate card (sections 1–9), CitationSheet, B6 picks | Web: `/` and `/how-it-works` skeleton with generated config tables |
 | **H10–12** | B5 measure, B8 judicial, Objective Info Mode, B7 collapsed alignment | Deploy API to Vultr; domain |
 | **H12–16** | Switch to the real release for one contest end to end; fix data-shape surprises | Real release layout from the pipeline |
-| **H16–20** | Unmasking U1–U4, share card, notes; B4 Compare; friend testing (Suite F) | `/s`, `/corrections`, `/releases/:id` |
-| **H20–24** | Accessibility pass, Reduce Motion, mascot polish, demo recording. Stretch: offline lookup, Daily Challenge, opt-in analytics | Freeze; rehearse |
+| **H16–20** | Replace per-contest reveal with Unmasking U1–U4 + Guess the party, share image, notes; B4 Compare; friend testing (Suite F) | `/s`, `/corrections`, `/releases/:id` |
+| **H20–24** | Accessibility pass, Reduce Motion, Unmasking polish, demo recording. Stretch: offline lookup, Daily Challenge, opt-in analytics | Freeze; rehearse |
 
 **Cut order if behind:** Daily Challenge → offline geocoding → Compare screen → Guess the party → analytics → Promise Kept / fact-check sections. **Never cut:** the manual ballot selector, every contest listed, Objective Info Mode, citations, buttons that mirror gestures, the reveal and the demo banner.
 
