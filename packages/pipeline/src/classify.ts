@@ -91,20 +91,114 @@ async function callJev(
   };
 
   return cachedCall(spec, async () => {
-    const res = await fetch("https://api.jev.ai/v1/classify", {
+    const payload = {
+      model: config.jevModelVersion || "jev-latest",
+      state: req.text,
+      questions: {
+        relevance: {
+          type: "noul",
+          instructions: `Is this statement relevant to ${req.issueId} policy?`,
+        },
+        stance: {
+          type: "score",
+          instructions: `What is the candidate's stance on ${req.issueId}?`,
+          criteria: [
+            `Strongly aligns with: ${req.negativePoleLabel}`,
+            `Moderately aligns with: ${req.negativePoleLabel}`,
+            `Neutral, balanced, or mixed stance`,
+            `Moderately aligns with: ${req.positivePoleLabel}`,
+            `Strongly aligns with: ${req.positivePoleLabel}`,
+          ],
+        },
+        claim_type: {
+          type: "choice",
+          instructions: "What kind of claim or statement is this?",
+          criteria: {
+            promise: "Concrete forward-looking commitment, pledge, or vote",
+            advocacy: "General political advocacy or support for a direction",
+            value: "General moral, philosophical, or party value statement",
+          },
+        },
+        authority: {
+          type: "choice",
+          instructions: "Does this office have direct constitutional power over this policy area?",
+          criteria: {
+            direct: "Office has direct statutory, regulatory, or voting authority",
+            influence: "Office has indirect advisory, budgetary, or bully-pulpit influence",
+            none: "Office has no legal or statutory jurisdiction over this issue",
+          },
+        },
+      },
+    };
+
+    const res = await fetch("https://api.typesafe.ai/v1/systemone", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${config.jevApiKey}`,
       },
-      body: JSON.stringify({
-        model: config.jevModelVersion,
-        rubric_version: config.rubricVersion,
-        ...req,
-      }),
+      body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error(`Jev error ${res.status}: ${await res.text()}`);
-    return res.json() as Promise<JevClassifyResponse>;
+
+    if (!res.ok) {
+      throw new Error(`TypeSafe Jev error ${res.status}: ${await res.text()}`);
+    }
+
+    const data = (await res.json()) as {
+      model: string;
+      answers: {
+        relevance?: { noul: number };
+        stance?: {
+          score: number;
+          confidence: number;
+          probabilities: Record<string, number>;
+        };
+        claim_type?: {
+          choice: string;
+          confidence: number;
+          probabilities: Record<string, number>;
+        };
+        authority?: {
+          choice: string;
+          confidence: number;
+        };
+      };
+    };
+
+    const relNoul = data.answers.relevance?.noul ?? 1.0;
+    const stanceProbs = data.answers.stance?.probabilities ?? {};
+    const claimProbs = data.answers.claim_type?.probabilities ?? {};
+
+    return {
+      stance: {
+        probs: {
+          strong_negative: stanceProbs["0"] ?? 0,
+          moderate_negative: stanceProbs["1"] ?? 0,
+          neutral: stanceProbs["2"] ?? 0,
+          moderate_positive: stanceProbs["3"] ?? 0,
+          strong_positive: stanceProbs["4"] ?? 0,
+        },
+        confidence: data.answers.stance?.confidence ?? 0.8,
+      },
+      relevance: {
+        probs: {
+          relevant: relNoul,
+          irrelevant: Math.max(0, 1 - relNoul),
+        },
+        confidence: relNoul,
+      },
+      claimType: {
+        probs: {
+          promise: claimProbs["promise"] ?? 0,
+          advocacy: claimProbs["advocacy"] ?? 1,
+          value: claimProbs["value"] ?? 0,
+        },
+        confidence: data.answers.claim_type?.confidence ?? 0.8,
+      },
+      specificity: 0.8,
+      isOwnSpeech: 0.95,
+      withinAuthority: data.answers.authority?.choice ?? "direct",
+    };
   });
 }
 
