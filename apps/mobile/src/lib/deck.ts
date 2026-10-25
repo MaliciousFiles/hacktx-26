@@ -14,31 +14,48 @@ export function orderDeck(cards: readonly PolicyCard[]): PolicyCard[] {
 }
 
 export type DeckChoice = "a" | "b" | "accept" | "decline";
+export type Verdict = "agree" | "disagree";
 
 /**
- * The two options in screen order. Pole sides swap when `flipped`; tradeoff buttons never swap,
- * so "Worth it" is always first. The returned `choice` always names the data side, never the slot.
+ * Statement cards show one pole. Which one is the persisted per-device flip, so neither pole is
+ * favored across phones. Swiping right agrees with it; left records the other pole.
  */
-export function displayChoices(card: PolicyCard, flipped: boolean): [DeckChoice, DeckChoice] {
-  if (card.kind === "tradeoff") return ["accept", "decline"];
-  return flipped ? ["b", "a"] : ["a", "b"];
+export function shownSide(flipped: boolean): "a" | "b" {
+  return flipped ? "b" : "a";
 }
 
-/** Text for one option. */
-export function choiceLabel(card: PolicyCard, choice: DeckChoice): string {
-  if (card.kind === "tradeoff") return choice === "accept" ? "Worth it" : "Not worth it";
-  return choice === "a" ? card.poleA : card.poleB;
+/** The one statement on the card: the shown pole, or the tradeoff's goal. */
+export function statementFor(card: PolicyCard, flipped: boolean): string {
+  if (card.kind === "tradeoff") return card.policy;
+  return shownSide(flipped) === "a" ? card.poleA : card.poleB;
 }
 
-/** The swipe recorded when the option in display `slot` (0 = top, 1 = bottom) is chosen. */
-export function swipeForSlot(
+/** The data choice a swipe means. Tradeoffs: right = worth it, left = not worth it. */
+export function choiceForVerdict(card: PolicyCard, flipped: boolean, verdict: Verdict): DeckChoice {
+  if (card.kind === "tradeoff") return verdict === "agree" ? "accept" : "decline";
+  const shown = shownSide(flipped);
+  if (verdict === "agree") return shown;
+  return shown === "a" ? "b" : "a";
+}
+
+export function swipeForVerdict(
   card: PolicyCard,
   flipped: boolean,
-  slot: 0 | 1,
+  verdict: Verdict,
   starred: boolean,
 ): Swipe {
-  const choice = displayChoices(card, flipped)[slot];
-  return swipeFor(card, choice, starred);
+  return swipeFor(card, choiceForVerdict(card, flipped, verdict), starred);
+}
+
+/** Reads a stored swipe back as the verdict it was on this phone's card. */
+export function verdictOf(
+  card: PolicyCard,
+  flipped: boolean,
+  swipe: Swipe | undefined,
+): Verdict | "skip" | null {
+  if (!swipe) return null;
+  if (swipe.chosen === "skip") return "skip";
+  return choiceForVerdict(card, flipped, "agree") === swipe.chosen ? "agree" : "disagree";
 }
 
 export function swipeFor(card: PolicyCard, choice: DeckChoice | "skip", starred: boolean): Swipe {

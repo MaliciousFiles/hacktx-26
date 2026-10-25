@@ -3,7 +3,14 @@ import { join } from "node:path";
 import type { JudicialCard, PoleCard, PolicyCard, TradeoffCard } from "@ftb/types";
 import { describe, expect, it } from "vitest";
 import { displayBucket, salienceFrom } from "../matching";
-import { anchorsDone, choiceLabel, judicialDeckDone, orderDeck, swipeForSlot } from "./deck";
+import {
+  anchorsDone,
+  judicialDeckDone,
+  orderDeck,
+  statementFor,
+  swipeForVerdict,
+  verdictOf,
+} from "./deck";
 import { CAST, packMasks, unpackMasks } from "./masks";
 import { checkReveal } from "./reveal";
 import {
@@ -58,24 +65,28 @@ describe("deck", () => {
     expect(orderDeck(cards).map((card) => card.id)).toEqual(["p2", "p1", "t", "j2", "j1"]);
   });
 
-  it("records the data pole shown in the tapped slot, for every flip (Suite D side-swap)", () => {
+  it("agree records the pole shown, disagree the other, for every flip (Suite D side-swap)", () => {
     for (const card of [pole("p", true), judge("j", true)]) {
       for (const flipped of [false, true]) {
-        for (const slot of [0, 1] as const) {
-          const swipe = swipeForSlot(card, flipped, slot, false);
-          const shownSide = flipped ? (slot === 0 ? "b" : "a") : slot === 0 ? "a" : "b";
-          expect(swipe.chosen).toBe(shownSide);
-          expect(choiceLabel(card, swipe.chosen as "a" | "b")).toBe(
-            `${card.id} ${shownSide.toUpperCase()}`,
-          );
-        }
+        const shown = flipped ? "b" : "a";
+        const other = flipped ? "a" : "b";
+        expect(statementFor(card, flipped)).toBe(`${card.id} ${shown.toUpperCase()}`);
+        const agree = swipeForVerdict(card, flipped, "agree", false);
+        const disagree = swipeForVerdict(card, flipped, "disagree", false);
+        expect(agree.chosen).toBe(shown);
+        expect(disagree.chosen).toBe(other);
+        expect(verdictOf(card, flipped, agree)).toBe("agree");
+        expect(verdictOf(card, flipped, disagree)).toBe("disagree");
       }
     }
   });
 
-  it("never swaps tradeoff buttons", () => {
-    expect(swipeForSlot(tradeoff, true, 0, false).chosen).toBe("accept");
-    expect(swipeForSlot(tradeoff, true, 1, false).chosen).toBe("decline");
+  it("maps tradeoff swipes to worth it / not worth it whatever the flip", () => {
+    for (const flipped of [false, true]) {
+      expect(swipeForVerdict(tradeoff, flipped, "agree", false).chosen).toBe("accept");
+      expect(swipeForVerdict(tradeoff, flipped, "disagree", false).chosen).toBe("decline");
+    }
+    expect(verdictOf(tradeoff, false, undefined)).toBeNull();
   });
 
   it("gates on anchors and the judicial deck, counting skips as done", () => {

@@ -175,28 +175,26 @@ ASCII wireframes are for structure only. Spacing, color and type come from `VISU
 
 **E1 · Deck intro**: "A few quick choices. There's no right answer, and skipping is fine. ⭐ the ones that matter most to you."
 
-**E2 · Pole card**
+**E2 · Pole card** (swipe deck, decided Oct 25)
 ```
 ┌──────────────────────────────┐
-│ Housing · 3 of 14     [Skip] │
-│                              │
-│  Which is closer to you?     │
+│ Housing · 3 of 14            │
+│ Swipe right to agree, left   │
+│ to disagree.                 │
 │ ┌──────────────────────────┐ │
-│ │ Cities should allow more │ │
-│ │ apartments by default.   │ │  ◄ option shown first:
-│ └──────────────────────────┘ │    side is random per device
-│            — or —            │
-│ ┌──────────────────────────┐ │
-│ │ Neighborhoods should keep│ │
-│ │ existing zoning rules.   │ │
+│ │ [scene art]              │ │
+│ │ Cities should allow more │ │  ◄ ONE pole per card: which pole
+│ │ apartments by default.   │ │    is shown is random per device
 │ └──────────────────────────┘ │
-│                              │
-│  ☆ This matters to me        │
-│  [← Back]                    │
+│ ← Disagree          Agree →  │
+│ [ ← Disagree ] [ Agree → ]   │
+│ back · skip · ☆ matters      │
 └──────────────────────────────┘
 ```
-- Swipe left or right picks the option on that side. **Tapping an option does the same**, and both options are real buttons with screen-reader labels (PLAN §2).
-- Which pole shows on top is seeded per device and per card. The recorded `chosen: "a" | "b"` always refers to `poleA`/`poleB` in the data, never to the screen position.
+- Tinder style: one statement per card. Swipe (or tap) right to agree, left to disagree. The next card comes in right away; Back returns to the previous card to change its answer ("You said: Agree").
+- The statement is one of the card's two poles, chosen by the persisted per-device flip. Agree records the shown pole; disagree records the other one. The recorded `chosen: "a" | "b"` always refers to `poleA`/`poleB` in the data, never to the gesture.
+- **Known tradeoff:** showing one pole invites agreeing with whatever is shown. The per-device flip spreads that across poles, but friend testing (Suite F) should check for it.
+- The Agree and Disagree buttons are real buttons with screen-reader labels and the same look, and the card exposes matching accessibility actions (PLAN §2). Reduce Motion skips the fling.
 - Skip records `chosen: "skip"`, which means missing, not neutral.
 - ⭐ toggles `starred` and works on any card type.
 
@@ -208,10 +206,10 @@ ASCII wireframes are for structure only. Spacing, color and type come from `VISU
 │  │ ─────── at the cost of ─│  │
 │  │ a higher sales tax      │  │
 │  └────────────────────────┘  │
-│  [ Worth it ]  [ Not worth it ]
+│  [ ← Not worth it ] [ Worth it → ]
 │  Saying "not worth it" doesn't mean you oppose buses.
 ```
-- Buttons say `accept`/`decline`; swipe up/down mirrors them. The footnote under the buttons is always visible (Inv. 22).
+- Swipe right = `accept` (worth it), left = `decline` (not worth it); the buttons mirror them. The footnote is always visible (Inv. 22).
 - Tradeoff answers feed only the reflection summary (E5) and the "questions to consider" prompts. They never feed matching.
 
 **E4 · Judicial mini-deck**: a short interstitial ("Judges aren't scored on policy. These four cards are about how a judge reads the law."), then 4 judicial pole cards in the same layout as E2 with a distinct "Judicial" badge.
