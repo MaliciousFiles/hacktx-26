@@ -19,7 +19,10 @@ const candidateTotalSchema = z.object({ candidate: text, "candidate-total": coun
 const rollSchema = z.object({
   "vote-metadata": z.object({
     congress: positiveCount,
-    chamber: z.enum(["U.S. House of Representatives", "House"]),
+    // Newer Clerk files carry `<committee>U.S. House of Representatives</committee>` instead; the
+    // clerk.house.gov host already scopes the document, so only a conflicting chamber is rejected.
+    chamber: z.enum(["U.S. House of Representatives", "House"]).optional(),
+    committee: z.enum(["U.S. House of Representatives", "House"]).optional(),
     "rollcall-num": positiveCount,
     "legis-num": xmlText.optional(),
     "vote-question": text,

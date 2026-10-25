@@ -32,7 +32,33 @@ the script.
 | `pnpm -F @ftb/mobile ios`     | Opens the app in Expo Go on the iOS Simulator (needs Xcode) |
 | `pnpm -F @ftb/mobile android` | Opens the app in Expo Go on an Android emulator             |
 
+## Connect a published ballot
+
+On Home, open **Connect a published ballot**. Enter the serving API URL, official
+ballot-style ID, and frozen release ID supplied by the data team. Loading a ballot
+starts a fresh local session. A failed request leaves the current ballot intact.
+Names are fetched on reveal using the same release ID; mismatched responses are rejected.
+
+Optional defaults in `apps/mobile/.env.local`:
+
+```sh
+EXPO_PUBLIC_API_URL=https://your-serving-api.example
+EXPO_PUBLIC_BALLOT_STYLE_ID=your-style
+EXPO_PUBLIC_RELEASE_ID=your-release
+```
+
+Use a URL reachable by your phone (not `localhost`). The API must expose the
+existing `/ballot?ballotStyleId=…&releaseId=…` and `/reveal/:contestId?releaseId=…`
+contract. No database credentials belong in the app. Sample mode remains available
+offline. Answers are held in memory and reset on app reload or data-source change.
+
 ## Troubleshooting
+
+The home screen's daily game and the reveal screen's image-card button open the
+web app. Set `EXPO_PUBLIC_WEB_URL=https://your-deployed-site.example` in
+`apps/mobile/.env.local` and restart Metro. See `apps/web/README.md` for deployment
+and LAN testing. Share links carry only counts in the fragment; game links carry
+no ballot information.
 
 **The phone times out, but the URL loads on the Mac.** The Wi-Fi blocks phone-to-laptop
 traffic. Use `pnpm mobile:tunnel`. Alternatively, run Tailscale on both devices and use

@@ -149,3 +149,51 @@ describe("civicclerk", () => {
     expect(await civicClerkAdapter.collect(context, config)).toMatchObject({ status: "partial", actions: [] });
   });
 });
+
+describe("civicclerk server-driven paging and real-world minutes shapes", () => {
+  // Models the Travis portal: 4 rows per response, `$top` is a TOTAL cap that shrinks in each nextLink.
+  function cappedServer(rows: unknown[], meeting: unknown) {
+    return (url: URL) => {
+      if (!url.pathname.endsWith("/Events")) return meeting;
+      const token = url.searchParams.get("$skiptoken");
+      const start = token ? Number(token) : Number(url.searchParams.get("$skip") ?? 0);
+      const top = Number(url.searchParams.get("$top"));
+      const take = Math.min(4, top, rows.length - start);
+      const value = rows.slice(start, start + take);
+      const next = new URL(url);
+      next.searchParams.delete("$skip"); next.searchParams.set("$skiptoken", String(start + take));
+      next.searchParams.set("$top", String(top - take));
+      return { value, "@odata.count": rows.length, ...(top - take > 0 && start + take < rows.length ? { "@odata.nextLink": next.href } : {}) };
+    };
+  }
+
+  it("keeps paging after a server-paged $top chain is exhausted (no silent truncation at pageSize)", async () => {
+    const rows = Array.from({ length: 23 }, (_, i) => event({ id: 100 + i, agendaId: 500 + i, startDateTime: `2026-02-${String(i + 1).padStart(2, "0")}T09:00:00Z`, eventDate: `2026-02-${String(i + 1).padStart(2, "0")}T09:00:00Z` }));
+    const meeting = { items: [item({ minutesItemVotes: [motion({ yesVotes: ["Alex Rivera"], noVotes: [] })] })] };
+    const { context } = mockContext(cappedServer(rows, meeting));
+    const result = await civicClerkAdapter.collect(context, { ...config, pageSize: 10 });
+    expect(result.reason).toMatch(/^23 events inspected/);
+    expect(result.actions).toHaveLength(23);
+  });
+
+  it("keeps real motions published with an empty motion name and excludes call-to-order signature attendance", async () => {
+    const meeting = { items: [
+      item({ id: 1, agendaObjectItemName: "Provide charge to committee", minutesItemVotes: [motion({ motionName: "", yesVotes: ["Alex Rivera"], noVotes: [] })] }),
+      item({ id: 2, agendaObjectItemName: "Call to Order", minutesItemVotes: [motion({ motionName: "Signature Motion", yesVotes: ["Alex Rivera"], noVotes: [] })] }),
+    ] };
+    const { context } = mockContext(source(meeting));
+    const result = await civicClerkAdapter.collect(context, config);
+    expect(result.actions.map((a) => a.title)).toEqual(["Provide charge to committee"]);
+    expect(result.actions[0].vote!.question).toBe("Provide charge to committee");
+    expect(result.reason).toMatch(/1 call-to-order signature motions/);
+  });
+
+  it("does not attribute court votes to a differently named candidate and summarizes the unnamed motions once", async () => {
+    const meeting = { items: [item({ minutesItemVotes: [motion({ yesVotes: ["Andy Brown", "Sam Lee"], noVotes: [] }), motion({ yesVotes: ["Andy Brown"], noVotes: [] })] })] };
+    const { context } = mockContext(source(meeting), { name: "Andrew Browne" });
+    const result = await civicClerkAdapter.collect(context, config);
+    expect(result.actions).toHaveLength(0);
+    expect(result.reason.match(/did not name the candidate/g)).toHaveLength(1);
+    expect(result.reason).toMatch(/2 of 2 motions did not name the candidate/);
+  });
+});

@@ -15,6 +15,7 @@ import {
 } from "@/components/art";
 import { DrawIn, Enter, Flourish, Idle, PressableScale, PulseRing } from "@/components/motion";
 import { colors, fonts, shadows } from "@/theme";
+import { useBallotData } from "@/ballotData";
 
 const HEADER_GUESS = 40;
 
@@ -48,6 +49,8 @@ export function Screen({
           { paddingTop: top + 8, paddingBottom: footer || tray ? 28 : bottomInset + 32 },
         ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         <View style={styles.column}>{children}</View>
       </ScrollView>
@@ -72,7 +75,11 @@ export function Screen({
         {header ? (
           <View
             pointerEvents="box-none"
-            onLayout={(event) => setHeaderHeight(Math.round(event.nativeEvent.layout.height))}
+            onLayout={(event) =>
+              setHeaderHeight(
+                Math.max(0, Math.round(event.nativeEvent.layout.height - insets.top - 14)),
+              )
+            }
             style={[styles.header, { paddingTop: insets.top + 14 }]}
           >
             <View pointerEvents="box-none" style={styles.column}>
@@ -101,10 +108,15 @@ function Glow() {
 }
 
 export function SampleMark({ centered = false }: { centered?: boolean }) {
+  const { sample, data } = useBallotData();
   return (
     <View style={[styles.sample, centered && styles.sampleCentered]}>
       <Icon name="sparkle" size={12} strokeWidth={1.8} fill={colors.gold} />
-      <Text style={styles.sampleText}>Sample release · not a live ballot</Text>
+      <Text style={styles.sampleText}>
+        {sample
+          ? "Demo edition · fictional candidates"
+          : `Release ${data.release.id} · ${data.release.asOfDate}`}
+      </Text>
     </View>
   );
 }
@@ -346,7 +358,7 @@ export function GuideTile({ on, onPress }: { on: boolean; onPress: () => void })
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel="Ask the Fairy Godmother"
+      accessibilityLabel={on ? "Hide question help" : "Show question help from the Fairy Godmother"}
       accessibilityState={{ selected: on }}
       onPress={onPress}
       style={styles.tileWrap}
@@ -354,7 +366,7 @@ export function GuideTile({ on, onPress }: { on: boolean; onPress: () => void })
       <View style={styles.guideTile}>
         <Godmother size={50} />
       </View>
-      <Text style={styles.tileLabel}>guide</Text>
+      <Text style={styles.tileLabel}>help</Text>
     </PressableScale>
   );
 }

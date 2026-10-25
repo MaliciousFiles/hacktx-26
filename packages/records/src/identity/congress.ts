@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { RecordProvenance } from "@ftb/types";
 import { normalizeName, provenance } from "../model";
 import { BIOGUIDE_ID, IDENTITY_ADAPTER, matchesFullName } from "./roster";
-import type { IdentityLookup, IdentitySnapshotClient } from "./types";
+import type { IdentityLookup, IdentitySnapshotClient, MemberTerm } from "./types";
 
 // Official endpoint/field documentation, checked against MemberEndpoint.md and
 // openapi.json in LibraryOfCongress/api.congress.gov. No unofficial crosswalks.
@@ -86,6 +86,32 @@ function directName(value: string | undefined): string {
   if (parts.length === 2) return `${parts[1]} ${parts[0]}`;
   if (parts.length === 3) return `${parts[1]} ${parts[0]} ${parts[2]}`;
   return "";
+}
+
+const serviceTermSchema = z.object({
+  chamber: z.string().optional(),
+  startYear: z.number().int().optional(),
+  endYear: z.number().int().optional(),
+});
+const serviceSchema = z.object({
+  member: z.object({ terms: z.union([z.array(serviceTermSchema), z.object({ item: z.array(serviceTermSchema) })]).optional() }),
+});
+
+/** Best-effort Congress.gov service years for one verified bioguide ID. Undefined means unknown (scan everything). */
+export async function fetchMemberTerms(client: IdentitySnapshotClient, id: string, key: string): Promise<MemberTerm[] | undefined> {
+  try {
+    const snapshot = await client.get(apiUrl(id, key), { format: "json" });
+    const { member } = serviceSchema.parse(JSON.parse(snapshot.text));
+    const raw = Array.isArray(member.terms) ? member.terms : member.terms?.item;
+    if (!raw?.length) return undefined;
+    const terms: MemberTerm[] = [];
+    for (const term of raw) {
+      const chamber = /house/i.test(term.chamber ?? "") ? "house" : /senate/i.test(term.chamber ?? "") ? "senate" : undefined;
+      if (!chamber || term.startYear === undefined) return undefined; // incomplete data must not narrow the scan
+      terms.push({ chamber, startYear: term.startYear, ...(term.endYear !== undefined ? { endYear: term.endYear } : {}) });
+    }
+    return terms;
+  } catch { return undefined; }
 }
 
 export async function verifyCongressMember(

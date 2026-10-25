@@ -7,7 +7,7 @@
 import { createHash } from "node:crypto";
 import type { EventDate, ID, ISODate, Source, SourceFinder, SourceType } from "@ftb/types";
 import { fromSearchDate, fromTimestamp, googleDateRange, inWindow, type Window } from "./dates.js";
-import { publicWebUrl } from "./snapshot.js";
+import { SerpApiUnavailableError, publicWebUrl, serpApiKeysFromEnv } from "./snapshot.js";
 
 export const SOCIAL_PLATFORMS = [
   "x",
@@ -328,6 +328,7 @@ export function serpSnippetFinder(
           `&api_key=${opts.serpApiKey}`;
         const body = await getJson<SerpGoogle>(f, url);
         const results = body.organic_results ?? [];
+        const before = out.length;
         for (const r of results) {
           if (!r.snippet || !spec.owns(r.link, r.title ?? "", h)) continue;
           const eventDate = fromSearchDate(r.date, opts.fetchedAt);
@@ -346,7 +347,9 @@ export function serpSnippetFinder(
             ),
           );
         }
-        if (results.length < 10) break;
+        // Site-restricted results are mostly the account's own; a later page with
+        // none of its posts in the window means deeper pages would spend searches for nothing.
+        if (results.length < 10 || (page > 0 && out.length === before)) break;
       }
       return out.slice(0, opts.maxItems);
     },
@@ -421,13 +424,14 @@ export function youtubeFinder(opts: FinderOptions & { serpApiKey: string }): Soc
  * gets the same method on the same platform. Platforms with no key are reported, not skipped.
  */
 export function socialFinders(
-  env: { SERPAPI_API_KEY?: string; X_BEARER_TOKEN?: string },
+  env: { SERPAPI_API_KEY?: string; SERPAPI_API_KEY_FALLBACK?: string; X_BEARER_TOKEN?: string },
   opts: FinderOptions,
 ): SocialFinder[] {
+  const serpApiKey = serpApiKeysFromEnv(env)[0];
   const finders: SocialFinder[] = [blueskyFinder(opts)];
   if (env.X_BEARER_TOKEN) finders.push(xApiFinder({ ...opts, bearerToken: env.X_BEARER_TOKEN }));
-  if (env.SERPAPI_API_KEY) {
-    const serp = { ...opts, serpApiKey: env.SERPAPI_API_KEY };
+  if (serpApiKey) {
+    const serp = { ...opts, serpApiKey };
     if (!env.X_BEARER_TOKEN) finders.push(serpSnippetFinder("x", serp));
     for (const p of ["facebook", "instagram", "tiktok", "threads"] as const)
       finders.push(serpSnippetFinder(p, serp));
@@ -497,12 +501,15 @@ export async function scrapeSocial(
           }
         }
         report.push({ ...base, status: "scraped", method: finder.method, items, undated });
-      } catch {
+      } catch (error) {
         report.push({
           ...base,
           status: "error",
           method: finder.method,
-          error: "Account verification or fetch failed; inspect frozen responses",
+          error:
+            error instanceof SerpApiUnavailableError
+              ? `SerpAPI unavailable (${error.reason}): ${error.message}; coverage gap, not zero results`
+              : "Account verification or fetch failed; inspect frozen responses",
         });
       }
     }

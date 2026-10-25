@@ -2,6 +2,8 @@ import type { CandidateResearchRequest } from "@ftb/types";
 import type { RecordsPlan } from "../collector";
 import { OAG_OPINIONS_INDEX, matchTxAgOpinionSeries } from "../executive/tx-ag";
 import { candidateNames } from "../model";
+import { matchTxGovernorTenure } from "./officeholders";
+import { texasSessionCodes } from "../texas/sessions";
 
 export interface HistoryPlanResult {
   plan: RecordsPlan;
@@ -47,12 +49,22 @@ export function buildHistoryPlan(
     documentCap?: number;
     /** Opt into TLO FTP discovery (slow; off by default for interactive use). */
     includeTloFtp?: boolean;
+    exhaustive?: boolean;
+    /**
+     * How many of the most recent calendar years get a House roll-call inventory.
+     * Roll calls are the only source that scales into the thousands of documents per
+     * member, so the default is an explicit 2-year operator scope (not a claim of
+     * complete roll-call history). Raise it deliberately for a longer run.
+     */
+    houseRollYears?: number;
   } = {},
 ): HistoryPlanResult {
   const since = options.since ?? "2015-01-01";
   const houseRollCap = options.houseRollCap ?? 120;
   const documentCap = options.documentCap ?? 12;
   const years = yearsInWindow(request, since);
+  const houseRollYears = options.houseRollYears ?? 2;
+  const houseRollWindow = years.filter((year) => year > request.year - houseRollYears);
   const congresses = congressesForYears(years);
   const rationale: string[] = [
     `Bounded history scan for ${request.candidate.name} (race sought: ${request.position.office}) — every supported office family is probed; the ballot race is not a prior-office filter. This is not a complete career inventory.`,
@@ -60,6 +72,7 @@ export function buildHistoryPlan(
   const gaps: string[] = [
     `Bounded discovery since ${since}: per-source document cap ${documentCap}, House roll cap ${houseRollCap}. Increasing caps alone does not establish complete career coverage.`,
     "Federal automatic inventories cover 2023 onward only, House roll upper bounds are configured rather than discovered to exhaustion, and Texas FTP discovery covers only 89R. Earlier terms and other sessions require additional inventories.",
+    `House roll-call votes are scoped to the ${houseRollYears} most recent calendar year(s) (${houseRollWindow.join(", ") || "none"}). Earlier roll calls are not fetched in this run; this is an operator scope, not evidence of absence.`,
   ];
   const sources: RecordsPlan["sources"] = [];
   const tx = isTx(request.position.jurisdiction);
@@ -69,13 +82,13 @@ export function buildHistoryPlan(
     rationale.push(why);
   };
 
-  // ——— U.S. House (always; soft-skipped without bioguide) ———
-  for (const year of years.filter((y) => y >= 2023)) {
+  // ——— U.S. House roll calls (last N calendar years only; bioguide-bound) ———
+  for (const year of houseRollWindow.filter((y) => y >= (options.exhaustive ? 1990 : 2023))) {
     add(
       {
         id: `house-clerk-${year}`,
         adapter: "house-clerk",
-        discovery: {
+        discovery: options.exhaustive ? { kind: "house-clerk-index", year } : {
           kind: "house-clerk-rolls",
           year,
           fromRoll: 1,
@@ -96,8 +109,8 @@ export function buildHistoryPlan(
       adapter: "govinfo-billstatus",
       discovery: {
         kind: "govinfo-billstatus",
-        congresses: congresses.filter((c) => c >= 118),
-        billTypes: ["hr", "hres"],
+        congresses: congresses.filter((c) => c >= (options.exhaustive ? 113 : 118)),
+        billTypes: options.exhaustive ? ["hr", "hres", "hjres", "hconres"] : ["hr", "hres"],
         maxDocuments: documentCap,
       },
       config: {
@@ -109,7 +122,7 @@ export function buildHistoryPlan(
   );
 
   // ——— U.S. Senate (always; soft-skipped without bioguide) ———
-  for (const year of years.filter((y) => y >= 2023)) {
+  for (const year of years.filter((y) => y >= (options.exhaustive ? 1994 : 2023))) {
     add(
       {
         id: `govinfo-crec-${year}`,
@@ -129,8 +142,8 @@ export function buildHistoryPlan(
       adapter: "govinfo-billstatus",
       discovery: {
         kind: "govinfo-billstatus",
-        congresses: congresses.filter((c) => c >= 118),
-        billTypes: ["s", "sres"],
+        congresses: congresses.filter((c) => c >= (options.exhaustive ? 113 : 118)),
+        billTypes: options.exhaustive ? ["s", "sres", "sjres", "sconres"] : ["s", "sres"],
         maxDocuments: documentCap,
       },
       config: {
@@ -143,6 +156,8 @@ export function buildHistoryPlan(
 
   // ——— Texas legislature ———
   if (tx) {
+    // Bulk FTP crawling every bill is NOT part of exhaustive mode: tx-legislator enumerates each
+    // member's authored bills from TLO's per-member reports, which is the bounded exact inventory.
     if (options.includeTloFtp) {
       add(
         {
@@ -150,8 +165,8 @@ export function buildHistoryPlan(
           adapter: "tlo-billhistory",
           discovery: {
             kind: "tlo-billhistory",
-            sessions: ["89R"],
-            billTypes: ["HB", "SB"],
+            sessions: options.exhaustive ? texasSessionCodes(Number(since.slice(0, 4)), request.year) : ["89R"],
+            billTypes: options.exhaustive ? ["HB", "SB", "HJR", "SJR", "HCR", "SCR", "HR", "SR"] : ["HB", "SB"],
             maxDocuments: Math.min(documentCap, 10),
           },
           config: {
@@ -168,8 +183,14 @@ export function buildHistoryPlan(
         "TX Legislature TLO bill-history FTP auto-discovery skipped (often multi-minute); pass includeTloFtp or a manual URL plan.",
       );
     }
+    // Identity (current TLO roster, exact full name) → sessions served → authored bills (dated via
+    // TLO bill-history XML) → House Journal record votes. Unresolved identity is an explicit gap.
+    add(
+      { id: "tx-legislator", adapter: "tx-legislator", config: {} },
+      "Texas legislator history: TLO/LRL identity and service, per-session authored bills (current members), House and Senate Journal record votes.",
+    );
     gaps.push(
-      "TX House/Senate journal floor votes need session journal URL inventories per candidate term (adapter exists; auto URL discovery not wired yet).",
+      "TX legislator history: former members (no current TLO code) get floor votes but not authored bills; called-session journals are not scanned; Senate votes are inferred only where the journal's absences reconcile with the totals.",
     );
   } else {
     gaps.push(
@@ -195,8 +216,14 @@ export function buildHistoryPlan(
       "Austin Council Socrata votes (verified prior district + exact full-name match).",
     );
   } else if (tx || /austin/i.test(request.position.jurisdiction)) {
+    // No upstream-verified district: the adapter resolves it from the official dataset itself
+    // (exact name beside voter_district) and fails closed on ambiguity.
+    add(
+      { id: "austin-council-votes", adapter: "austin-council-votes", config: {} },
+      "Austin Council votes (2023 onward): district resolved from the official dataset by exact name.",
+    );
     gaps.push(
-      "Austin Council votes not collected: needs a verified prior council district (identifiers.austin_council_district); name-only matching could attribute another member's votes.",
+      "Austin Council votes cover 2023 onward only (the official dataset's range); earlier council service needs archive minutes.",
     );
   }
 
@@ -231,15 +258,79 @@ export function buildHistoryPlan(
     );
   }
 
-  // ——— Governor / Register / Judicial / minutes — adapters exist; auto indexes not wired ———
+  // ——— Governor: vetoes + priority-bill signings from official TLO governor reports ———
+  const governor = tx ? matchTxGovernorTenure(candidateNames(request)) : undefined;
+  if (governor) {
+    add(
+      {
+        id: "tlo-governor-report",
+        adapter: "tlo-governor-report",
+        config: {
+          role: "Governor of Texas",
+          tenure: {
+            candidateId: request.candidate.id,
+            start: governor.start,
+            ...(governor.end ? { end: governor.end } : {}),
+            sourceUrl: governor.sourceUrl,
+          },
+        },
+      },
+      "Governor vetoes and priority-bill signings from official TLO governor reports (verified tenure, TSL).",
+    );
+  }
+
+  if (governor?.lrlAuthorId && governor.lrlAuthorName) {
+    add(
+      {
+        id: "lrl-governor-orders",
+        adapter: "lrl-governor-orders",
+        config: {
+          authorId: governor.lrlAuthorId,
+          authorName: governor.lrlAuthorName,
+          role: "Governor of Texas",
+          tenure: {
+            candidateId: request.candidate.id,
+            start: governor.start,
+            ...(governor.end ? { end: governor.end } : {}),
+            sourceUrl: governor.sourceUrl,
+          },
+        },
+      },
+      "Governor executive orders from the LRL governor documents catalog (number, caption, date, scanned PDF).",
+    );
+  }
+
+  if (tx) {
+    for (const [id, adapter, why] of [
+      ["acc-board-minutes", "acc-board-minutes", "ACC current trustee identity, official minutes indexes, raw PDFs and separate unreviewed OCR; native named votes only."],
+      ["aisd-board-minutes", "aisd-board-minutes", "AISD current trustee identity, public Diligent meeting/minutes discovery and legacy BoardDocs availability check; agendas are not votes."],
+      ["travis-office-records", "travis-office-records", "Travis County non-voting offices and trial courts: official profiles, reports and court-rule archives as private research context, never fabricated actions."],
+    ]) add({ id, adapter, config: { maxDocuments: documentCap } }, why);
+    add(
+      {
+        id: "travis-commissioners-court",
+        adapter: "civicclerk",
+        config: {
+          baseUrl: "https://traviscotx.api.civicclerk.com/v1",
+          role: "Travis County Commissioners Court member",
+        },
+      },
+      "Travis County Commissioners Court: government-linked CivicClerk events and explicitly named structured minutes votes; no participation inferred from attendance or item sponsorship.",
+    );
+    add(
+      { id: "tx-court-opinions", adapter: "tx-court-opinions", config: {} },
+      "Texas appellate opinions: exact full-name identity from official current court rosters; attributed written opinions only, not panel membership.",
+    );
+  }
+  // ——— Remaining sources without automatic discovery ———
   gaps.push(
-    "Governor orders / Texas Register: adapters exist; need configured official document URLs + verified tenure (auto index crawl not wired yet).",
+    "Texas Register (agency rule filings): adapter exists but has no wired discovery. Governor executive orders come from the LRL catalog, which lists orders only for governors it covers.",
   );
   gaps.push(
-    "TX judicial (SCOTX/TAMES/SCJC): adapters exist; need configured opinion/order URLs or index pages per candidate.",
+    "TX judicial: appellate discovery covers current roster members only with bounded release-day/action budgets. Former courts, trial judges, sanctions, and full opinion text still require additional official sources; docket labels are not policy evidence.",
   );
   gaps.push(
-    "Official minutes / CivicClerk / Legistar: adapters exist; need per-body endpoint or minutes URL configuration.",
+    "Travis County office/trial-court context and ACC/AISD minutes discovery are wired, but current-roster identity, archive availability, unreadable PDFs, OCR review, unpublished/non-public minutes, legacy BoardDocs access and document budgets limit coverage. Office reports and shared rules are not personal actions; historical tenures remain unverified.",
   );
 
   // Always attempt House/Congress.gov identity so bioguide-bound sources can run when
@@ -252,6 +343,7 @@ export function buildHistoryPlan(
   return {
     plan: {
       since,
+      exhaustive: options.exhaustive,
       identity,
       sources,
     },

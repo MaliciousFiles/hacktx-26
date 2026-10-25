@@ -1,6 +1,7 @@
 import type { OfficialAction } from "@ftb/types";
 import { z } from "zod";
 import type { RecordsAdapter } from "../adapters";
+import { collectionConfig } from "../adapters";
 import { candidateNames, inWindow, normalizeName, provenance, voteStance } from "../model";
 import {
   actionId, invalidConfig, localVote, nonAction, pages, report, sourceDateSchema,
@@ -79,7 +80,7 @@ export const socrataVotesAdapter: RecordsAdapter = {
   async collect(context, input) {
     const parsed = socrataVotesConfigSchema.safeParse(input);
     if (!parsed.success) return invalidConfig(this.kind);
-    const config = parsed.data;
+    const config = collectionConfig(parsed.data, context);
     const c = config.columns;
     const url = new URL(config.endpoint);
     // Fetch EVERY member in the interval. Filtering by candidate/district here

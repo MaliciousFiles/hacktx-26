@@ -12,10 +12,10 @@ import {
   TopBar,
 } from "@/components/ui";
 import { formatIsoDate } from "@/format";
-import { demoBallot } from "@/fixtures/travisDemo";
+import { useBallotData } from "@/ballotData";
 import { colors, fonts } from "@/theme";
 
-const SOURCES: Array<[string, string]> = [
+const SOURCES: [string, string][] = [
   ["Records", "Votes, ordinances, and court filings. What officials did, not only what they said."],
   ["Statements", "Speeches, questionnaires, campaign sites, and public posts, quoted exactly."],
   ["The ballot", "Official contest lists and measure text from the county."],
@@ -33,15 +33,18 @@ const PROMISES = [
 
 export default function HowItWorks() {
   const router = useRouter();
-  const { release } = demoBallot;
+  const {
+    data: { release },
+    sample,
+  } = useBallotData();
   return (
     <Screen header={<TopBar onBack={() => router.navigate("/")} backLabel="Home" />}>
       <SampleMark />
-      <Kicker>How this book works</Kicker>
+      <Kicker>How Wishing Well works</Kicker>
       <Title>Evidence first, names last.</Title>
       <Body>
-        You choose what matters to you, read what each contest is really about, and only then lift
-        the masks. We do not endorse anyone.
+        Answer questions about your priorities, compare candidates’ plans and records, then reveal
+        their names and parties when you are ready. We do not endorse anyone.
       </Body>
 
       <Section title="Where the evidence comes from" icon="scroll">
@@ -67,8 +70,10 @@ export default function HowItWorks() {
           <Text style={styles.release}>{release.id}</Text>
           <Text style={styles.line}>As of {formatIsoDate(release.asOfDate)}.</Text>
           <Note>
-            This build ships a hand-made sample. Its quotes, people, and dollars are fictional. A
-            live release is a frozen, numbered snapshot, and corrections publish a new one.
+            {sample
+              ? "You are viewing a hand-made sample. Its quotes, people, and dollars are fictional."
+              : "You are viewing a connected frozen release. This walkthrough stays on the same snapshot."}{" "}
+            Corrections publish a new release.
           </Note>
         </Panel>
       </Section>

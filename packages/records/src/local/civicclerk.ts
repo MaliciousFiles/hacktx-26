@@ -1,6 +1,7 @@
 import type { OfficialAction } from "@ftb/types";
 import { z } from "zod";
 import type { RecordsAdapter } from "../adapters";
+import { collectionConfig } from "../adapters";
 import { candidateNames, inWindow, normalizeName, provenance, voteStance } from "../model";
 import {
   actionId, baseUrl, invalidConfig, nonAction, pages, pagingShape, report,
@@ -12,6 +13,8 @@ export const civicClerkConfigSchema = z.object({
   baseUrl: sourceUrlSchema.transform(baseUrl),
   role: z.string().trim().min(1),
   ...pagingShape,
+  // 1000 is this API's documented `$top` ceiling; it also bounds the number of continuation chains.
+  pageSize: z.number().int().min(1).max(1000).default(1000),
 });
 export type CivicClerkConfig = z.input<typeof civicClerkConfigSchema>;
 
@@ -28,7 +31,8 @@ const eventSchema = z.object({
 // Arrays are optional in the schema so an unpublished/incomplete motion can
 // be reported as partial, not mistaken for an empty complete roll call.
 export const civicClerkMotionSchema = z.object({
-  motionName: z.string().min(1),
+  // Some real Court motions are published with an empty name; rejecting the schema would drop the whole meeting.
+  motionName: z.string(),
   initiatedBy: z.string().nullish(),
   secondedBy: z.string().nullish(),
   passFail: z.union([z.number(), z.string()]).nullish(),
@@ -66,16 +70,21 @@ export const civicClerkAdapter: RecordsAdapter = {
   async collect(context, input) {
     const parsed = civicClerkConfigSchema.safeParse(input);
     if (!parsed.success) return invalidConfig(this.kind);
-    const config = parsed.data;
+    const config = collectionConfig(parsed.data, context);
     const url = new URL(`${config.baseUrl}/Events`);
     url.searchParams.set("$filter", `startDateTime ge ${context.window.since}T00:00:00Z and startDateTime lt ${context.window.before}T00:00:00Z`);
     url.searchParams.set("$orderby", "startDateTime,id");
-    const collected = await pages({ context, url, pageSize: config.pageSize, maxPages: config.maxPages, parse: eventSchema.parse });
+    const collected = await pages({ context, url, pageSize: config.pageSize, maxPages: config.maxPages, parse: eventSchema.parse, count: true });
     const problems = [...collected.problems];
     const events = uniqueRows(collected.rows, (event) => event.id, problems, "event");
     const names = candidateNames(context.request);
     const actions: OfficialAction[] = [];
     let motionCount = 0;
+    let attendanceMotions = 0;
+    let earliest: string | undefined;
+    let notNamed = 0;
+    const noAgenda: string[] = [];
+    const noMotions: string[] = [];
     for (const eventRow of events) {
       const event = eventRow.value;
       const date = event.startDateTime ?? event.eventDate!;
@@ -85,7 +94,7 @@ export const civicClerkAdapter: RecordsAdapter = {
         continue;
       }
       if (!event.agendaId || event.agendaId === "0") {
-        problems.push(`Event ${event.id}: no published agenda/meeting ID; structured minutes unavailable.`);
+        noAgenda.push(date);
         continue;
       }
       try {
@@ -106,6 +115,11 @@ export const civicClerkAdapter: RecordsAdapter = {
             motionCount++;
             eventMotions++;
             if (nonAction(motion.motionName)) continue;
+            // The Court's "Signature Motion" under "Call to Order" records who signed in/was seated, not a decision.
+            if (normalizeName(motion.motionName) === "signature motion" && normalizeName(item.agendaObjectItemName) === "call to order") {
+              attendanceMotions++;
+              continue;
+            }
             const locator = `${itemRow.locator}/minutesItemVotes/${index}`;
             if (!motion.yesVotes || !motion.noVotes || !motion.abstainVotes) {
               problems.push(`Event ${event.id}, item ${item.id}, motion ${index}: vote arrays missing; participation unknown.`);
@@ -123,7 +137,8 @@ export const civicClerkAdapter: RecordsAdapter = {
             }
             const targets = ballots.filter((ballot) => names.has(normalizeName(ballot.name)));
             if (targets.length !== 1) {
-              problems.push(`Event ${event.id}, item ${item.id}, motion ${index}: ${targets.length ? "multiple target aliases matched; identity requires review" : "target not named; participation is unknown, not absent"}.`);
+              if (targets.length) problems.push(`Event ${event.id}, item ${item.id}, motion ${index}: multiple target aliases matched; identity requires review.`);
+              else notNamed++;
               continue;
             }
             const target = targets[0];
@@ -133,7 +148,7 @@ export const civicClerkAdapter: RecordsAdapter = {
               body: event.categoryName ?? event.eventName ?? undefined,
               type: "floor_vote", stance: voteStance(target.value),
               margin: { yes: motion.yesVotes.length, no: motion.noVotes.length, abstain: motion.abstainVotes.length },
-              date, title: item.agendaObjectItemName || motion.motionName,
+              date, title: item.agendaObjectItemName || motion.motionName || "Untitled agenda item",
               // Preserve JSON strings verbatim, including any embedded markup.
               officialText: [item.agendaObjectItemName, item.agendaObjectItemDescription, motion.motionName].filter((value) => value != null && value !== "").join("\n"),
               sourceUrl: snapshot.sourceUrl, extraction: "json",
@@ -146,16 +161,21 @@ export const civicClerkAdapter: RecordsAdapter = {
               attribution: { method: "named_record" },
               // There is no literal vote-value string in this format: retain
               // the raw JSON field and exact source name rather than invent it.
-              vote: { value: target.value, raw: `${target.raw}: ${target.name}`, question: motion.motionName, method: "unknown" },
+              vote: { value: target.value, raw: `${target.raw}: ${target.name}`, question: motion.motionName || item.agendaObjectItemName || "Unnamed motion", method: "unknown" },
             });
           }
         }
-        if (!eventMotions) problems.push(`Event ${event.id}: no structured minutes motions; votes may be unpublished or unsupported.`);
+        if (eventMotions && (!earliest || date < earliest)) earliest = date;
+        if (!eventMotions) noMotions.push(date);
       } catch {
         problems.push(`Event ${event.id}: meeting request or JSON schema validation failed.`);
       }
     }
+    const span = (dates: string[]) => `${dates.slice().sort()[0]}..${dates.slice().sort().at(-1)}`;
+    if (noAgenda.length) problems.push(`${noAgenda.length} events (${span(noAgenda)}) have no published agenda/meeting ID, so no structured minutes exist for them.`);
+    if (noMotions.length) problems.push(`${noMotions.length} events (${span(noMotions)}) have no structured minutes motions; votes may be unpublished or predate this portal's recorded-vote era.`);
+    if (notNamed) problems.push(`${notNamed} of ${motionCount} motions did not name the candidate; participation is unknown, not absent${actions.length ? "" : " (the candidate is never named in the structured era, so no Court votes are attributed)"}.`);
     return report(actions, problems, context.window,
-      `${events.length} events inspected; ${motionCount} motions and ${actions.length} target votes found in the government-designated CivicClerk JSON source.`);
+      `${events.length} events inspected; ${motionCount} motions and ${actions.length} target votes found in the government-designated CivicClerk JSON source.${attendanceMotions ? ` ${attendanceMotions} call-to-order signature motions (attendance, not decisions) were excluded.` : ""}${earliest ? ` Structured minutes votes exist from ${earliest}; earlier meetings in this portal have agendas but no published motions.` : ""}`);
   },
 };

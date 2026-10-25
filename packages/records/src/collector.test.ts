@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CandidateResearchRequest, OfficialAction } from "@ftb/types";
 import { RecordsCollector } from "./collector";
-import type { RecordsAdapter } from "./adapters";
+import type { AdapterContext, RecordsAdapter } from "./adapters";
 import { SnapshotClient } from "./fetch";
 import { provenance } from "./model";
 
@@ -43,6 +43,51 @@ function collector(adapters = [testAdapter()]) {
 const plan = { sources: [{ id: "fixture-source", adapter: "fixture", config: {} }] };
 
 describe("candidate collection", () => {
+  it("recovers a per-document backlog without reparsing successful siblings", async () => {
+    let failed = false;
+    const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("sitemap")) return new Response('<urlset><url><loc>https://www.govinfo.gov/app/details/CREC-2026-10-01</loc></url><url><loc>https://www.govinfo.gov/app/details/CREC-2026-10-02</loc></url></urlset>');
+      if (url.includes("10-01") && !failed) { failed = true; return new Response("temporary failure", { status: 500 }); }
+      return new Response("<mods>Published record</mods>");
+    });
+    const client = new SnapshotClient({ directory, recovery: true, intervalMs: 0, retries: 0, fetch });
+    const collect = vi.fn(async (ctx: AdapterContext, config: unknown) => {
+      const url = (config as { urls: string[] }).urls[0];
+      await ctx.client.get(url, { format: "xml", root: "mods" });
+      return { actions: [], status: "complete" as const, reason: "Parsed configured document" };
+    });
+    const service = new RecordsCollector({ client, adapters: [{ kind: "fixture", collect }] });
+    const discoveredPlan = { exhaustive: true, since: "2026-10-01", sources: [{ id: "record", adapter: "fixture", config: {}, discovery: { kind: "govinfo-record" as const, years: [2026] } }] };
+    const first = await service.collect(request, discoveredPlan);
+    expect(first.coverage[0].status).toBe("partial");
+    expect(collect).toHaveBeenCalledTimes(2);
+    client.workJournal!.retry(["retry_wait"]);
+    const second = await service.collect(request, discoveredPlan);
+    expect(second.coverage[0].status).toBe("complete");
+    expect(collect).toHaveBeenCalledTimes(3); // Completed sibling replayed with restored provenance.
+    expect(second.snapshots).toHaveLength(3);
+    expect(second.recovery!.counts.inventoryUnknown).toBeGreaterThan(0); // Role coverage still unknown.
+  });
+  it("preserves review-only context documents without inventing actions and rejects other-candidate context", async () => {
+    const adapter = (candidateId: string): RecordsAdapter => ({
+      kind: "context", async collect({ client }) {
+        const snapshot = await client.get("https://example.gov/context", { format: "json" });
+        return { actions: [], status: "partial", reason: "Context only", documents: [{
+          id: "doc", candidateId, title: "Office report", sourceUrl: snapshot.sourceUrl,
+          sourceFamily: "Office", relationship: "office_context", date: null, dateBasis: "unknown",
+          textBasis: "native", snapshotId: snapshot.id, contentHash: snapshot.contentHash, reviewRequired: true,
+        }] };
+      },
+    });
+    const contextPlan = { sources: [{ id: "context", adapter: "context", config: {} }] };
+    const result = await collector([adapter(request.candidate.id)]).collect(request, contextPlan);
+    expect(result.actions).toEqual([]);
+    expect(result.documents).toHaveLength(1);
+    const wrong = await collector([adapter("someone-else")]).collect(request, contextPlan);
+    expect(wrong.documents).toBeUndefined();
+    expect(wrong.coverage[0].status).toBe("unavailable");
+  });
   it("returns scoped provenance and an explicit date interval", async () => {
     const result = await collector().collect(request, plan);
     expect(result.actions).toHaveLength(1);
@@ -77,6 +122,26 @@ describe("candidate collection", () => {
       expect(result.actions).toEqual([]);
       expect(result.coverage[0].status).toBe("unavailable");
     }
+  });
+  it("accepts an HTML-extracted action that also carries a supporting proof of another format", async () => {
+    const adapter: RecordsAdapter = {
+      kind: "mixed", async collect({ request, client }) {
+        const page = await client.get("https://example.gov/catalog", { format: "html" });
+        const data = await client.get("https://example.gov/data.json", { format: "json" });
+        return { status: "complete", reason: "Catalog row plus supporting JSON", actions: [{
+          id: "mixed-action", actorId: request.candidate.id, issueIds: [], role: "Fixture board",
+          type: "executive_order", stance: "n/a", date: "2026-10-10", title: "Order", officialText: "Order",
+          sourceUrl: page.sourceUrl, extraction: "html",
+          provenance: [provenance(page, "mixed@1", "/row"), provenance(data, "mixed@1", "/order")],
+        }] };
+      },
+    };
+    const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async (input) =>
+      new Response(String(input).endsWith(".json") ? '{"order":1}' : "<html><body><p>Catalog</p></body></html>"));
+    const service = new RecordsCollector({ client: new SnapshotClient({ directory, intervalMs: 0, fetch }), adapters: [adapter] });
+    const result = await service.collect(request, { sources: [{ id: "mixed", adapter: "mixed", config: {} }] });
+    expect(result.coverage[0].status).toBe("complete");
+    expect(result.actions).toHaveLength(1);
   });
   it("independently filters future actions and deduplicates repeated source events", async () => {
     const future = await collector([testAdapter({ date: "2026-11-10" })]).collect(request, plan);
@@ -131,13 +196,35 @@ describe("candidate collection", () => {
       identity: { provider: "house" },
       sources: [
         { id: "house-rolls", adapter: "house-clerk", config: {} },
+        { id: "house-rolls-2", adapter: "house-clerk", config: {} },
+        { id: "house-rolls-3", adapter: "house-clerk", config: {} },
         { id: "local-votes", adapter: "fixture", config: {} },
       ],
     });
     expect(houseAdapter.collect).not.toHaveBeenCalled();
     expect(result.actions).toHaveLength(1);
-    expect(result.coverage.find((row) => row.source === "house-rolls")?.reason).toMatch(/bioguide identity was not resolved/i);
+    const bound = result.coverage.filter((row) => row.source.startsWith("house"));
+    expect(bound).toHaveLength(1);
+    expect(bound[0]).toMatchObject({ source: "house-clerk", status: "needs_review", actionCount: 0 });
+    expect(bound[0].reason).toMatch(/bioguide unresolved: not a member of Congress/i);
+    expect(bound[0].reason).toMatch(/3 planned source\(s\) skipped \(house-rolls … house-rolls-3\)/);
     expect(result.coverage.find((row) => row.source === "local-votes")?.status).toBe("complete");
+  });
+  it("skips yearly congressional sources outside verified service years with one explicit row", async () => {
+    const houseAdapter: RecordsAdapter = { kind: "house-clerk", collect: vi.fn(async () => ({ status: "complete" as const, reason: "ran", actions: [] })) };
+    const service = new RecordsCollector({
+      client: new SnapshotClient({ directory, intervalMs: 0, fetch: vi.fn<typeof fetch>() }),
+      adapters: [houseAdapter],
+      resolvers: { house: async (request) => ({ status: "resolved", request, evidence: [], reason: "ok", terms: [{ chamber: "house", startYear: 2023 }] }) },
+    });
+    const yearly = (year: number) => ({ id: `house-clerk-${year}`, adapter: "house-clerk", config: {}, discovery: { kind: "house-clerk-rolls" as const, year, fromRoll: 1, toRoll: 2 } });
+    const result = await service.collect({ ...request, year: 2026 }, { since: "2021-01-01", identity: { provider: "house" }, sources: [2021, 2022, 2023, 2024].map(yearly) });
+    expect(houseAdapter.collect).toHaveBeenCalledTimes(2);
+    const skipped = result.coverage.filter((row) => row.source === "house-clerk:outside-service");
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0]).toMatchObject({ status: "complete", actionCount: 0 });
+    expect(skipped[0].reason).toMatch(/2023-present.*2 yearly source\(s\) \(house-clerk-2021 … house-clerk-2022\)/);
+    expect(result.coverage.map((row) => row.source)).toEqual(expect.arrayContaining(["house-clerk-2023", "house-clerk-2024"]));
   });
   it("isolates source errors and strips secrets from diagnostics", async () => {
     const error: RecordsAdapter = { kind: "error", collect: async () => { throw new Error("HTTP 500 https://example.gov/?api_key=secret"); } };

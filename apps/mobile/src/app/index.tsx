@@ -4,7 +4,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { HeroScene, Icon, PaperDots, type IconName } from "@/components/art";
-import { Enter, Idle, PressableScale, PulseRing } from "@/components/motion";
+import { Enter, PressableScale, PulseRing } from "@/components/motion";
 import {
   GuideBubble,
   Note,
@@ -18,9 +18,11 @@ import {
 } from "@/components/ui";
 import { ELECTION, electionPhase, localIsoDate, type ElectionPhase } from "@/election";
 import { formatIsoDate } from "@/format";
-import { demoBallot } from "@/fixtures/travisDemo";
+import { useBallotData } from "@/ballotData";
+import { DataConnection } from "@/components/DataConnection";
+import { DailyGameEntry } from "@/components/WebFeatures";
 import { useSession } from "@/session";
-import { colors, fonts, shadows } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 type ChapterState = "ready" | "underway" | "done" | "locked";
 
@@ -35,6 +37,7 @@ type Chapter = {
 };
 
 export default function Home() {
+  const { data: demoBallot, sample, loading } = useBallotData();
   const router = useRouter();
   const session = useSession();
   const [missing, setMissing] = useState(false);
@@ -55,20 +58,20 @@ export default function Home() {
     {
       numeral: "I",
       icon: "book",
-      title: "The Choosing Deck",
-      blurb: "Pick between two ends of an issue. No names, no parties.",
+      title: "Explore your priorities",
+      blurb: "Answer a few questions about issues that matter to you.",
       status: deckDone
         ? "Finished"
         : session.started
           ? `${answered} of ${cards.length} answered`
-          : `${cards.length} cards · a few minutes`,
+          : `${cards.length} questions · a few minutes`,
       state: deckDone ? "done" : session.started ? "underway" : "ready",
       href: "/explore",
     },
     {
       numeral: "II",
       icon: "scroll",
-      title: "The Ballot Walk",
+      title: "Compare the candidates",
       blurb: "Every contest on your ballot, with the evidence first.",
       status: `${contestCount} contests · none left out`,
       state: deckDone ? "underway" : "ready",
@@ -77,12 +80,12 @@ export default function Home() {
     {
       numeral: "III",
       icon: "mask",
-      title: "The Unmasking",
-      blurb: "Lift the masks one contest at a time, only when you ask.",
+      title: "Reveal the names",
+      blurb: "See candidate names and parties when you are ready.",
       status:
         revealedIds.length === contestCount
-          ? "Every mask is off"
-          : `${revealedIds.length} of ${contestCount} unmasked`,
+          ? "All names revealed"
+          : `${revealedIds.length} of ${contestCount} contests revealed`,
       state:
         revealedIds.length === contestCount
           ? "done"
@@ -94,22 +97,31 @@ export default function Home() {
     {
       numeral: "IV",
       icon: "envelope",
-      title: "The Share Card",
-      blurb: "Your choices to pass along, with no names attached.",
-      status: firstRevealed ? "Ready to share" : "Opens after your first unmasking",
+      title: "Share your progress",
+      blurb: "Share how much you explored, without sharing your answers.",
+      status: firstRevealed ? "Ready to share" : "Available after your first reveal",
       state: firstRevealed ? "ready" : "locked",
       href: firstRevealed ? { pathname: "/reveal/[id]", params: { id: firstRevealed } } : null,
     },
   ];
 
   const cta = !session.started
-    ? { label: "Open the book", href: "/explore" as Href }
+    ? { label: "Get started", href: "/explore" as Href }
     : !deckDone
-      ? { label: "Continue the deck", href: "/explore" as Href }
-      : { label: "Walk the ballot", href: "/ballot" as Href };
+      ? { label: "Continue the questions", href: "/explore" as Href }
+      : { label: "Explore my ballot", href: "/ballot" as Href };
 
   return (
-    <Screen footer={<PrimaryButton label={cta.label} arrow onPress={() => open(cta.href)} />}>
+    <Screen
+      footer={
+        <PrimaryButton
+          label={loading ? "Loading ballot…" : cta.label}
+          disabled={loading}
+          arrow
+          onPress={() => open(cta.href)}
+        />
+      }
+    >
       <Enter style={styles.plate}>
         <PaperDots />
         <HeroScene />
@@ -123,15 +135,12 @@ export default function Home() {
         </Enter>
         <Enter delay={180}>
           <Text accessibilityRole="header" style={styles.coverTitle}>
-            Fairy Tale Ballot
+            Wishing Well
           </Text>
         </Enter>
         <Rule delay={320} />
         <Enter delay={260}>
-          <Text style={styles.coverLine}>
-            Read the evidence before the names. Every contest on your ballot, told plainly and
-            sourced.
-          </Text>
+          <Text style={styles.coverLine}>Make a wish. Know your choice.</Text>
         </Enter>
         <SampleMark centered />
       </View>
@@ -153,7 +162,7 @@ export default function Home() {
       </View>
 
       <Ornament />
-      <Text style={styles.storyTitle}>Your Story</Text>
+      <Text style={styles.storyTitle}>How it works</Text>
       <View style={styles.chapters}>
         <View style={styles.trail} />
         {chapters.map((chapter, index) => (
@@ -172,16 +181,20 @@ export default function Home() {
       </View>
       <Panel>
         <View style={styles.styleRow}>
-          <Text style={styles.styleTitle}>Sample style A</Text>
+          <Text style={styles.styleTitle}>
+            {sample ? "Sample style A" : "Your connected ballot"}
+          </Text>
           <View style={styles.styleTag}>
             <Text style={styles.styleTagText}>{ballot.ballotStyleId}</Text>
           </View>
         </View>
         <Text style={styles.styleBody}>
-          Three contests: a council seat, a court, and a bond proposition. Confirm your real style
-          on your official ballot. This build only includes the sample.
+          {sample
+            ? "A fictional council race, a court, and a proposition. Try the full experience in a few minutes."
+            : `${contestCount} contests · release ${release.id}. Confirm this style matches your official ballot before you begin.`}
         </Text>
       </Panel>
+      <DataConnection />
       <TextButton
         label="My ballot style is not listed"
         icon="info"
@@ -194,21 +207,10 @@ export default function Home() {
         </Note>
       ) : null}
 
-      <View style={styles.daily}>
-        <Idle kind="twinkle" origin="50% 50%">
-          <Icon name="sparkle" size={22} strokeWidth={1.6} fill={colors.gold} />
-        </Idle>
-        <View style={styles.dailyText}>
-          <Text style={styles.dailyKicker}>Daily Challenge · in the works</Text>
-          <Text style={styles.dailyBody}>
-            A short daily puzzle about quotes and money, built so it never spoils your own ballot.
-          </Text>
-        </View>
-      </View>
-
+      <DailyGameEntry />
       <View style={styles.links}>
         <TextButton
-          label="How this book works"
+          label="Our sources and methods"
           icon="book"
           onPress={() => router.navigate("/how-it-works")}
         />
@@ -226,9 +228,9 @@ export default function Home() {
 
       {session.maskError ? <Note>{session.maskError}</Note> : null}
       <Note>
-        Fairy Tale Ballot does not endorse candidates or measures. Release {release.id} · as of{" "}
-        {formatIsoDate(release.asOfDate)}. Nothing about an address leaves the phone, and this
-        sample never asks for one.
+        Wishing Well does not endorse candidates or measures. Release {release.id} · as of{" "}
+        {formatIsoDate(release.asOfDate)}. Nothing about an address leaves the phone, and this app
+        never asks for one.
       </Note>
     </Screen>
   );
@@ -340,20 +342,20 @@ function guideLine(progress: {
   contests: number;
 }): string {
   if (!progress.started) {
-    return "I keep the names in my pocket until you have read the evidence. Start with the deck. It only takes a few minutes.";
+    return "You'll start with a few questions about your priorities. We do the research, then you compare candidates’ plans and records before revealing their names and parties. In the end, you decide who to support.";
   }
   if (!progress.deckDone) {
     return progress.answered === 0
-      ? "The deck is shuffled and waiting. Pick up the first card when you are ready."
-      : `You have answered ${progress.answered} so far. Pick up where you left off.`;
+      ? "Choose the option closest to your view. You can skip any question. Star the issues that matter most to you."
+      : `You have answered ${progress.answered} questions. Continue where you left off, or open your ballot to read the evidence.`;
   }
   if (progress.revealed === 0) {
-    return "The deck is done. Walk the ballot next. Each contest keeps its masks on until you ask.";
+    return "You have finished the questions. Open a contest on your ballot to compare the evidence. Candidate names stay hidden until you choose to reveal them.";
   }
   if (progress.revealed < progress.contests) {
-    return `${progress.revealed} of ${progress.contests} contests unmasked. Were you surprised? The rest are waiting.`;
+    return `You have revealed ${progress.revealed} of ${progress.contests} contests. Keep exploring to compare the remaining candidates and ballot measures.`;
   }
-  return "Every mask is off. Make your own choices, then pass your card along.";
+  return "All names are now visible. You can revisit the evidence or share your progress. Your answers are not included in the shared summary.";
 }
 
 function ChapterCard({ chapter, onPress }: { chapter: Chapter; onPress?: () => void }) {
@@ -362,7 +364,7 @@ function ChapterCard({ chapter, onPress }: { chapter: Chapter; onPress?: () => v
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`Chapter ${chapter.numeral}, ${chapter.title}. ${chapter.status}`}
+      accessibilityLabel={`Step ${chapter.numeral}, ${chapter.title}. ${chapter.status}`}
       accessibilityState={{ disabled: locked }}
       disabled={locked}
       onPress={onPress}

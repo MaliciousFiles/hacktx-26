@@ -5,6 +5,8 @@ import { planSchema } from "@ftb/records";
 import {
   collectVoice,
   FrozenWebClient,
+  serpApiKeysFromEnv,
+  serpApiMaxRequestsFromEnv,
   hash,
   scrapeSocial,
   socialFinders,
@@ -154,9 +156,10 @@ export const ballotRunSchema = z
         documentCap: z.number().int().positive().default(12),
         houseRollCap: z.number().int().positive().default(12),
         includeTloFtp: z.boolean().default(false),
+        exhaustive: z.boolean().default(false),
       })
       .strict()
-      .default({ documentCap: 12, houseRollCap: 12, includeTloFtp: false }),
+      .default({ documentCap: 12, houseRollCap: 12, includeTloFtp: false, exhaustive: false }),
     analysis: z
       .object({
         mode: z.enum(["names_only", "names_and_party"]),
@@ -220,6 +223,8 @@ export interface BallotRunOptions {
   gitSha: string;
   env?: {
     SERPAPI_API_KEY?: string;
+    SERPAPI_API_KEY_FALLBACK?: string;
+    SERPAPI_MAX_REQUESTS?: string;
     X_BEARER_TOKEN?: string;
     CONGRESS_GOV_API_KEY?: string;
     JEV_API_KEY?: string;
@@ -422,6 +427,11 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
       directory: join(runDir, "web-cache"),
       fetchedAt: spec.asOfDate,
       offline: options.offline,
+      recovery: true,
+      serpApi: {
+        keys: serpApiKeysFromEnv(options.env ?? {}),
+        maxRequests: serpApiMaxRequestsFromEnv(options.env ?? {}),
+      },
       allowedHosts: [
         "serpapi.com",
         "public.api.bsky.app",
@@ -442,6 +452,7 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
     mode: options.offline ? "offline" : "reuse",
     intervalMs: 750,
     retries: 5,
+    recovery: true,
   });
   let completed = 0;
   const acquisitions = await mapConcurrent(
@@ -468,7 +479,7 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
         {
           ...spec.records,
           plan: spec.records.plans?.[candidate.id],
-          cacheDirectory: join(runDir, "records-cache"),
+          cacheDirectory: recordsClient.cacheDirectory,
           cacheMode: options.offline ? "offline" : "reuse",
           client: recordsClient.fork(),
           congressApiKey: options.env?.CONGRESS_GOV_API_KEY,
@@ -499,7 +510,7 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
           client,
           fetchedAt: spec.asOfDate,
           window,
-          serpApiKey: options.env?.SERPAPI_API_KEY,
+          serpApiKey: serpApiKeysFromEnv(options.env ?? {})[0],
           newsDomains: options.policy.newsDomains,
           questionnaireDomains: options.policy.questionnaireDomains,
         },
@@ -522,7 +533,7 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
       });
       completed++;
       options.onProgress?.(
-        `[${completed}/${targets.length}] ${candidate.name}: acquisition saved (${result.records.actions.length} actions, ${result.voice.sources.length} web pages)`,
+        `[${completed}/${targets.length}] ${candidate.name}: acquisition saved (${result.records.actions.length} actions, ${result.voice.sources.length} web pages); ${client.serpApiSummary?.() ?? "serpapi requests: n/a"}`,
       );
       return result;
     },
@@ -561,7 +572,11 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
           .filter((row) =>
             ["error", "blocked", "not_configured", "needs_review"].includes(row.status),
           )
-          .map((row) => `${row.channel}: ${row.status}`),
+          .map((row) =>
+            row.reason.startsWith("SerpAPI unavailable")
+              ? `${row.channel}: ${row.status} (${row.reason})`
+              : `${row.channel}: ${row.status}`,
+          ),
         "Finance collection not connected",
         "Plan Explorer slots (goal/mechanism/cost/funding/timeline) not connected; Explore deck is generated from issues.yaml and still needs human framing review",
         "Debate captions/transcription and unreviewed speaker attribution remain unavailable",
@@ -584,6 +599,7 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
     spec.web.maxSocialItems,
   );
   allSources.push(...social.sources);
+  options.onProgress?.(client.serpApiSummary?.() ?? "serpapi requests: n/a");
   for (const row of coverage) {
     row.sources += social.sources.filter(
       (source) => source.contestId === row.contestId && source.candidateId === row.candidateId,

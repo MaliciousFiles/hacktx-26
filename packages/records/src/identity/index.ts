@@ -1,12 +1,12 @@
 import type { CandidateResearchRequest } from "@ftb/types";
 import { candidateNames, provenance, requestSchema } from "../model";
 import type { Snapshot } from "../model";
-import { configuredState, findCongressMemberByState, verifyCongressMember } from "./congress";
+import { configuredState, fetchMemberTerms, findCongressMemberByState, verifyCongressMember } from "./congress";
 import { BIOGUIDE_ID, HOUSE_ROSTER_URL, IDENTITY_ADAPTER, matchesFullName, parseHouseRoster, rosterNames } from "./roster";
 import type { HouseIdentityOptions, HouseIdentityResult, HouseRoster, IdentityLookup, IdentitySnapshotClient } from "./types";
 
 export { HOUSE_ROSTER_URL, parseHouseRoster } from "./roster";
-export type { HouseIdentityOptions, HouseIdentityResult, HouseIdentityStatus, HouseRoster, HouseRosterMember, IdentitySnapshotClient } from "./types";
+export type { MemberTerm, HouseIdentityOptions, HouseIdentityResult, HouseIdentityStatus, HouseRoster, HouseRosterMember, IdentitySnapshotClient } from "./types";
 
 // Freeze one roster per client, including concurrent resolutions. A new client
 // starts a new lookup session; failed loads are retryable, not cached forever.
@@ -22,11 +22,25 @@ function loadRoster(client: IdentitySnapshotClient): Promise<{ snapshot: Snapsho
   return pending;
 }
 
-/** Identity only: never collects actions or treats the office sought as tenure. */
+/** Identity only: never collects actions or treats the office sought as tenure.
+ * A resolved member also carries Congress.gov service terms (best effort) so callers can skip years out of office. */
 export async function resolveHouseMember(
   request: CandidateResearchRequest,
   client: IdentitySnapshotClient,
   options: HouseIdentityOptions = {},
+): Promise<HouseIdentityResult> {
+  const result = await resolveIdentity(request, client, options);
+  const key = options.congressApiKey?.trim();
+  const id = result.request.candidate.identifiers?.bioguide;
+  if (result.status !== "resolved" || !key || !id) return result;
+  const terms = await fetchMemberTerms(client, id, key);
+  return terms ? { ...result, terms } : result;
+}
+
+async function resolveIdentity(
+  request: CandidateResearchRequest,
+  client: IdentitySnapshotClient,
+  options: HouseIdentityOptions,
 ): Promise<HouseIdentityResult> {
   const before = `${request.year}-${String(request.month).padStart(2, "0")}-01`;
   const suppliedId = request.candidate.identifiers?.bioguide;

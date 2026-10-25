@@ -5,7 +5,7 @@ export type { RecordsPlan, IdentityResolution, IdentityResolver } from "./collec
 export { SnapshotClient, publicUrl, sha256 } from "./fetch";
 export type { CacheMode } from "./fetch";
 export type { RecordsAdapter, AdapterContext, AdapterResult } from "./adapters";
-export type { RecordsResult, RecordCoverage, Snapshot, DateWindow } from "./model";
+export type { RecordsResult, RecordCoverage, Snapshot, DateWindow, ResearchDocument } from "./model";
 export { dateWindow, isContested } from "./model";
 export { createRecordsCollector } from "./factory";
 export * from "./federal";

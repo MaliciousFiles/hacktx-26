@@ -1,0 +1,369 @@
+{
+  "releaseId": "ballot-pilot-westcampus-v1",
+  "asOfDate": "2026-10-25",
+  "campaignWindow": {
+    "since": "2025-11-05",
+    "until": "2026-11-03"
+  },
+  "election": {
+    "year": 2026,
+    "month": 11
+  },
+  "demo": true,
+  "ballot": {
+    "id": "derived-westcampus-pilot-not-an-official-ballot",
+    "ballotStyleId": "DERIVED-FROM-COUNTYWIDE-UNION-NOT-AN-OFFICIAL-BALLOT-STYLE",
+    "precinctId": "315",
+    "provenance": {
+      "url": "https://votetravis.gov/wp-content/uploads/G26-Bedsheet-Ballot-Corrected-Final2.pdf",
+      "verifiedBy": "automated-district-filter-unreviewed",
+      "verifiedAt": "2026-10-25"
+    },
+    "contests": [
+      {
+        "id": "us_house-37-united-states-representative-district-37",
+        "title": "United States Representative, District 37",
+        "office": "us_house",
+        "officeKind": "legislative",
+        "districtType": "us_house",
+        "districtId": "37",
+        "jurisdiction": "us/tx",
+        "level": "federal",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "us_house-37-united-states-representative-district-37-greg-casar",
+            "name": "Greg Casar",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "governor-tx-governor",
+        "title": "Governor",
+        "office": "governor",
+        "officeKind": "executive",
+        "districtType": "governor",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "governor-tx-governor-greg-abbott",
+            "name": "Greg Abbott",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_supreme_court-tx-chief-justice-supreme-court",
+        "title": "Chief Justice, Supreme Court",
+        "office": "tx_supreme_court",
+        "officeKind": "judicial",
+        "districtType": "tx_supreme_court",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_supreme_court-tx-chief-justice-supreme-court-maggie-ellis",
+            "name": "Maggie Ellis",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_house-49-state-representative-district-49",
+        "title": "State Representative, District 49",
+        "office": "tx_house",
+        "officeKind": "legislative",
+        "districtType": "tx_house",
+        "districtId": "49",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_house-49-state-representative-district-49-montserrat-garibay",
+            "name": "Montserrat Garibay",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_judge-travis-county-judge",
+        "title": "County Judge",
+        "office": "county_judge",
+        "officeKind": "executive",
+        "districtType": "county",
+        "districtId": "travis",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_judge-travis-county-judge-andy-brown",
+            "name": "Andy Brown",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_treasurer-travis-county-treasurer",
+        "title": "County Treasurer",
+        "office": "county_treasurer",
+        "officeKind": "executive",
+        "districtType": "county",
+        "districtId": "travis",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_treasurer-travis-county-treasurer-dolores-ortega-carter",
+            "name": "Dolores Ortega Carter",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "college_trustee-3-acc-trustee-place-3",
+        "title": "ACC, Trustee, Place 3",
+        "office": "college_trustee",
+        "officeKind": "board",
+        "districtType": "acc_place",
+        "districtId": "3",
+        "jurisdiction": "us/tx/acc",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "college_trustee-3-acc-trustee-place-3-nan-mcraven",
+            "name": "Nan McRaven",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "city_council-9-city-of-austin-city-council-member-distr",
+        "title": "City of Austin, City Council Member, District 9",
+        "office": "city_council",
+        "officeKind": "legislative",
+        "districtType": "city_council",
+        "districtId": "9",
+        "jurisdiction": "us/tx/austin",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-zohaib-qadri",
+            "name": "Zohaib Qadri",
+            "aliases": [
+              "Zohaib \"Zo\" Qadri",
+              "Zo Qadri"
+            ],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-dave-thadani",
+            "name": "Dave Thadani",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      }
+    ]
+  },
+  "web": {
+    "allowedPageHosts": [
+      "texastribune.org",
+      "www.texastribune.org",
+      "kut.org",
+      "www.kut.org",
+      "statesman.com",
+      "www.statesman.com",
+      "houstonchronicle.com",
+      "www.houstonchronicle.com",
+      "dallasnews.com",
+      "www.dallasnews.com",
+      "expressnews.com",
+      "www.expressnews.com",
+      "apnews.com",
+      "www.apnews.com",
+      "reuters.com",
+      "www.reuters.com",
+      "npr.org",
+      "www.npr.org",
+      "politico.com",
+      "www.politico.com",
+      "thehill.com",
+      "www.thehill.com",
+      "rollcall.com",
+      "www.rollcall.com",
+      "www.vote411.org",
+      "vote411.org",
+      "apps.texastribune.org",
+      "www.apps.texastribune.org",
+      "ballotpedia.org",
+      "www.ballotpedia.org",
+      "www.casarforcongress.com",
+      "casarforcongress.com",
+      "www.gregabbott.com",
+      "gregabbott.com",
+      "www.maggieforjustice.com",
+      "maggieforjustice.com",
+      "www.montserratfortexas.com",
+      "montserratfortexas.com",
+      "voteandy.com",
+      "www.zoforaustin.com",
+      "zoforaustin.com",
+      "daveforaustintx.com",
+      "kxan.com",
+      "kvue.com",
+      "fox7austin.com",
+      "cbsaustin.com",
+      "austinchronicle.com",
+      "communityimpact.com",
+      "thedailytexan.com",
+      "austincurrent.org",
+      "theaustinbulldog.org",
+      "wfaa.com",
+      "houstonpublicmedia.org",
+      "texasstandard.org",
+      "sanantonioreport.org",
+      "abcnews.go.com",
+      "nbcnews.com",
+      "www.lwvaustin.org",
+      "www.lwvtexas.org",
+      "www.austinchronicle.com",
+      "www.austincc.edu",
+      "onyourballot.vote411.org"
+    ],
+    "speechDomains": [
+      "texastribune.org",
+      "kut.org",
+      "statesman.com",
+      "houstonchronicle.com",
+      "dallasnews.com",
+      "expressnews.com",
+      "apnews.com",
+      "reuters.com",
+      "npr.org",
+      "politico.com",
+      "thehill.com",
+      "rollcall.com"
+    ],
+    "campaignSites": [
+      {
+        "candidateId": "us_house-37-united-states-representative-district-37-greg-casar",
+        "url": "https://www.casarforcongress.com",
+        "verifiedVia": "https://ballotpedia.org/Greg_Casar"
+      },
+      {
+        "candidateId": "governor-tx-governor-greg-abbott",
+        "url": "https://www.gregabbott.com",
+        "verifiedVia": "https://ballotpedia.org/Greg_Abbott"
+      },
+      {
+        "candidateId": "tx_supreme_court-tx-chief-justice-supreme-court-maggie-ellis",
+        "url": "https://www.maggieforjustice.com/",
+        "verifiedVia": "https://ballotpedia.org/Maggie_Ellis"
+      },
+      {
+        "candidateId": "tx_house-49-state-representative-district-49-montserrat-garibay",
+        "url": "https://www.montserratfortexas.com/",
+        "verifiedVia": "https://ballotpedia.org/Montserrat_Garibay"
+      },
+      {
+        "candidateId": "county_judge-travis-county-judge-andy-brown",
+        "url": "https://voteandy.com/",
+        "verifiedVia": "https://branch.vote/races/2026-texas-general-election-tx-state-county-judge-tx-county-travis/candidates/andy-brown"
+      },
+      {
+        "candidateId": "city_council-9-city-of-austin-city-council-member-distr-zohaib-qadri",
+        "url": "https://www.zoforaustin.com/",
+        "verifiedVia": "https://ballotpedia.org/Zohaib_Qadri"
+      },
+      {
+        "candidateId": "city_council-9-city-of-austin-city-council-member-distr-dave-thadani",
+        "url": "https://daveforaustintx.com/",
+        "verifiedVia": "https://ballotpedia.org/Dave_Thadani"
+      }
+    ],
+    "verifiedDocuments": [
+      {
+        "url": "https://communityimpact.com/central-austin/election/qa-meet-the-candidates-for-acc-board-of-trustees-place-3-ahead-of-nov-3-election/",
+        "type": "questionnaire",
+        "verifiedVia": "https://communityimpact.com/central-austin/election/qa-meet-the-candidates-for-acc-board-of-trustees-place-3-ahead-of-nov-3-election/",
+        "contestId": "college_trustee-3-acc-trustee-place-3"
+      },
+      {
+        "url": "https://communityimpact.com/central-austin/election/meet-the-candidates-running-for-austin-city-council-district-9/",
+        "type": "questionnaire",
+        "verifiedVia": "https://communityimpact.com/central-austin/election/meet-the-candidates-running-for-austin-city-council-district-9/",
+        "contestId": "city_council-9-city-of-austin-city-council-member-distr"
+      }
+    ],
+    "resultsPerQuery": 10,
+    "maxPagesPerChannel": 5,
+    "maxQuotesPerSource": 10,
+    "maxSocialItems": 20
+  },
+  "records": {
+    "documentCap": 25,
+    "houseRollCap": 100,
+    "since": "2003-01-01",
+    "includeTloFtp": false,
+    "exhaustive": true
+  }
+}

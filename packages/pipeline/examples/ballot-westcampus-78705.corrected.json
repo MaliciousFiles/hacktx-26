@@ -1,0 +1,2198 @@
+{
+  "releaseId": "ballot-westcampus-78705-corrected-v1",
+  "asOfDate": "2026-10-25",
+  "campaignWindow": {
+    "since": "2025-11-05",
+    "until": "2026-11-03"
+  },
+  "election": {
+    "year": 2026,
+    "month": 11
+  },
+  "demo": true,
+  "ballot": {
+    "id": "derived-westcampus-corrected-not-an-official-ballot",
+    "ballotStyleId": "DERIVED-FROM-COUNTYWIDE-UNION-NOT-AN-OFFICIAL-BALLOT-STYLE",
+    "precinctId": "315",
+    "provenance": {
+      "url": "https://votetravis.gov/wp-content/uploads/G26-Bedsheet-Ballot-Corrected-Final2.pdf",
+      "verifiedBy": "automated-district-filter-plus-manual-correction-against-410A-and-consolidated-ballot",
+      "verifiedAt": "2026-10-25"
+    },
+    "contests": [
+      {
+        "id": "us_senate-tx-united-states-senator",
+        "title": "United States Senator",
+        "office": "us_senate",
+        "officeKind": "legislative",
+        "districtType": "us_senate",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "federal",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "us_senate-tx-united-states-senator-ken-paxton",
+            "name": "Ken Paxton",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "us_senate-tx-united-states-senator-james-talarico",
+            "name": "James Talarico",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "us_senate-tx-united-states-senator-ted-brown",
+            "name": "Ted Brown",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "us_house-37-united-states-representative-district-37",
+        "title": "United States Representative, District 37",
+        "office": "us_house",
+        "officeKind": "legislative",
+        "districtType": "us_house",
+        "districtId": "37",
+        "jurisdiction": "us/tx",
+        "level": "federal",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "us_house-37-united-states-representative-district-37-lauren-b-pena",
+            "name": "Lauren B. Peña",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "us_house-37-united-states-representative-district-37-greg-casar",
+            "name": "Greg Casar",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "governor-tx-governor",
+        "title": "Governor",
+        "office": "governor",
+        "officeKind": "executive",
+        "districtType": "governor",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "governor-tx-governor-greg-abbott",
+            "name": "Greg Abbott",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "governor-tx-governor-gina-hinojosa",
+            "name": "Gina Hinojosa",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "governor-tx-governor-pat-dixon",
+            "name": "Pat Dixon",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_lt_governor-tx-lieutenant-governor",
+        "title": "Lieutenant Governor",
+        "office": "tx_lt_governor",
+        "officeKind": "executive",
+        "districtType": "tx_lt_governor",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_lt_governor-tx-lieutenant-governor-dan-patrick",
+            "name": "Dan Patrick",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_lt_governor-tx-lieutenant-governor-vikki-goodwin",
+            "name": "Vikki Goodwin",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_lt_governor-tx-lieutenant-governor-anthony-cristo",
+            "name": "Anthony Cristo",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_lt_governor-tx-lieutenant-governor-kevin-mccormick",
+            "name": "Kevin McCormick",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Green",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_ag-tx-attorney-general",
+        "title": "Attorney General",
+        "office": "tx_ag",
+        "officeKind": "executive",
+        "districtType": "tx_ag",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_ag-tx-attorney-general-mayes-middleton",
+            "name": "Mayes Middleton",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_ag-tx-attorney-general-nathan-johnson",
+            "name": "Nathan Johnson",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_ag-tx-attorney-general-tom-oxford",
+            "name": "Tom Oxford",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_comptroller-tx-comptroller-of-public-accounts",
+        "title": "Comptroller of Public Accounts",
+        "office": "tx_comptroller",
+        "officeKind": "executive",
+        "districtType": "tx_comptroller",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_comptroller-tx-comptroller-of-public-accounts-don-huffines",
+            "name": "Don Huffines",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_comptroller-tx-comptroller-of-public-accounts-sarah-eckhardt",
+            "name": "Sarah Eckhardt",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_comptroller-tx-comptroller-of-public-accounts-v-alonzo-echavarria-garza",
+            "name": "V. Alonzo Echavarria-Garza",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_comptroller-tx-comptroller-of-public-accounts-shehla-faizi",
+            "name": "Shehla Faizi",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Green",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_land_commissioner-tx-commissioner-of-the-general-land-office",
+        "title": "Commissioner of the General Land Office",
+        "office": "tx_land_commissioner",
+        "officeKind": "executive",
+        "districtType": "tx_land_commissioner",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_land_commissioner-tx-commissioner-of-the-general-land-office-dawn-buckingham",
+            "name": "Dawn Buckingham",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_land_commissioner-tx-commissioner-of-the-general-land-office-benjamin-flores",
+            "name": "Benjamin Flores",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_land_commissioner-tx-commissioner-of-the-general-land-office-neill-snider",
+            "name": "Neill Snider",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_agriculture_commissioner-tx-commissioner-of-agriculture",
+        "title": "Commissioner of Agriculture",
+        "office": "tx_agriculture_commissioner",
+        "officeKind": "executive",
+        "districtType": "tx_agriculture_commissioner",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_agriculture_commissioner-tx-commissioner-of-agriculture-nate-sheets",
+            "name": "Nate Sheets",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_agriculture_commissioner-tx-commissioner-of-agriculture-clayton-tucker",
+            "name": "Clayton Tucker",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_agriculture_commissioner-tx-commissioner-of-agriculture-austin-r-kelly",
+            "name": "Austin R. Kelly",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_railroad_commissioner-tx-railroad-commissioner",
+        "title": "Railroad Commissioner",
+        "office": "tx_railroad_commissioner",
+        "officeKind": "regulatory",
+        "districtType": "tx_railroad_commissioner",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_railroad_commissioner-tx-railroad-commissioner-bo-french",
+            "name": "Bo French",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_railroad_commissioner-tx-railroad-commissioner-jon-rosenthal",
+            "name": "Jon Rosenthal",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_railroad_commissioner-tx-railroad-commissioner-arthur-dibianca",
+            "name": "Arthur DiBianca",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_supreme_court-tx-chief-justice-supreme-court",
+        "title": "Chief Justice, Supreme Court",
+        "office": "tx_supreme_court",
+        "officeKind": "judicial",
+        "districtType": "tx_supreme_court",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_supreme_court-tx-chief-justice-supreme-court-jimmy-blacklock",
+            "name": "Jimmy Blacklock",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_supreme_court-tx-chief-justice-supreme-court-maggie-ellis",
+            "name": "Maggie Ellis",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_supreme_court-tx-justice-supreme-court-place-2-unexpired-",
+        "title": "Justice, Supreme Court, Place 2 - Unexpired Term",
+        "office": "tx_supreme_court",
+        "officeKind": "judicial",
+        "districtType": "tx_supreme_court",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_supreme_court-tx-justice-supreme-court-place-2-unexpired--james-p-sullivan",
+            "name": "James P. Sullivan",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_supreme_court-tx-justice-supreme-court-place-2-unexpired--chari-kelly",
+            "name": "Chari Kelly",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_supreme_court-tx-justice-supreme-court-place-7",
+        "title": "Justice, Supreme Court, Place 7",
+        "office": "tx_supreme_court",
+        "officeKind": "judicial",
+        "districtType": "tx_supreme_court",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_supreme_court-tx-justice-supreme-court-place-7-kyle-hawkins",
+            "name": "Kyle Hawkins",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_supreme_court-tx-justice-supreme-court-place-7-kristen-hawkins",
+            "name": "Kristen Hawkins",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_supreme_court-tx-justice-supreme-court-place-8",
+        "title": "Justice, Supreme Court, Place 8",
+        "office": "tx_supreme_court",
+        "officeKind": "judicial",
+        "districtType": "tx_supreme_court",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_supreme_court-tx-justice-supreme-court-place-8-brett-busby",
+            "name": "Brett Busby",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_supreme_court-tx-justice-supreme-court-place-8-gisela-d-triana",
+            "name": "Gisela D. Triana",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-3",
+        "title": "Judge, Court of Criminal Appeals Place 3",
+        "office": "tx_court_of_criminal_appeals",
+        "officeKind": "judicial",
+        "districtType": "tx_court_of_criminal_appeals",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-3-thomas-smith",
+            "name": "Thomas Smith",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-3-okey-anyiam",
+            "name": "Okey Anyiam",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-3-mark-ash",
+            "name": "Mark Ash",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-4",
+        "title": "Judge, Court of Criminal Appeals Place 4",
+        "office": "tx_court_of_criminal_appeals",
+        "officeKind": "judicial",
+        "districtType": "tx_court_of_criminal_appeals",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-4-kevin-patrick-yeary",
+            "name": "Kevin Patrick Yeary",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-4-audra-riley",
+            "name": "Audra Riley",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-9",
+        "title": "Judge, Court of Criminal Appeals Place 9",
+        "office": "tx_court_of_criminal_appeals",
+        "officeKind": "judicial",
+        "districtType": "tx_court_of_criminal_appeals",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-9-john-messinger",
+            "name": "John Messinger",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-9-holly-taylor",
+            "name": "Holly Taylor",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_sboe-5-member-state-board-of-education-district",
+        "title": "Member, State Board of Education, District 5",
+        "office": "tx_sboe",
+        "officeKind": "board",
+        "districtType": "tx_sboe",
+        "districtId": "5",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_sboe-5-member-state-board-of-education-district-mica-arellano",
+            "name": "Mica Arellano",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_sboe-5-member-state-board-of-education-district-allison-bush",
+            "name": "Allison Bush",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_house-49-state-representative-district-49",
+        "title": "State Representative, District 49",
+        "office": "tx_house",
+        "officeKind": "legislative",
+        "districtType": "tx_house",
+        "districtId": "49",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_house-49-state-representative-district-49-montserrat-garibay",
+            "name": "Montserrat Garibay",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_house-49-state-representative-district-49-arshia-papari",
+            "name": "Arshia Papari",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Green",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_15th_court_of_appeals-tx-chief-justice-15th-court-of-appeals-dist",
+        "title": "Chief Justice, 15th Court of Appeals District",
+        "office": "tx_15th_court_of_appeals",
+        "officeKind": "judicial",
+        "districtType": "tx_15th_court_of_appeals",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_15th_court_of_appeals-tx-chief-justice-15th-court-of-appeals-dist-scott-brister",
+            "name": "Scott Brister",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_15th_court_of_appeals-tx-chief-justice-15th-court-of-appeals-dist-jerry-zimmerer",
+            "name": "Jerry Zimmerer",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_15th_court_of_appeals-tx-justice-15th-court-of-appeals-district-p",
+        "title": "Justice, 15th Court of Appeals District, Place 2",
+        "office": "tx_15th_court_of_appeals",
+        "officeKind": "judicial",
+        "districtType": "tx_15th_court_of_appeals",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_15th_court_of_appeals-tx-justice-15th-court-of-appeals-district-p-scott-k-field",
+            "name": "Scott K. Field",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_15th_court_of_appeals-tx-justice-15th-court-of-appeals-district-p-tom-baker",
+            "name": "Tom Baker",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_15th_court_of_appeals-tx-justice-15th-court-of-appeals-district-p-20",
+        "title": "Justice, 15th Court of Appeals District, Place 3",
+        "office": "tx_15th_court_of_appeals",
+        "officeKind": "judicial",
+        "districtType": "tx_15th_court_of_appeals",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_15th_court_of_appeals-tx-justice-15th-court-of-appeals-district-p-20-april-farris",
+            "name": "April Farris",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_15th_court_of_appeals-tx-justice-15th-court-of-appeals-district-p-20-marc-m-meyer",
+            "name": "Marc M. Meyer",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_3rd_court_of_appeals-3-chief-justice-3rd-court-of-appeals-distr",
+        "title": "Chief Justice, 3rd Court of Appeals District",
+        "office": "tx_3rd_court_of_appeals",
+        "officeKind": "judicial",
+        "districtType": "court_of_appeals",
+        "districtId": "3",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_3rd_court_of_appeals-3-chief-justice-3rd-court-of-appeals-distr-cory-liu",
+            "name": "Cory Liu",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "tx_3rd_court_of_appeals-3-chief-justice-3rd-court-of-appeals-distr-darlene-byrne",
+            "name": "Darlene Byrne",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_district_judge-147-district-judge-147th-judicial-district",
+        "title": "District Judge, 147th Judicial District",
+        "office": "tx_district_judge",
+        "officeKind": "judicial",
+        "districtType": "judicial_district",
+        "districtId": "147",
+        "jurisdiction": "us/tx/travis",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_district_judge-147-district-judge-147th-judicial-district-cliff-brown",
+            "name": "Cliff Brown",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_district_judge-201-district-judge-201st-judicial-district",
+        "title": "District Judge, 201st Judicial District",
+        "office": "tx_district_judge",
+        "officeKind": "judicial",
+        "districtType": "judicial_district",
+        "districtId": "201",
+        "jurisdiction": "us/tx/travis",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_district_judge-201-district-judge-201st-judicial-district-amy-clark-meachum",
+            "name": "Amy Clark Meachum",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_district_judge-250-district-judge-250th-judicial-district",
+        "title": "District Judge, 250th Judicial District",
+        "office": "tx_district_judge",
+        "officeKind": "judicial",
+        "districtType": "judicial_district",
+        "districtId": "250",
+        "jurisdiction": "us/tx/travis",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_district_judge-250-district-judge-250th-judicial-district-kennon-lily-wooten",
+            "name": "Kennon Lily Wooten",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_district_judge-261-district-judge-261st-judicial-district",
+        "title": "District Judge, 261st Judicial District",
+        "office": "tx_district_judge",
+        "officeKind": "judicial",
+        "districtType": "judicial_district",
+        "districtId": "261",
+        "jurisdiction": "us/tx/travis",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_district_judge-261-district-judge-261st-judicial-district-daniella-deseta-lyttle",
+            "name": "Daniella Deseta Lyttle",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_district_judge-299-district-judge-299th-judicial-district",
+        "title": "District Judge, 299th Judicial District",
+        "office": "tx_district_judge",
+        "officeKind": "judicial",
+        "districtType": "judicial_district",
+        "districtId": "299",
+        "jurisdiction": "us/tx/travis",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_district_judge-299-district-judge-299th-judicial-district-karen-r-sage",
+            "name": "Karen R. Sage",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_district_judge-331-district-judge-331st-judicial-district",
+        "title": "District Judge, 331st Judicial District",
+        "office": "tx_district_judge",
+        "officeKind": "judicial",
+        "districtType": "judicial_district",
+        "districtId": "331",
+        "jurisdiction": "us/tx/travis",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_district_judge-331-district-judge-331st-judicial-district-chantal-melissa-eldridge",
+            "name": "Chantal Melissa Eldridge",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_district_judge-403-district-judge-403rd-judicial-district",
+        "title": "District Judge, 403rd Judicial District",
+        "office": "tx_district_judge",
+        "officeKind": "judicial",
+        "districtType": "judicial_district",
+        "districtId": "403",
+        "jurisdiction": "us/tx/travis",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_district_judge-403-district-judge-403rd-judicial-district-brandy-mueller",
+            "name": "Brandy Mueller",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_district_judge-419-district-judge-419th-judicial-district",
+        "title": "District Judge, 419th Judicial District",
+        "office": "tx_district_judge",
+        "officeKind": "judicial",
+        "districtType": "judicial_district",
+        "districtId": "419",
+        "jurisdiction": "us/tx/travis",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_district_judge-419-district-judge-419th-judicial-district-catherine-a-mauzy",
+            "name": "Catherine A. Mauzy",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_district_judge-455-district-judge-455th-judicial-district",
+        "title": "District Judge, 455th Judicial District",
+        "office": "tx_district_judge",
+        "officeKind": "judicial",
+        "districtType": "judicial_district",
+        "districtId": "455",
+        "jurisdiction": "us/tx/travis",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_district_judge-455-district-judge-455th-judicial-district-laurie-eiserloh",
+            "name": "Laurie Eiserloh",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_district_judge-459-district-judge-459th-judicial-district",
+        "title": "District Judge, 459th Judicial District",
+        "office": "tx_district_judge",
+        "officeKind": "judicial",
+        "districtType": "judicial_district",
+        "districtId": "459",
+        "jurisdiction": "us/tx/travis",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_district_judge-459-district-judge-459th-judicial-district-maya-guerra-gamble",
+            "name": "Maya Guerra Gamble",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_judge-travis-county-judge",
+        "title": "County Judge",
+        "office": "county_judge",
+        "officeKind": "executive",
+        "districtType": "county",
+        "districtId": "travis",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_judge-travis-county-judge-andy-brown",
+            "name": "Andy Brown",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_court_at_law_judge-1-judge-county-court-at-law-no-1-55",
+        "title": "Judge, County Court at Law No. 1",
+        "office": "county_court_at_law_judge",
+        "officeKind": "judicial",
+        "districtType": "county_court",
+        "districtId": "1",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_court_at_law_judge-1-judge-county-court-at-law-no-1-55-todd-wong",
+            "name": "Todd Wong",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_court_at_law_judge-2-judge-county-court-at-law-no-2",
+        "title": "Judge, County Court at Law No. 2",
+        "office": "county_court_at_law_judge",
+        "officeKind": "judicial",
+        "districtType": "county_court",
+        "districtId": "2",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_court_at_law_judge-2-judge-county-court-at-law-no-2-leslie-dippel",
+            "name": "Leslie Dippel",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_court_at_law_judge-3-judge-county-court-at-law-no-3",
+        "title": "Judge, County Court at Law No. 3",
+        "office": "county_court_at_law_judge",
+        "officeKind": "judicial",
+        "districtType": "county_court",
+        "districtId": "3",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_court_at_law_judge-3-judge-county-court-at-law-no-3-bianca-garcia",
+            "name": "Bianca Garcia",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_court_at_law_judge-4-judge-county-court-at-law-no-4",
+        "title": "Judge, County Court at Law No. 4",
+        "office": "county_court_at_law_judge",
+        "officeKind": "judicial",
+        "districtType": "county_court",
+        "districtId": "4",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_court_at_law_judge-4-judge-county-court-at-law-no-4-dimple-malhotra",
+            "name": "Dimple Malhotra",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_court_at_law_judge-5-judge-county-court-at-law-no-5",
+        "title": "Judge, County Court at Law No. 5",
+        "office": "county_court_at_law_judge",
+        "officeKind": "judicial",
+        "districtType": "county_court",
+        "districtId": "5",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_court_at_law_judge-5-judge-county-court-at-law-no-5-mary-ann-espiritu",
+            "name": "Mary Ann Espiritu",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_court_at_law_judge-6-judge-county-court-at-law-no-6",
+        "title": "Judge, County Court at Law No. 6",
+        "office": "county_court_at_law_judge",
+        "officeKind": "judicial",
+        "districtType": "county_court",
+        "districtId": "6",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_court_at_law_judge-6-judge-county-court-at-law-no-6-denise-hernandez",
+            "name": "Denise Hernández",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_court_at_law_judge-7-judge-county-court-at-law-no-7",
+        "title": "Judge, County Court at Law No. 7",
+        "office": "county_court_at_law_judge",
+        "officeKind": "judicial",
+        "districtType": "county_court",
+        "districtId": "7",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_court_at_law_judge-7-judge-county-court-at-law-no-7-elisabeth-earle",
+            "name": "Elisabeth Earle",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "probate_judge-1-judge-probate-court-no-1",
+        "title": "Judge, Probate Court No. 1",
+        "office": "probate_judge",
+        "officeKind": "judicial",
+        "districtType": "county_court",
+        "districtId": "1",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "probate_judge-1-judge-probate-court-no-1-guy-herman",
+            "name": "Guy Herman",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "district_clerk-travis-district-clerk",
+        "title": "District Clerk",
+        "office": "district_clerk",
+        "officeKind": "executive",
+        "districtType": "county",
+        "districtId": "travis",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "district_clerk-travis-district-clerk-velva-l-price",
+            "name": "Velva L. Price",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_clerk-travis-county-clerk",
+        "title": "County Clerk",
+        "office": "county_clerk",
+        "officeKind": "executive",
+        "districtType": "county",
+        "districtId": "travis",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_clerk-travis-county-clerk-dyana-limon-mercado",
+            "name": "Dyana Limon-Mercado",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_treasurer-travis-county-treasurer",
+        "title": "County Treasurer",
+        "office": "county_treasurer",
+        "officeKind": "executive",
+        "districtType": "county",
+        "districtId": "travis",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_treasurer-travis-county-treasurer-dolores-ortega-carter",
+            "name": "Dolores Ortega Carter",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "justice_of_the_peace-5-justice-of-the-peace-precinct-5",
+        "title": "Justice of the Peace, Precinct 5",
+        "office": "justice_of_the_peace",
+        "officeKind": "judicial",
+        "districtType": "jp_precinct",
+        "districtId": "5",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "justice_of_the_peace-5-justice-of-the-peace-precinct-5-tanisa-jeffers",
+            "name": "Tanisa Jeffers",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "appraisal_district_director-1-travis-central-appraisal-district-travis-56",
+        "title": "Travis Central Appraisal District, Travis County, Board of Directors, Place 1",
+        "office": "appraisal_district_director",
+        "officeKind": "board",
+        "districtType": "tcad_place",
+        "districtId": "1",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "appraisal_district_director-1-travis-central-appraisal-district-travis-56-skyler-a-korgel",
+            "name": "Skyler A. Korgel",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "appraisal_district_director-2-travis-central-appraisal-district-travis-57",
+        "title": "Travis Central Appraisal District, Travis County, Board of Directors, Place 2",
+        "office": "appraisal_district_director",
+        "officeKind": "board",
+        "districtType": "tcad_place",
+        "districtId": "2",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "appraisal_district_director-2-travis-central-appraisal-district-travis-57-brian-pena",
+            "name": "Brian Peña",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "appraisal_district_director-3-travis-central-appraisal-district-travis-58",
+        "title": "Travis Central Appraisal District, Travis County, Board of Directors, Place 3",
+        "office": "appraisal_district_director",
+        "officeKind": "board",
+        "districtType": "tcad_place",
+        "districtId": "3",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "appraisal_district_director-3-travis-central-appraisal-district-travis-58-yvonne-munoz",
+            "name": "Yvonne Muñoz",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "appraisal_district_director-3-travis-central-appraisal-district-travis-58-phil-gorman",
+            "name": "Phil Gorman",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "city_council-9-city-of-austin-city-council-member-distr",
+        "title": "City of Austin, City Council Member, District 9",
+        "office": "city_council",
+        "officeKind": "legislative",
+        "districtType": "city_council",
+        "districtId": "9",
+        "jurisdiction": "us/tx/austin",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-rich-heyman",
+            "name": "Rich Heyman",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-katie-kam",
+            "name": "Katie Kam",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-zohaib-qadri",
+            "name": "Zohaib Qadri",
+            "aliases": [
+              "Zohaib \"Zo\" Qadri",
+              "Zo Qadri"
+            ],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-dave-thadani",
+            "name": "Dave Thadani",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-kai-huang",
+            "name": "Kai Huang",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "college_trustee-1-acc-trustee-place-1",
+        "title": "ACC, Trustee, Place 1",
+        "office": "college_trustee",
+        "officeKind": "board",
+        "districtType": "acc_place",
+        "districtId": "1",
+        "jurisdiction": "us/tx/acc",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "college_trustee-1-acc-trustee-place-1-dana-walker",
+            "name": "Dana Walker",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "college_trustee-1-acc-trustee-place-1-gloria-gonzales-dholakia",
+            "name": "Gloria Gonzales-Dholakia",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "college_trustee-2-acc-trustee-place-2",
+        "title": "ACC, Trustee, Place 2",
+        "office": "college_trustee",
+        "officeKind": "board",
+        "districtType": "acc_place",
+        "districtId": "2",
+        "jurisdiction": "us/tx/acc",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "college_trustee-2-acc-trustee-place-2-gigi-edwards-bryant",
+            "name": "Gigi Edwards Bryant",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "college_trustee-3-acc-trustee-place-3",
+        "title": "ACC, Trustee, Place 3",
+        "office": "college_trustee",
+        "officeKind": "board",
+        "districtType": "acc_place",
+        "districtId": "3",
+        "jurisdiction": "us/tx/acc",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "college_trustee-3-acc-trustee-place-3-trevor-hale",
+            "name": "Trevor Hale",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "college_trustee-3-acc-trustee-place-3-nan-mcraven",
+            "name": "Nan McRaven",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "school_board-9-austin-isd-board-of-trustees-at-large-po",
+        "title": "Austin ISD Board of Trustees, At-Large Position 9",
+        "office": "school_board",
+        "officeKind": "board",
+        "districtType": "austin_isd_at_large",
+        "districtId": "9",
+        "jurisdiction": "us/tx/austin-isd",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "school_board-9-austin-isd-board-of-trustees-at-large-po-cynthia-soliz",
+            "name": "Cynthia Soliz",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "school_board-9-austin-isd-board-of-trustees-at-large-po-kirk-becker",
+            "name": "Kirk Becker",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "school_board-9-austin-isd-board-of-trustees-at-large-po-pamela-mathai",
+            "name": "Pamela Mathai",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      }
+    ]
+  },
+  "web": {
+    "allowedPageHosts": [
+      "texastribune.org",
+      "www.texastribune.org",
+      "kut.org",
+      "www.kut.org",
+      "statesman.com",
+      "www.statesman.com",
+      "houstonchronicle.com",
+      "www.houstonchronicle.com",
+      "dallasnews.com",
+      "www.dallasnews.com",
+      "expressnews.com",
+      "www.expressnews.com",
+      "apnews.com",
+      "www.apnews.com",
+      "reuters.com",
+      "www.reuters.com",
+      "npr.org",
+      "www.npr.org",
+      "politico.com",
+      "www.politico.com",
+      "thehill.com",
+      "www.thehill.com",
+      "rollcall.com",
+      "www.rollcall.com",
+      "www.vote411.org",
+      "vote411.org",
+      "apps.texastribune.org",
+      "www.apps.texastribune.org",
+      "ballotpedia.org",
+      "www.ballotpedia.org",
+      "www.kenpaxton.com",
+      "kenpaxton.com",
+      "jamestalarico.com",
+      "tedbrown.org",
+      "www.lauren4congress.com",
+      "lauren4congress.com",
+      "www.casarforcongress.com",
+      "casarforcongress.com",
+      "www.gregabbott.com",
+      "gregabbott.com",
+      "ginafortexas.com",
+      "patdixon.org",
+      "www.danpatrick.org",
+      "danpatrick.org",
+      "www.vikkigoodwin.com",
+      "vikkigoodwin.com",
+      "www.anthonycristo.com",
+      "anthonycristo.com",
+      "mayesmiddleton.com",
+      "nathanfortexas.com",
+      "donhuffines.com",
+      "www.saraheckhardt.com",
+      "saraheckhardt.com",
+      "www.faizifortexas.com",
+      "faizifortexas.com",
+      "dawnbuckingham.com",
+      "www.letsgowithben.com",
+      "letsgowithben.com",
+      "natesheets.com",
+      "www.claytontuckertx.com",
+      "claytontuckertx.com",
+      "www.kellyfortx.com",
+      "kellyfortx.com",
+      "bofrench.com",
+      "jonrosenthaltx.com",
+      "www.votedibianca.com",
+      "votedibianca.com",
+      "www.jimmyblacklock.com",
+      "jimmyblacklock.com",
+      "www.maggieforjustice.com",
+      "maggieforjustice.com",
+      "www.judgesully.com",
+      "judgesully.com",
+      "charikelly.com",
+      "justicekylehawkins.com",
+      "brettbusby.com",
+      "www.justicetriana.com",
+      "justicetriana.com",
+      "smithfortexas.org",
+      "okeyanyiamforjudge.com",
+      "messingerforjustice.com",
+      "www.hollytforjudge.com",
+      "hollytforjudge.com",
+      "micatx.com",
+      "www.allisonfortx.com",
+      "allisonfortx.com",
+      "www.montserratfortexas.com",
+      "montserratfortexas.com",
+      "www.arshiafortexas.org",
+      "arshiafortexas.org",
+      "justicescottbrister.com",
+      "jerryzimmerer.com",
+      "justicescottfield.com",
+      "justiceaprilfarris.com",
+      "www.coryfortexas.com",
+      "coryfortexas.com",
+      "www.justicedarlenebyrne.com",
+      "justicedarlenebyrne.com",
+      "www.danielladesetalyttle.com",
+      "danielladesetalyttle.com",
+      "laurieforjudge.com",
+      "www.mayaguerragamble.com",
+      "mayaguerragamble.com",
+      "voteandy.com",
+      "www.lesliedippel.com",
+      "lesliedippel.com",
+      "www.judgedimple.com",
+      "judgedimple.com",
+      "www.judgemaryann.com",
+      "judgemaryann.com",
+      "votedeniseforjudge.com",
+      "www.tanisaforjudge.com",
+      "tanisaforjudge.com",
+      "www.richforaustin.org",
+      "richforaustin.org",
+      "www.katiekamforaustin.com",
+      "katiekamforaustin.com",
+      "www.zoforaustin.com",
+      "zoforaustin.com",
+      "daveforaustintx.com",
+      "danawalkerforacc.com",
+      "www.gloriaforacc.com",
+      "gloriaforacc.com",
+      "www.pamelaforaisd.com",
+      "pamelaforaisd.com",
+      "kxan.com",
+      "kvue.com",
+      "fox7austin.com",
+      "cbsaustin.com",
+      "austinchronicle.com",
+      "communityimpact.com",
+      "thedailytexan.com",
+      "austincurrent.org",
+      "theaustinbulldog.org",
+      "wfaa.com",
+      "houstonpublicmedia.org",
+      "texasstandard.org",
+      "sanantonioreport.org",
+      "abcnews.go.com",
+      "nbcnews.com",
+      "www.lwvaustin.org",
+      "www.lwvtexas.org",
+      "www.austinchronicle.com",
+      "www.austincc.edu",
+      "onyourballot.vote411.org"
+    ],
+    "speechDomains": [
+      "texastribune.org",
+      "kut.org",
+      "statesman.com",
+      "houstonchronicle.com",
+      "dallasnews.com",
+      "expressnews.com",
+      "apnews.com",
+      "reuters.com",
+      "npr.org",
+      "politico.com",
+      "thehill.com",
+      "rollcall.com"
+    ],
+    "campaignSites": [
+      {
+        "candidateId": "us_senate-tx-united-states-senator-ken-paxton",
+        "url": "https://www.kenpaxton.com",
+        "verifiedVia": "https://ballotpedia.org/Ken_Paxton"
+      },
+      {
+        "candidateId": "us_senate-tx-united-states-senator-james-talarico",
+        "url": "https://jamestalarico.com/",
+        "verifiedVia": "https://ballotpedia.org/James_Talarico"
+      },
+      {
+        "candidateId": "us_senate-tx-united-states-senator-ted-brown",
+        "url": "https://tedbrown.org/",
+        "verifiedVia": "https://ballotpedia.org/Ted_Brown_(Texas)"
+      },
+      {
+        "candidateId": "us_house-37-united-states-representative-district-37-lauren-b-pena",
+        "url": "https://www.lauren4congress.com/",
+        "verifiedVia": "https://ballotpedia.org/Lauren_Pe%C3%B1a"
+      },
+      {
+        "candidateId": "us_house-37-united-states-representative-district-37-greg-casar",
+        "url": "https://www.casarforcongress.com",
+        "verifiedVia": "https://ballotpedia.org/Greg_Casar"
+      },
+      {
+        "candidateId": "governor-tx-governor-greg-abbott",
+        "url": "https://www.gregabbott.com",
+        "verifiedVia": "https://ballotpedia.org/Greg_Abbott"
+      },
+      {
+        "candidateId": "governor-tx-governor-gina-hinojosa",
+        "url": "https://ginafortexas.com/",
+        "verifiedVia": "https://ballotpedia.org/Gina_Hinojosa"
+      },
+      {
+        "candidateId": "governor-tx-governor-pat-dixon",
+        "url": "https://patdixon.org/",
+        "verifiedVia": "https://ballotpedia.org/Pat_Dixon"
+      },
+      {
+        "candidateId": "tx_lt_governor-tx-lieutenant-governor-dan-patrick",
+        "url": "https://www.danpatrick.org/",
+        "verifiedVia": "https://ballotpedia.org/Dan_Patrick"
+      },
+      {
+        "candidateId": "tx_lt_governor-tx-lieutenant-governor-vikki-goodwin",
+        "url": "https://www.vikkigoodwin.com/",
+        "verifiedVia": "https://ballotpedia.org/Vikki_Goodwin"
+      },
+      {
+        "candidateId": "tx_lt_governor-tx-lieutenant-governor-anthony-cristo",
+        "url": "https://www.anthonycristo.com",
+        "verifiedVia": "https://ballotpedia.org/Anthony_Cristo"
+      },
+      {
+        "candidateId": "tx_ag-tx-attorney-general-mayes-middleton",
+        "url": "https://mayesmiddleton.com/",
+        "verifiedVia": "https://ballotpedia.org/Mayes_Middleton"
+      },
+      {
+        "candidateId": "tx_ag-tx-attorney-general-nathan-johnson",
+        "url": "https://nathanfortexas.com/",
+        "verifiedVia": "https://www.lubbockchronicle.com/p/on-the-ballot-2026-texas-statewide-candidates"
+      },
+      {
+        "candidateId": "tx_comptroller-tx-comptroller-of-public-accounts-don-huffines",
+        "url": "https://donhuffines.com/",
+        "verifiedVia": "https://ballotpedia.org/Don_Huffines"
+      },
+      {
+        "candidateId": "tx_comptroller-tx-comptroller-of-public-accounts-sarah-eckhardt",
+        "url": "https://www.saraheckhardt.com/",
+        "verifiedVia": "https://ballotpedia.org/Sarah_Eckhardt"
+      },
+      {
+        "candidateId": "tx_comptroller-tx-comptroller-of-public-accounts-shehla-faizi",
+        "url": "https://www.faizifortexas.com/",
+        "verifiedVia": "https://ballotpedia.org/Shehla_Faizi"
+      },
+      {
+        "candidateId": "tx_land_commissioner-tx-commissioner-of-the-general-land-office-dawn-buckingham",
+        "url": "https://dawnbuckingham.com",
+        "verifiedVia": "https://ballotpedia.org/Dawn_Buckingham"
+      },
+      {
+        "candidateId": "tx_land_commissioner-tx-commissioner-of-the-general-land-office-benjamin-flores",
+        "url": "https://www.letsgowithben.com/",
+        "verifiedVia": "https://ballotpedia.org/Benjamin_Flores"
+      },
+      {
+        "candidateId": "tx_agriculture_commissioner-tx-commissioner-of-agriculture-nate-sheets",
+        "url": "https://natesheets.com/",
+        "verifiedVia": "https://ballotpedia.org/Nate_Sheets"
+      },
+      {
+        "candidateId": "tx_agriculture_commissioner-tx-commissioner-of-agriculture-clayton-tucker",
+        "url": "https://www.claytontuckertx.com",
+        "verifiedVia": "https://ballotpedia.org/Clayton_Tucker"
+      },
+      {
+        "candidateId": "tx_agriculture_commissioner-tx-commissioner-of-agriculture-austin-r-kelly",
+        "url": "https://www.KellyForTX.com",
+        "verifiedVia": "https://ballotpedia.org/Austin_Kelly"
+      },
+      {
+        "candidateId": "tx_railroad_commissioner-tx-railroad-commissioner-bo-french",
+        "url": "https://bofrench.com",
+        "verifiedVia": "https://ballotpedia.org/Bo_French"
+      },
+      {
+        "candidateId": "tx_railroad_commissioner-tx-railroad-commissioner-jon-rosenthal",
+        "url": "https://jonrosenthaltx.com/",
+        "verifiedVia": "https://ballotpedia.org/Jon_Rosenthal"
+      },
+      {
+        "candidateId": "tx_railroad_commissioner-tx-railroad-commissioner-arthur-dibianca",
+        "url": "https://www.votedibianca.com/",
+        "verifiedVia": "https://ballotpedia.org/Arthur_DiBianca"
+      },
+      {
+        "candidateId": "tx_supreme_court-tx-chief-justice-supreme-court-jimmy-blacklock",
+        "url": "https://www.jimmyblacklock.com/",
+        "verifiedVia": "https://jimmyblacklock.com/"
+      },
+      {
+        "candidateId": "tx_supreme_court-tx-chief-justice-supreme-court-maggie-ellis",
+        "url": "https://www.maggieforjustice.com/",
+        "verifiedVia": "https://ballotpedia.org/Maggie_Ellis"
+      },
+      {
+        "candidateId": "tx_supreme_court-tx-justice-supreme-court-place-2-unexpired--james-p-sullivan",
+        "url": "https://www.judgesully.com/",
+        "verifiedVia": "https://judgesully.com/"
+      },
+      {
+        "candidateId": "tx_supreme_court-tx-justice-supreme-court-place-2-unexpired--chari-kelly",
+        "url": "https://ChariKelly.com",
+        "verifiedVia": "https://ballotpedia.org/Chari_Kelly"
+      },
+      {
+        "candidateId": "tx_supreme_court-tx-justice-supreme-court-place-7-kyle-hawkins",
+        "url": "https://justicekylehawkins.com/",
+        "verifiedVia": "https://ballotpedia.org/Kyle_Hawkins"
+      },
+      {
+        "candidateId": "tx_supreme_court-tx-justice-supreme-court-place-8-brett-busby",
+        "url": "https://brettbusby.com/",
+        "verifiedVia": "https://brettbusby.com/"
+      },
+      {
+        "candidateId": "tx_supreme_court-tx-justice-supreme-court-place-8-gisela-d-triana",
+        "url": "https://www.justicetriana.com/",
+        "verifiedVia": "https://ballotpedia.org/Gisela_Triana"
+      },
+      {
+        "candidateId": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-3-thomas-smith",
+        "url": "https://smithfortexas.org/",
+        "verifiedVia": "https://smithfortexas.org/"
+      },
+      {
+        "candidateId": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-3-okey-anyiam",
+        "url": "https://okeyanyiamforjudge.com/",
+        "verifiedVia": "https://ballotpedia.org/Okey_Anyiam"
+      },
+      {
+        "candidateId": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-9-john-messinger",
+        "url": "https://messingerforjustice.com/",
+        "verifiedVia": "https://ballotpedia.org/John_Messinger"
+      },
+      {
+        "candidateId": "tx_court_of_criminal_appeals-tx-judge-court-of-criminal-appeals-place-9-holly-taylor",
+        "url": "https://www.hollytforjudge.com/",
+        "verifiedVia": "https://bastropdemocrats.org/candidates/"
+      },
+      {
+        "candidateId": "tx_sboe-5-member-state-board-of-education-district-mica-arellano",
+        "url": "https://micatx.com/",
+        "verifiedVia": "https://ballotpedia.org/Mica_Arellano"
+      },
+      {
+        "candidateId": "tx_sboe-5-member-state-board-of-education-district-allison-bush",
+        "url": "https://www.allisonfortx.com/",
+        "verifiedVia": "https://ballotpedia.org/Allison_Bush"
+      },
+      {
+        "candidateId": "tx_house-49-state-representative-district-49-montserrat-garibay",
+        "url": "https://www.montserratfortexas.com/",
+        "verifiedVia": "https://ballotpedia.org/Montserrat_Garibay"
+      },
+      {
+        "candidateId": "tx_house-49-state-representative-district-49-arshia-papari",
+        "url": "https://www.arshiafortexas.org/",
+        "verifiedVia": "https://ballotpedia.org/Arshia_Papari"
+      },
+      {
+        "candidateId": "tx_15th_court_of_appeals-tx-chief-justice-15th-court-of-appeals-dist-scott-brister",
+        "url": "https://justicescottbrister.com/",
+        "verifiedVia": "https://ballotpedia.org/Scott_Brister"
+      },
+      {
+        "candidateId": "tx_15th_court_of_appeals-tx-chief-justice-15th-court-of-appeals-dist-jerry-zimmerer",
+        "url": "https://jerryzimmerer.com/",
+        "verifiedVia": "https://ballotpedia.org/Jerry_Zimmerer"
+      },
+      {
+        "candidateId": "tx_15th_court_of_appeals-tx-justice-15th-court-of-appeals-district-p-scott-k-field",
+        "url": "https://justicescottfield.com/",
+        "verifiedVia": "https://ballotpedia.org/Scott_K._Field"
+      },
+      {
+        "candidateId": "tx_15th_court_of_appeals-tx-justice-15th-court-of-appeals-district-p-20-april-farris",
+        "url": "https://justiceaprilfarris.com/",
+        "verifiedVia": "https://ballotpedia.org/April_Farris"
+      },
+      {
+        "candidateId": "tx_3rd_court_of_appeals-3-chief-justice-3rd-court-of-appeals-distr-cory-liu",
+        "url": "https://www.coryfortexas.com/",
+        "verifiedVia": "https://ballotpedia.org/Cory_Liu"
+      },
+      {
+        "candidateId": "tx_3rd_court_of_appeals-3-chief-justice-3rd-court-of-appeals-distr-darlene-byrne",
+        "url": "https://www.justicedarlenebyrne.com/",
+        "verifiedVia": "https://ballotpedia.org/Darlene_Byrne"
+      },
+      {
+        "candidateId": "tx_district_judge-261-district-judge-261st-judicial-district-daniella-deseta-lyttle",
+        "url": "https://www.danielladesetalyttle.com/about",
+        "verifiedVia": "https://ballotpedia.org/Daniella_Deseta_Lyttle"
+      },
+      {
+        "candidateId": "tx_district_judge-455-district-judge-455th-judicial-district-laurie-eiserloh",
+        "url": "https://laurieforjudge.com/",
+        "verifiedVia": "https://laurieforjudge.com/"
+      },
+      {
+        "candidateId": "tx_district_judge-459-district-judge-459th-judicial-district-maya-guerra-gamble",
+        "url": "https://www.mayaguerragamble.com/",
+        "verifiedVia": "https://ballotpedia.org/Maya_Guerra_Gamble"
+      },
+      {
+        "candidateId": "county_judge-travis-county-judge-andy-brown",
+        "url": "https://voteandy.com/",
+        "verifiedVia": "https://branch.vote/races/2026-texas-general-election-tx-state-county-judge-tx-county-travis/candidates/andy-brown"
+      },
+      {
+        "candidateId": "county_court_at_law_judge-2-judge-county-court-at-law-no-2-leslie-dippel",
+        "url": "https://www.lesliedippel.com/",
+        "verifiedVia": "https://ballotpedia.org/Leslie_Dippel"
+      },
+      {
+        "candidateId": "county_court_at_law_judge-4-judge-county-court-at-law-no-4-dimple-malhotra",
+        "url": "https://www.judgedimple.com/",
+        "verifiedVia": "https://ballotpedia.org/Dimple_Malhotra"
+      },
+      {
+        "candidateId": "county_court_at_law_judge-5-judge-county-court-at-law-no-5-mary-ann-espiritu",
+        "url": "https://www.judgemaryann.com/about",
+        "verifiedVia": "https://ballotpedia.org/Mary_Ann_Espiritu"
+      },
+      {
+        "candidateId": "county_court_at_law_judge-6-judge-county-court-at-law-no-6-denise-hernandez",
+        "url": "https://votedeniseforjudge.com/",
+        "verifiedVia": "https://ballotpedia.org/Denise_Hern%C3%A1ndez"
+      },
+      {
+        "candidateId": "justice_of_the_peace-5-justice-of-the-peace-precinct-5-tanisa-jeffers",
+        "url": "https://www.tanisaforjudge.com/",
+        "verifiedVia": "https://ballotpedia.org/Tanisa_Jeffers"
+      },
+      {
+        "candidateId": "city_council-9-city-of-austin-city-council-member-distr-rich-heyman",
+        "url": "https://www.richforaustin.org/",
+        "verifiedVia": "https://ballotpedia.org/Rich_Heyman"
+      },
+      {
+        "candidateId": "city_council-9-city-of-austin-city-council-member-distr-katie-kam",
+        "url": "https://www.katiekamforaustin.com/",
+        "verifiedVia": "https://ballotpedia.org/Katie_Kam"
+      },
+      {
+        "candidateId": "city_council-9-city-of-austin-city-council-member-distr-zohaib-qadri",
+        "url": "https://www.zoforaustin.com/",
+        "verifiedVia": "https://ballotpedia.org/Zohaib_Qadri"
+      },
+      {
+        "candidateId": "city_council-9-city-of-austin-city-council-member-distr-dave-thadani",
+        "url": "https://daveforaustintx.com/",
+        "verifiedVia": "https://ballotpedia.org/Dave_Thadani"
+      },
+      {
+        "candidateId": "college_trustee-1-acc-trustee-place-1-dana-walker",
+        "url": "https://danawalkerforacc.com/",
+        "verifiedVia": "https://ballotpedia.org/Dana_Walker"
+      },
+      {
+        "candidateId": "college_trustee-1-acc-trustee-place-1-gloria-gonzales-dholakia",
+        "url": "https://www.gloriaforacc.com/",
+        "verifiedVia": "https://ballotpedia.org/Gloria_Gonzales-Dholakia"
+      },
+      {
+        "candidateId": "school_board-9-austin-isd-board-of-trustees-at-large-po-pamela-mathai",
+        "url": "https://www.pamelaforaisd.com/",
+        "verifiedVia": "https://ballotpedia.org/Pamela_Mathai"
+      }
+    ],
+    "verifiedDocuments": [
+      {
+        "url": "https://communityimpact.com/central-austin/election/qa-meet-the-candidates-for-acc-board-of-trustees-place-3-ahead-of-nov-3-election/",
+        "type": "questionnaire",
+        "verifiedVia": "https://communityimpact.com/central-austin/election/qa-meet-the-candidates-for-acc-board-of-trustees-place-3-ahead-of-nov-3-election/",
+        "contestId": "college_trustee-3-acc-trustee-place-3"
+      },
+      {
+        "url": "https://communityimpact.com/central-austin/election/meet-the-candidates-running-for-austin-city-council-district-9/",
+        "type": "questionnaire",
+        "verifiedVia": "https://communityimpact.com/central-austin/election/meet-the-candidates-running-for-austin-city-council-district-9/",
+        "contestId": "city_council-9-city-of-austin-city-council-member-distr"
+      }
+    ],
+    "resultsPerQuery": 10,
+    "maxPagesPerChannel": 5,
+    "maxQuotesPerSource": 10,
+    "maxSocialItems": 20
+  },
+  "records": {
+    "documentCap": 25,
+    "houseRollCap": 100,
+    "since": "2003-01-01",
+    "includeTloFtp": false,
+    "exhaustive": true
+  }
+}

@@ -26,6 +26,7 @@ export interface HistoryResearchInput {
   houseRollCap?: number;
   documentCap?: number;
   includeTloFtp?: boolean;
+  exhaustive?: boolean;
   cacheDirectory?: string;
   cacheMode?: CacheMode;
   client?: SnapshotClient;
@@ -42,6 +43,8 @@ export interface HistoryResearchResult {
   gaps: string[];
   coverage: RecordsResult["coverage"];
   snapshots: RecordsResult["snapshots"];
+  documents?: RecordsResult["documents"];
+  recovery?: RecordsResult["recovery"];
   identityNotes: string[];
 }
 
@@ -117,6 +120,7 @@ export async function researchCandidateHistory(
     houseRollCap: input.houseRollCap,
     documentCap: input.documentCap,
     includeTloFtp: input.includeTloFtp,
+    exhaustive: input.exhaustive,
   });
   progress(
     `Plan ready: ${planned.plan.sources.length} source(s), ${planned.gaps.length} gap(s). Collecting…`,
@@ -131,7 +135,7 @@ export async function researchCandidateHistory(
   const result = await collector.collect(request, planned.plan, {
     onSource: (sourceId, phase) => progress(`${phase}: ${sourceId}`),
   });
-  progress(`Done — ${result.actions.length} OfficialAction(s).`);
+  progress(`Done — ${result.actions.length} OfficialAction(s).${result.recovery ? ` Work: ${JSON.stringify(result.recovery.counts)}` : ""}`);
 
   return {
     request: result.request,
@@ -141,6 +145,8 @@ export async function researchCandidateHistory(
     gaps: planned.gaps,
     coverage: result.coverage,
     snapshots: result.snapshots,
+    documents: result.documents ?? [],
+    recovery: result.recovery,
     identityNotes,
   };
 }

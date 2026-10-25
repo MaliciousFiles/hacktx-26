@@ -21,3 +21,7 @@ export type { TxJournalConfig, JournalVote } from "./journals";
 export { tloAuthorIndexAdapter, parseAuthorIndex } from "./author-index";
 export type { TloAuthorIndexConfig, AuthorIndexEntry } from "./author-index";
 export { tloBillAnalysisAdapter } from "./bill-analysis";
+export { txLegislatorAdapter } from "./legislator";
+export { tloGovernorReportAdapter, parseTloReport, tloReportUrl } from "./reports";
+export type { TloReport, TloReportRow } from "./reports";
+export { texasSessionCodes } from "./sessions";

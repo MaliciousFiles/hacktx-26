@@ -5,21 +5,34 @@ import type { RecordsPlan } from "./collector";
 import { SnapshotClient } from "./fetch";
 import type { CacheMode } from "./fetch";
 import { houseClerkAdapter, govinfoCrecAdapter, govinfoBillstatusAdapter } from "./federal";
-import { socrataVotesAdapter, civicClerkAdapter, legistarAdapter } from "./local";
+import { socrataVotesAdapter, civicClerkAdapter, legistarAdapter, austinCouncilAdapter, accBoardAdapter, aisdBoardAdapter, travisOfficeRecordsAdapter } from "./local";
 import {
   tloBillHistoryAdapter,
   txHouseJournalAdapter,
   txSenateJournalAdapter,
   tloAuthorIndexAdapter,
   tloBillAnalysisAdapter,
+  txLegislatorAdapter,
+  tloGovernorReportAdapter,
 } from "./texas";
-import { scotxOrdersAdapter, tamesOpinionsAdapter, scjcSanctionsAdapter } from "./judicial";
-import { agOpinionsAdapter, governorOrdersAdapter, texasRegisterAdapter } from "./executive";
+import { scotxOrdersAdapter, tamesOpinionsAdapter, scjcSanctionsAdapter, txCourtOpinionsAdapter } from "./judicial";
+import { agOpinionsAdapter, governorOrdersAdapter, lrlGovernorOrdersAdapter, texasRegisterAdapter } from "./executive";
 import { officialMinutesAdapter } from "./minutes";
 import { voteTravisAdapter } from "./ballot";
 import { resolveHouseMember } from "./identity";
+import { CONNECTOR_CAPABILITIES } from "./capabilities";
 
 const houseIdentityConfig = z.object({ state: z.string().regex(/^[A-Z]{2}$/).optional() }).strict();
+export const recordsAdapters = [
+  houseClerkAdapter, govinfoCrecAdapter, govinfoBillstatusAdapter,
+  tloBillHistoryAdapter, txHouseJournalAdapter, txSenateJournalAdapter,
+  tloAuthorIndexAdapter, tloBillAnalysisAdapter, txLegislatorAdapter, tloGovernorReportAdapter,
+  socrataVotesAdapter, civicClerkAdapter, legistarAdapter, austinCouncilAdapter,
+  accBoardAdapter, aisdBoardAdapter, travisOfficeRecordsAdapter,
+  scotxOrdersAdapter, tamesOpinionsAdapter, scjcSanctionsAdapter, txCourtOpinionsAdapter,
+  agOpinionsAdapter, governorOrdersAdapter, lrlGovernorOrdersAdapter, texasRegisterAdapter,
+  officialMinutesAdapter, voteTravisAdapter,
+];
 
 export function createRecordsCollector(options: {
   cacheDirectory?: string;
@@ -28,6 +41,9 @@ export function createRecordsCollector(options: {
   client?: SnapshotClient;
   plan?: RecordsPlan;
 } = {}): RecordsCollector {
+  for (const adapter of recordsAdapters) {
+    if (!(adapter.kind in CONNECTOR_CAPABILITIES)) throw new Error(`Missing discovery/recovery capability declaration: ${adapter.kind}`);
+  }
   return new RecordsCollector({
     plan: options.plan,
     client: options.client ?? new SnapshotClient({
@@ -37,16 +53,9 @@ export function createRecordsCollector(options: {
       // rate limits (429) more room: delays of 0.5s, 1s, 2s, 4s, 8s.
       intervalMs: 750,
       retries: 5,
+      recovery: true,
     }),
-    adapters: [
-      houseClerkAdapter, govinfoCrecAdapter, govinfoBillstatusAdapter,
-      tloBillHistoryAdapter, txHouseJournalAdapter, txSenateJournalAdapter,
-      tloAuthorIndexAdapter, tloBillAnalysisAdapter,
-      socrataVotesAdapter, civicClerkAdapter, legistarAdapter,
-      scotxOrdersAdapter, tamesOpinionsAdapter, scjcSanctionsAdapter,
-      agOpinionsAdapter, governorOrdersAdapter, texasRegisterAdapter,
-      officialMinutesAdapter, voteTravisAdapter,
-    ],
+    adapters: recordsAdapters,
     resolvers: {
       house: (request, client, config) => resolveHouseMember(request, client, {
         ...houseIdentityConfig.parse(config ?? {}), congressApiKey: options.congressApiKey,

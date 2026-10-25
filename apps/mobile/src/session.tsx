@@ -1,6 +1,6 @@
 import type { ID, Mask, MaskSession, Swipe } from "@ftb/types";
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import { demoBallot } from "@/fixtures/travisDemo";
+import { useBallotData } from "@/ballotData";
 import { randomBit, randomId, shuffle } from "@/random";
 
 const CAST: Mask[] = [
@@ -28,12 +28,18 @@ type SessionValue = {
   toggleStar: (cardId: ID) => void;
   starred: (cardId: ID) => boolean;
   setDeckIndex: (index: number) => void;
-  revealContest: (contestId: ID) => void;
+  revealContest: (contestId: ID) => Promise<void>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const { generation } = useBallotData();
+  return <SessionState key={generation}>{children}</SessionState>;
+}
+
+function SessionState({ children }: { children: ReactNode }) {
+  const { data: demoBallot, loadIdentities } = useBallotData();
   const [started, setStarted] = useState(false);
   const [maskError, setMaskError] = useState<string | null>(null);
   const [masks, setMasks] = useState<MaskSession | null>(null);
@@ -69,7 +75,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           const cast = shuffle(CAST);
           const map: Record<ID, Mask> = {};
           demoBallot.candidates.forEach((candidate, index) => {
-            const mask = cast[index];
+            const base = cast[index % cast.length];
+            const mask = base && {
+              ...base,
+              character: `${base.character}${index >= cast.length ? ` ${Math.floor(index / cast.length) + 1}` : ""}`,
+            };
             if (mask) map[candidate.id] = mask;
           });
           const nextFlips: Record<ID, boolean> = {};
@@ -139,7 +149,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           ),
         );
       },
-      revealContest: (contestId) => {
+      revealContest: async (contestId) => {
+        await loadIdentities(contestId);
         const contest = demoBallot.contests.find((item) => item.id === contestId);
         if (contest && masks) {
           setOpenedMasks((current) => {
@@ -159,6 +170,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
     };
   }, [
+    demoBallot,
+    loadIdentities,
     deckIndex,
     flips,
     maskError,

@@ -16,6 +16,25 @@ const xml = "<?xml version=\"1.0\"?><record><text>José 😀\r\n exact</text></r
 const options = { format: "xml", root: "record" } as const;
 
 describe("snapshot transport", () => {
+  it("sends POST fields, replays without volatile tokens, and separates postback pages", async () => {
+    const network = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("<html><body>Page one</body></html>"))
+      .mockResolvedValueOnce(new Response("<html><body>Page two</body></html>"));
+    const client = new SnapshotClient({ directory, intervalMs: 0, fetch: network });
+    const form = { year: "2026", __EVENTTARGET: "days", __EVENTARGUMENT: "Page$1", __VIEWSTATE: "volatile-secret" };
+    const first = await client.get("https://example.gov/search", { format: "html", form });
+    expect(network.mock.calls[0]![1]?.method).toBe("POST");
+    expect(new URLSearchParams(String(network.mock.calls[0]![1]?.body)).get("__VIEWSTATE")).toBe("volatile-secret");
+    const offline = new SnapshotClient({ directory, mode: "offline", fetch: network });
+    expect(await offline.get("https://example.gov/search", { format: "html", form: { ...form, __VIEWSTATE: "changed" } })).toEqual(first);
+    const second = await client.get("https://example.gov/search", { format: "html", form: { ...form, __EVENTARGUMENT: "Page$2" } });
+    expect(second.text).toContain("Page two");
+    expect(second.id).not.toBe(first.id);
+    expect(network).toHaveBeenCalledTimes(2);
+    for (const file of await readdir(join(directory, "requests"))) {
+      expect(await readFile(join(directory, "requests", file), "utf8")).not.toContain("volatile-secret");
+    }
+  });
   it("persists exact bytes, reuses them offline, and removes URL secrets", async () => {
     const network = vi.fn<typeof fetch>().mockResolvedValue(new Response(xml, { headers: { etag: "v1" } }));
     const client = new SnapshotClient({ directory, intervalMs: 0, fetch: network });

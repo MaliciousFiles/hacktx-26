@@ -21,6 +21,11 @@ export interface TxAgOpinionSeries {
 export const TX_AG_OPINION_SERIES: TxAgOpinionSeries[] = [
   // OAG index: "Ken Paxton 2015 - Present"; path /opinions/ken-paxton/
   { names: ["ken paxton"], path: "ken-paxton", tenureStart: "2015-01-05" },
+  // OAG index: /opinions/greg-abbott (GA-0001 – GA-1096). AG from 2002-12-02 until
+  // Paxton took office on 2015-01-05 (Abbott became Governor on 2015-01-20).
+  { names: ["greg abbott", "gregory wayne abbott", "gregory abbott"], path: "greg-abbott", tenureStart: "2002-12-02", tenureEnd: "2015-01-04" },
+  // OAG index: /opinions/john-cornyn (JC-0001 – JC-0585). AG 1999-01-01 to 2002-12-01.
+  { names: ["john cornyn"], path: "john-cornyn", tenureStart: "1999-01-01", tenureEnd: "2002-12-01" },
 ];
 
 /** Exact full-name match against the published OAG series list (aliases allowed). */

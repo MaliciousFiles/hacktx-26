@@ -204,8 +204,9 @@ describe("GovInfo Congressional Record structured votes", () => {
   });
 
   it("rejects count mismatches, missing IDs, duplicate members, and missing document dates", () => {
-    expect(() => parseGovinfoCrec(crec.replace('yescount="1"', 'yescount="2"'))).toThrow(/aggregate/);
-    expect(() => parseGovinfoCrec(crec.replace('bioGuideId="C001098"', ""))).toThrow();
+    expect(() => parseGovinfoCrec(crec.replace('yescount="1"', 'yescount="0"'))).toThrow(/aggregate/);
+    // A row without a bioguide stays counted but can never be attributed to anyone.
+    expect(parseGovinfoCrec(crec.replace('bioGuideId="C001098"', "")).votes[0].members.map((m) => m.id)).toContain("unidentified:1");
     expect(() => parseGovinfoCrec(crec.replace('bioGuideId="C001099"', 'bioGuideId="C001098"'))).toThrow(/Duplicate member/);
     expect(() => parseGovinfoCrec(crec.replace("<granuleDate>2025-07-23</granuleDate>", ""))).toThrow(/granuleDate/);
     expect(() => parseGovinfoCrec(crec.replace('presentcount="1"', ""))).toThrow(/aggregate/);
@@ -262,7 +263,7 @@ describe("GovInfo Congressional Record structured votes", () => {
   });
 
   it("validates the relevant package granule's counts and congress without traversing host votes", () => {
-    const badCounts = crecPackage.replace('number="427" yescount="0" nocount="1"', 'number="427" yescount="0" nocount="2"');
+    const badCounts = crecPackage.replace('number="427" yescount="0" nocount="1"', 'number="427" yescount="0" nocount="0"');
     expect(() => parseGovinfoCrec(badCounts)).toThrow(/aggregate/);
     const badCongress = crecPackage.replace('chamber="SENATE" congress="119" number="427"', 'chamber="SENATE" congress="118" number="427"');
     expect(() => parseGovinfoCrec(badCongress)).toThrow(/congress conflicts/);
@@ -276,6 +277,22 @@ describe("GovInfo Congressional Record structured votes", () => {
     const result = await govinfoCrecAdapter.collect(ctx, { urls: [crecPackageUrl, crecUrl] });
     expect(result.actions).toHaveLength(2);
     expect(new Set(result.actions[0].provenance?.map((ref) => ref.sourceUrl))).toEqual(new Set([crecPackageUrl, crecUrl]));
+  });
+
+  it("treats an omitted nvcount as zero (GovInfo drops the attribute when nobody was not-voting)", async () => {
+    const granule = '<mods><titleInfo><title>Synthetic First Nomination Cloture</title></titleInfo><extension><granuleDate>2025-07-23</granuleDate><congVote chamber="SENATE" congress="119" number="426" yescount="1" nocount="1"><congMember bioGuideId="C001098" role="VOTED YES"/><congMember bioGuideId="C001099" role="VOTED NO"/></congVote></extension></mods>';
+    const result = await govinfoCrecAdapter.collect(context({ [crecUrl]: granule }, "C001098"), { urls: [crecUrl] });
+    expect(result.actions).toHaveLength(1);
+  });
+
+  it("keeps listed rows when GovInfo declares more votes than it lists, and tolerates rows without a bioguide", async () => {
+    const granule = '<mods><titleInfo><title>Synthetic Cloture</title></titleInfo><extension><granuleDate>2025-07-23</granuleDate><congVote chamber="SENATE" congress="119" number="426" yescount="2" nocount="2" nvcount="1"><congMember bioGuideId="C001098" role="VOTED YES"/><congMember chamber="S" role="VOTED YES"/><congMember bioGuideId="C001099" role="VOTED NO"/></congVote></extension></mods>';
+    const result = await govinfoCrecAdapter.collect(context({ [crecUrl]: granule }, "C001098"), { urls: [crecUrl] });
+    expect(result.actions).toHaveLength(1);
+    expect(result.actions[0].stance).toBe("yes");
+    // A row can be omitted but never invented: more listed rows than declared still fails closed.
+    const excess = granule.replace('yescount="2"', 'yescount="1"');
+    await expect(govinfoCrecAdapter.collect(context({ [crecUrl]: excess }, "C001098"), { urls: [crecUrl] })).rejects.toThrow(/aggregate totals/);
   });
 
   it("rejects conflicting duplicate publications, even if aggregate totals still balance", async () => {

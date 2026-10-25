@@ -1,0 +1,353 @@
+{
+  "releaseId": "ballot-pilot-410A-v1",
+  "asOfDate": "2026-10-25",
+  "campaignWindow": {
+    "since": "2025-11-05",
+    "until": "2026-11-03"
+  },
+  "election": {
+    "year": 2026,
+    "month": 11
+  },
+  "demo": true,
+  "ballot": {
+    "id": "sample-ballot-style-410A-pilot",
+    "ballotStyleId": "410A-SAMPLE-NOT-WEST-CAMPUS-COVERAGE-REFERENCE",
+    "precinctId": "410A",
+    "provenance": {
+      "url": "https://votetravis.gov/current-election-information/current-election/",
+      "verifiedBy": "manual-transcription-of-user-supplied-sample-ballot-410A",
+      "verifiedAt": "2026-10-25"
+    },
+    "contests": [
+      {
+        "id": "us_house-37-united-states-representative-district-37",
+        "title": "United States Representative, District 37",
+        "office": "us_house",
+        "officeKind": "legislative",
+        "districtType": "us_house",
+        "districtId": "37",
+        "jurisdiction": "us/tx",
+        "level": "federal",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "us_house-37-united-states-representative-district-37-greg-casar",
+            "name": "Greg Casar",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "governor-tx-governor",
+        "title": "Governor",
+        "office": "governor",
+        "officeKind": "executive",
+        "districtType": "governor",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "governor-tx-governor-greg-abbott",
+            "name": "Greg Abbott",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_supreme_court-tx-chief-justice-supreme-court",
+        "title": "Chief Justice, Supreme Court",
+        "office": "tx_supreme_court",
+        "officeKind": "judicial",
+        "districtType": "tx_supreme_court",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_supreme_court-tx-chief-justice-supreme-court-jimmy-blacklock",
+            "name": "Jimmy Blacklock",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "tx_house-51-state-representative-district-51",
+        "title": "State Representative, District 51",
+        "office": "tx_house",
+        "officeKind": "legislative",
+        "districtType": "tx_house",
+        "districtId": "51",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "tx_house-51-state-representative-district-51-maria-luisa-flores",
+            "name": "Maria Luisa Flores",
+            "aliases": [
+              "Maria Luisa \"Lulu\" Flores",
+              "Lulu Flores"
+            ],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "county_judge-travis-county-judge",
+        "title": "County Judge",
+        "office": "county_judge",
+        "officeKind": "executive",
+        "districtType": "county",
+        "districtId": "travis",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "county_judge-travis-county-judge-andy-brown",
+            "name": "Andy Brown",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "district_clerk-travis-district-clerk",
+        "title": "District Clerk",
+        "office": "district_clerk",
+        "officeKind": "executive",
+        "districtType": "county",
+        "districtId": "travis",
+        "jurisdiction": "us/tx/travis",
+        "level": "local",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "district_clerk-travis-district-clerk-velva-l-price",
+            "name": "Velva L. Price",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "college_trustee-3-acc-trustee-place-3",
+        "title": "ACC, Trustee, Place 3",
+        "office": "college_trustee",
+        "officeKind": "board",
+        "districtType": "acc_place",
+        "districtId": "3",
+        "jurisdiction": "us/tx/acc",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "college_trustee-3-acc-trustee-place-3-nan-mcraven",
+            "name": "Nan McRaven",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "city_council-3-city-of-austin-city-council-member-distr",
+        "title": "City of Austin, City Council Member, District 3",
+        "office": "city_council",
+        "officeKind": "legislative",
+        "districtType": "city_council",
+        "districtId": "3",
+        "jurisdiction": "us/tx/austin",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "city_council-3-city-of-austin-city-council-member-distr-brock-skinner",
+            "name": "Brock Skinner",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      }
+    ]
+  },
+  "web": {
+    "allowedPageHosts": [
+      "texastribune.org",
+      "www.texastribune.org",
+      "kut.org",
+      "www.kut.org",
+      "statesman.com",
+      "www.statesman.com",
+      "houstonchronicle.com",
+      "www.houstonchronicle.com",
+      "dallasnews.com",
+      "www.dallasnews.com",
+      "expressnews.com",
+      "www.expressnews.com",
+      "apnews.com",
+      "www.apnews.com",
+      "reuters.com",
+      "www.reuters.com",
+      "npr.org",
+      "www.npr.org",
+      "politico.com",
+      "www.politico.com",
+      "thehill.com",
+      "www.thehill.com",
+      "rollcall.com",
+      "www.rollcall.com",
+      "www.vote411.org",
+      "vote411.org",
+      "apps.texastribune.org",
+      "www.apps.texastribune.org",
+      "ballotpedia.org",
+      "www.ballotpedia.org",
+      "www.casarforcongress.com",
+      "casarforcongress.com",
+      "www.gregabbott.com",
+      "gregabbott.com",
+      "www.jimmyblacklock.com",
+      "jimmyblacklock.com",
+      "www.voteluluflores.com",
+      "voteluluflores.com",
+      "voteandy.com",
+      "vote4brock.com",
+      "kxan.com",
+      "kvue.com",
+      "fox7austin.com",
+      "cbsaustin.com",
+      "austinchronicle.com",
+      "communityimpact.com",
+      "thedailytexan.com",
+      "austincurrent.org",
+      "theaustinbulldog.org",
+      "wfaa.com",
+      "houstonpublicmedia.org",
+      "texasstandard.org",
+      "sanantonioreport.org",
+      "abcnews.go.com",
+      "nbcnews.com",
+      "www.lwvaustin.org",
+      "www.lwvtexas.org",
+      "www.austinchronicle.com",
+      "www.austincc.edu",
+      "onyourballot.vote411.org"
+    ],
+    "speechDomains": [
+      "texastribune.org",
+      "kut.org",
+      "statesman.com",
+      "houstonchronicle.com",
+      "dallasnews.com",
+      "expressnews.com",
+      "apnews.com",
+      "reuters.com",
+      "npr.org",
+      "politico.com",
+      "thehill.com",
+      "rollcall.com"
+    ],
+    "campaignSites": [
+      {
+        "candidateId": "us_house-37-united-states-representative-district-37-greg-casar",
+        "url": "https://www.casarforcongress.com",
+        "verifiedVia": "https://ballotpedia.org/Greg_Casar"
+      },
+      {
+        "candidateId": "governor-tx-governor-greg-abbott",
+        "url": "https://www.gregabbott.com",
+        "verifiedVia": "https://ballotpedia.org/Greg_Abbott"
+      },
+      {
+        "candidateId": "tx_supreme_court-tx-chief-justice-supreme-court-jimmy-blacklock",
+        "url": "https://www.jimmyblacklock.com/",
+        "verifiedVia": "https://jimmyblacklock.com/"
+      },
+      {
+        "candidateId": "tx_house-51-state-representative-district-51-maria-luisa-flores",
+        "url": "https://www.voteluluflores.com/",
+        "verifiedVia": "https://ballotpedia.org/Lulu_Flores"
+      },
+      {
+        "candidateId": "county_judge-travis-county-judge-andy-brown",
+        "url": "https://voteandy.com/",
+        "verifiedVia": "https://branch.vote/races/2026-texas-general-election-tx-state-county-judge-tx-county-travis/candidates/andy-brown"
+      },
+      {
+        "candidateId": "city_council-3-city-of-austin-city-council-member-distr-brock-skinner",
+        "url": "https://vote4brock.com/",
+        "verifiedVia": "https://communityimpact.com/east-austin/election/meet-the-candidates-running-for-austin-city-council-district-3/"
+      }
+    ],
+    "verifiedDocuments": [
+      {
+        "url": "https://communityimpact.com/central-austin/election/qa-meet-the-candidates-for-acc-board-of-trustees-place-3-ahead-of-nov-3-election/",
+        "type": "questionnaire",
+        "verifiedVia": "https://communityimpact.com/central-austin/election/qa-meet-the-candidates-for-acc-board-of-trustees-place-3-ahead-of-nov-3-election/",
+        "contestId": "college_trustee-3-acc-trustee-place-3"
+      },
+      {
+        "url": "https://communityimpact.com/east-austin/election/meet-the-candidates-running-for-austin-city-council-district-3/",
+        "type": "questionnaire",
+        "verifiedVia": "https://communityimpact.com/east-austin/election/meet-the-candidates-running-for-austin-city-council-district-3/",
+        "contestId": "city_council-3-city-of-austin-city-council-member-distr"
+      }
+    ],
+    "resultsPerQuery": 10,
+    "maxPagesPerChannel": 5,
+    "maxQuotesPerSource": 10,
+    "maxSocialItems": 20
+  },
+  "records": {
+    "documentCap": 25,
+    "houseRollCap": 100,
+    "since": "2003-01-01",
+    "includeTloFtp": false,
+    "exhaustive": true
+  }
+}

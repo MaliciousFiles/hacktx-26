@@ -4,7 +4,7 @@ import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import { collectVoice, VOICE_VERSION } from "./voice.js";
-import { FrozenWebClient, hash } from "./snapshot.js";
+import { FrozenWebClient, hash, serpApiKeysFromEnv, serpApiMaxRequestsFromEnv } from "./snapshot.js";
 import { scrapeSocial, socialFinders, SOCIAL_PLATFORMS } from "./social.js";
 
 const configSchema = z
@@ -128,6 +128,10 @@ if (values.help || !values.config || !values.output || !values.cache) {
       directory: resolve(values.cache),
       fetchedAt: config.fetchedAt,
       offline: values.offline,
+      serpApi: {
+        keys: serpApiKeysFromEnv(process.env),
+        maxRequests: serpApiMaxRequestsFromEnv(process.env),
+      },
       allowedHosts: [
         ...new Set(["serpapi.com", "public.api.bsky.app", "api.x.com", ...config.allowedPageHosts]),
       ],
@@ -140,7 +144,7 @@ if (values.help || !values.config || !values.output || !values.cache) {
         ...(await collectVoice(target, {
           ...config,
           client,
-          serpApiKey: process.env.SERPAPI_API_KEY,
+          serpApiKey: serpApiKeysFromEnv(process.env)[0],
           newsDomains: sourcePolicy.news.map((entry) => entry.domain),
           questionnaireDomains: sourcePolicy.questionnaires.map(
             (entry) => new URL(entry.url).hostname,
@@ -162,6 +166,7 @@ if (values.help || !values.config || !values.output || !values.cache) {
       }),
       config.maxSocialItems,
     );
+    console.log(client.serpApiSummary());
     const artifact = {
       version: VOICE_VERSION,
       configHash: hash(JSON.stringify(config)),

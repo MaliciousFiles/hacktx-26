@@ -13,11 +13,14 @@ import {
   Title,
   TopBar,
 } from "@/components/ui";
-import { contestById, demoBallot, identityFor, issueById } from "@/fixtures/travisDemo";
+import { useBallotData } from "@/ballotData";
 import { useSession } from "@/session";
+import { WebFeatureButton } from "@/components/WebFeatures";
+import { webLink } from "@/lib/webLinks";
 import { colors, fonts } from "@/theme";
 
 export default function RevealScreen() {
+  const { sample, contestById, identityFor } = useBallotData();
   const session = useSession();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
@@ -30,20 +33,26 @@ export default function RevealScreen() {
     return (
       <Screen>
         <SampleMark />
-        <Title>That contest is not in this sample.</Title>
+        <Title>That contest is not in this release.</Title>
       </Screen>
     );
   }
 
-  const message = shareMessage(session.swipes);
+  if (!session.revealed[contest.id])
+    return <Redirect href={{ pathname: "/contest/[id]", params: { id: contest.id } }} />;
+  const message = `My Wishing Well journey\nI read the plans before the names.\n${session.swipes.filter((swipe) => swipe.chosen !== "skip").length} questions explored · ${Object.keys(session.revealed).length} contests unmasked.\n${sample ? "Fictional sample ballot." : "Explore the evidence. Make your own choice."}`;
 
   return (
     <Screen
       footer={
         <PrimaryButton
-          label="Share the card"
+          label="Share text invitation"
           onPress={() => {
-            Share.share({ message }).catch(() => {
+            let invitation = message;
+            try {
+              if (process.env.EXPO_PUBLIC_WEB_URL) invitation += `\nMake a wish. Know your choice.\n${webLink(process.env.EXPO_PUBLIC_WEB_URL, "invite", { questions: session.swipes.filter((swipe) => swipe.chosen !== "skip").length, contests: Object.keys(session.revealed).length, sample })}`;
+            } catch { setShareNote("The website address is invalid. Sharing the text summary instead."); }
+            Share.share({ message: invitation }).catch(() => {
               setShareNote(
                 "Sharing is not available in this window. The card above is the whole message.",
               );
@@ -60,8 +69,11 @@ export default function RevealScreen() {
     >
       <SampleMark />
       <Kicker>{contest.title}</Kicker>
-      <Title>The mask is off.</Title>
-      <Body>The evidence did not change. Whether the names surprise you is yours to sit with.</Body>
+      <Title>{sample ? "The names behind the masks." : "Same ideas. Real names."}</Title>
+      <Body>
+        These are the candidates behind the character names. Their plans and records are the same
+        ones you just read.
+      </Body>
       {contest.candidateIds.map((candidateId) => {
         const mask = session.openedMasks[candidateId];
         const identity = identityFor(candidateId);
@@ -77,34 +89,15 @@ export default function RevealScreen() {
       })}
       <Ornament />
       <Panel>
-        <Text style={styles.cardKicker}>My Fairy Tale Ballot</Text>
+        <Text style={styles.cardKicker}>My Wishing Well journey</Text>
         <Text style={styles.cardLine}>{message}</Text>
       </Panel>
       {shareNote ? <Note>{shareNote}</Note> : null}
-      <Note>This card leaves the names off, even after the reveal.</Note>
+      <Note>Your shared summary includes counts only. Names, answers and picks stay off it.</Note>
+      <WebFeatureButton page="invite" counts={{ questions: session.swipes.filter((swipe) => swipe.chosen !== "skip").length, contests: Object.keys(session.revealed).length, sample }} />
+      <PrimaryButton label="Continue the ballot" arrow onPress={() => router.navigate("/ballot")} />
     </Screen>
   );
-}
-
-function shareMessage(swipes: { cardId: string; starred: boolean; kind: string }[]): string {
-  const starred = swipes.filter((swipe) => swipe.starred);
-  const labels = starred.map((swipe) => {
-    const card = demoBallot.cards.find((item) => item.id === swipe.cardId);
-    if (!card) return "a card";
-    if (card.kind === "pole") return issueById(card.issueId)?.label ?? "an issue";
-    if (card.kind === "tradeoff") return "a tradeoff";
-    return "a judicial question";
-  });
-  const unique = [...new Set(labels)];
-  const marked =
-    unique.length > 0 ? `Marked as mine to weigh: ${unique.join(", ")}.` : "I did not star a card.";
-  return [
-    "My Fairy Tale Ballot",
-    "I looked at the plans before the names.",
-    marked,
-    "Names are not on this card.",
-    "Sample release — not a live ballot.",
-  ].join("\n");
 }
 
 const styles = StyleSheet.create({

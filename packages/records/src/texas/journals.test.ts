@@ -35,6 +35,32 @@ Senator Cook asked to be recorded as voting "Nay" on suspension of the regular o
 `;
 
 describe("deterministic journal parsers", () => {
+  it("infers Yeas for Nay-only and unanimous Senate rolls only when absences reconcile", () => {
+    const plain = `
+WEDNESDAY, MARCH 12, 2025
+The motion prevailed by the following vote: Yeas 29, Nays 1.
+
+Nays: Eckhardt.
+
+Absent-excused: King.
+
+The bill was read third time and was passed by the following vote: Yeas 29, Nays 1. (Same as previous roll call)
+
+The motion prevailed by the following vote: Yeas 31, Nays 0.
+
+The motion prevailed by the following vote: Yeas 30, Nays 0.
+
+Absent-excused: King, Cook.
+`;
+    const votes = parseSenateJournalVotes(plain, "2025-03-12");
+    expect(votes).toHaveLength(3);
+    expect(votes[0]).toMatchObject({ impliedYes: true, no: ["Eckhardt"], absent: ["King"] });
+    expect(votes[1].sameAsPrevious).toBe(true);
+    expect(votes[2]).toMatchObject({ impliedYes: true, no: [], absent: [] });
+    // 30 + 0 with two absent does not reconcile against 31 seats: not attributable.
+    expect(votes.some((v) => v.absent?.length === 2)).toBe(false);
+  });
+
   it("parses House record votes and reconciles declared totals", () => {
     const votes = parseHouseJournalVotes(housePlain, "2025-04-14");
     expect(votes).toHaveLength(2);

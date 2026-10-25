@@ -24,6 +24,12 @@ function clientFor(body: string | ((url: string) => string)) {
 }
 
 describe("GovInfo Congressional Record discovery", () => {
+  it("ignores selection caps in exhaustive mode while preserving all discovered documents", async () => {
+    const { client } = clientFor(sitemap([{ date: "2025-01-07" }, { date: "2025-01-08" }]));
+    const result = await discoverRecordUrls(client, { ...recordSpec, maxDocuments: 1 }, window, { exhaustive: true });
+    expect(result.urls).toHaveLength(2);
+    expect(result.status).toBe("complete");
+  });
   it("uses publication dates, not lastmod, sorts/deduplicates whole-day metadata and excludes cutoff", async () => {
     const { client, network } = clientFor(sitemap([
       { date: "2025-01-31" }, { date: "2025-01-07", lastmod: "2026-01-01" },
@@ -38,6 +44,15 @@ describe("GovInfo Congressional Record discovery", () => {
     // A second candidate uses the identical cached index, including offline.
     expect((await discoverRecordUrls(new SnapshotClient({ directory, mode: "offline", fetch: network }), recordSpec, window)).urls).toEqual(result.urls);
     expect(network).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips non-daily bound-volume and index packages instead of failing the year", async () => {
+    const body = sitemap([{ date: "2025-01-07" }]).replace(
+      "</sm:urlset>",
+      `<sm:url><sm:loc>${origin}/app/details/CREC-2025-01-08-v171</sm:loc></sm:url><sm:url><sm:loc>${origin}/app/details/CREC-2025-01-09-i6</sm:loc></sm:url></sm:urlset>`,
+    );
+    const result = await discoverRecordUrls(clientFor(body).client, recordSpec, window);
+    expect(result.urls).toEqual([packageUrl("2025-01-07")]);
   });
 
   it("returns explicit partial coverage only when the configured cap omits a document", async () => {
@@ -70,6 +85,21 @@ describe("GovInfo Congressional Record discovery", () => {
     expect((await discoverRecordUrls(client, recordSpec, window)).urls).toEqual([]);
     expect((await discoverRecordUrls(client, { kind: "govinfo-record", years: [2023, 2026] }, window)).status).toBe("complete");
     expect(network).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("published House vote inventory", () => {
+  const fragment = (ids: number[], count = 3, congress = 119) => `<div id="currentCongress" hidden>${congress}</div><div id="currentSession" hidden>1st</div><nav>1 - 2 of ${count} Results</nav>${ids.map((n) => `<a href="/Votes/2025${n}">Roll</a>`).join("")}`;
+  it("paginates to the published total instead of guessing a roll upper bound", async () => {
+    const { client, network } = clientFor((url) => fragment(new URL(url).searchParams.get("Page") === "1" ? [3, 2] : [1]));
+    const result = await discoverRecordUrls(client, { kind: "house-clerk-index", year: 2025 }, { since: "2025-01-01", before: "2026-01-01" });
+    expect(result.urls).toEqual([1, 2, 3].map((n) => `https://clerk.house.gov/evs/2025/roll00${n}.xml`));
+    expect(network).toHaveBeenCalledTimes(2);
+  });
+  it("fails closed on stalled pagination and wrong Congress metadata", async () => {
+    await expect(discoverRecordUrls(clientFor(fragment([3, 2])).client, { kind: "house-clerk-index", year: 2025 }, window)).rejects.toThrow("stalled");
+    const wrong = new SnapshotClient({ directory: join(directory, "wrong"), intervalMs: 0, retries: 0, fetch: async () => new Response(fragment([3], 1).replace("/Votes/2025", "/Votes/2024")) });
+    await expect(discoverRecordUrls(wrong, { kind: "house-clerk-index", year: 2025 }, window)).rejects.toThrow("another year");
   });
 });
 
@@ -233,6 +263,28 @@ describe("oag-opinion-index discovery", () => {
       "https://www.texasattorneygeneral.gov/sites/default/files/opinion-files/opinion/2015/kp-0003.pdf",
       "https://www.texasattorneygeneral.gov/sites/default/files/opinion-files/opinion/2015/kp0002.pdf",
       "https://www.texasattorneygeneral.gov/sites/default/files/opinion-files/opinion/2015/kp0001.pdf",
+    ]);
+  });
+});
+
+describe("oag-opinion-index discovery for a past Attorney General", () => {
+  it("reads the newest ID from the AG's own series page when the main index doesn't link them", async () => {
+    const index = `<!DOCTYPE html><html><body><a href="/opinions/ken-paxton/kp-0537">new</a></body></html>`;
+    const series = `<!DOCTYPE html><html><body><select><option>GA-0003</option><option>GA-0002</option><option>GA-0001</option></select></body></html>`;
+    const page = (file: string) => `<!DOCTYPE html><html><body><a href="/sites/default/files/opinion-files/opinion/2003/${file}.pdf">pdf</a></body></html>`;
+    const network = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+      const u = String(url);
+      if (u.endsWith("/opinions")) return new Response(index);
+      if (u.endsWith("/opinions/greg-abbott")) return new Response(series);
+      if (u.endsWith("ga-0003")) return new Response(page("ga0003"));
+      if (u.endsWith("ga-0002")) return new Response(page("ga0002"));
+      return new Response("nope", { status: 404 });
+    });
+    const client = new SnapshotClient({ directory, intervalMs: 0, retries: 0, fetch: network });
+    const result = await discoverRecordUrls(client, { kind: "oag-opinion-index", agPath: "greg-abbott", maxDocuments: 2 }, window);
+    expect(result.urls).toEqual([
+      "https://www.texasattorneygeneral.gov/sites/default/files/opinion-files/opinion/2003/ga0003.pdf",
+      "https://www.texasattorneygeneral.gov/sites/default/files/opinion-files/opinion/2003/ga0002.pdf",
     ]);
   });
 });

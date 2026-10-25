@@ -14,12 +14,13 @@ import {
   Title,
   TopBar,
 } from "@/components/ui";
-import { contestById, demoBallot, identityFor, orderedProfiles } from "@/fixtures/travisDemo";
+import { useBallotData } from "@/ballotData";
 import { contestTone, officeKindLabel } from "@/labels";
 import { useSession } from "@/session";
 import { colors, fonts, shadows } from "@/theme";
 
 export default function Ballot() {
+  const { data: demoBallot, sample, contestById, identityFor, orderedProfiles } = useBallotData();
   const session = useSession();
   const router = useRouter();
   if (!session.started) return <Redirect href="/" />;
@@ -34,7 +35,7 @@ export default function Ballot() {
       header={
         <TopBar
           onBack={() => router.navigate("/explore")}
-          backLabel="Deck"
+          backLabel="Questions"
           action={
             <TextButton
               label="Start over"
@@ -50,13 +51,14 @@ export default function Ballot() {
     >
       <SampleMark />
       <Kicker>Your ballot</Kicker>
-      <Title>Every contest is here.</Title>
+      <Title>Meet the ideas first.</Title>
       <Body>
-        {contests.length} contests on sample style A. Open any of them. Nothing is dropped because
-        the evidence is thin.
+        {contests.length} contests on{" "}
+        {sample ? "your sample ballot" : `style ${demoBallot.ballot.ballotStyleId}`}. Choose a race,
+        read the evidence, then reveal candidate names when you are ready.
       </Body>
       {session.deckIndex < demoBallot.cards.length ? (
-        <Note>You still have unanswered cards in the deck.</Note>
+        <Note>You still have unanswered questions. You can return to them at any time.</Note>
       ) : null}
       {contests.map((contest, index) => {
         const profiles = orderedProfiles(contest, session.order[contest.id]);
@@ -82,7 +84,7 @@ export default function Ballot() {
                 {session.revealed[contest.id] ? (
                   <View style={styles.unmasked}>
                     <Icon name="mask" size={14} strokeWidth={2} />
-                    <Text style={styles.unmaskedText}>unmasked</Text>
+                    <Text style={styles.unmaskedText}>names revealed</Text>
                   </View>
                 ) : null}
               </View>
@@ -98,7 +100,10 @@ export default function Ballot() {
           </Enter>
         );
       })}
-      <Note>Names stay behind characters until you lift the mask on a contest.</Note>
+      <Note>
+        Candidates use randomly assigned character names until you choose to reveal their
+        identities.
+      </Note>
     </Screen>
   );
 }

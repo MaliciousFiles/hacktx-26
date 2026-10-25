@@ -12,8 +12,13 @@ export interface HouseIdentityOptions {
   congressApiKey?: string;
 }
 
+/** One Congress.gov service term; years are calendar years and `endYear` is absent for the current term. */
+export interface MemberTerm { chamber: "house" | "senate"; startYear: number; endYear?: number }
+
 export interface HouseIdentityResult {
   status: HouseIdentityStatus;
+  /** Verified congressional service years, when Congress.gov could be consulted; absent means unknown. */
+  terms?: MemberTerm[];
   request: CandidateResearchRequest;
   evidence: RecordProvenance[];
   reason: string;

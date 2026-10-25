@@ -12,9 +12,12 @@ questionnaires:
     name: VOTE411 (League of Women Voters)
     url: https://www.vote411.org
     type: questionnaire
+  # Hosts only matter for matching: a configured domain also covers its subdomains and `www.`
+  # (so vote411.org covers onyourballot.vote411.org). The 2026 general-election guides live
+  # under texastribune.org/2026/...; the old apps.texastribune.org primary-guide URL is a 404.
   - id: texas_tribune_voter_guide
     name: Texas Tribune Voter Guide
-    url: https://apps.texastribune.org/features/2026/texas-primary-voter-guide/
+    url: https://www.texastribune.org
     type: questionnaire
   - id: kut_statesman_voter_guide
     name: KUT / Austin American-Statesman Voter Guide
@@ -24,8 +27,33 @@ questionnaires:
     name: Ballotpedia
     url: https://ballotpedia.org
     type: questionnaire
+  - id: lwv_austin
+    name: League of Women Voters of the Austin Area
+    url: https://www.lwvaustin.org
+    type: questionnaire
+  - id: lwv_texas
+    name: League of Women Voters of Texas
+    url: https://www.lwvtexas.org
+    type: questionnaire
+  - id: statesman_voter_guide
+    name: Austin American-Statesman Voter Guide
+    url: https://www.statesman.com
+    type: questionnaire
+  - id: community_impact_voter_guide
+    name: Community Impact Voter Guide
+    url: https://communityimpact.com
+    type: questionnaire
+  - id: austin_chronicle_voter_guide
+    name: Austin Chronicle Candidate Q&A
+    url: https://www.austinchronicle.com
+    type: questionnaire
+  - id: acc_candidates
+    name: Austin Community College election pages
+    url: https://www.austincc.edu
+    type: questionnaire
 
-# News outlets (for Context Brief discovery via SerpApi)
+# News outlets (for Context Brief discovery via SerpApi). Allowlists are global: every
+# candidate is searched and fetched against the same list. A domain also covers its subdomains.
 news:
   - id: texas_tribune
     name: Texas Tribune
@@ -63,6 +91,51 @@ news:
   - id: roll_call
     name: Roll Call
     domain: rollcall.com
+  - id: kxan
+    name: KXAN
+    domain: kxan.com
+  - id: kvue
+    name: KVUE
+    domain: kvue.com
+  - id: fox7_austin
+    name: FOX 7 Austin
+    domain: fox7austin.com
+  - id: cbs_austin
+    name: CBS Austin (KEYE)
+    domain: cbsaustin.com
+  - id: austin_chronicle
+    name: The Austin Chronicle
+    domain: austinchronicle.com
+  - id: community_impact
+    name: Community Impact
+    domain: communityimpact.com
+  - id: daily_texan
+    name: The Daily Texan
+    domain: thedailytexan.com
+  - id: austin_current
+    name: The Austin Current
+    domain: austincurrent.org
+  - id: austin_bulldog
+    name: The Austin Bulldog
+    domain: theaustinbulldog.org
+  - id: wfaa
+    name: WFAA
+    domain: wfaa.com
+  - id: houston_public_media
+    name: Houston Public Media
+    domain: houstonpublicmedia.org
+  - id: texas_standard
+    name: Texas Standard
+    domain: texasstandard.org
+  - id: san_antonio_report
+    name: San Antonio Report
+    domain: sanantonioreport.org
+  - id: abc_news
+    name: ABC News
+    domain: abcnews.go.com
+  - id: nbc_news
+    name: NBC News
+    domain: nbcnews.com
 
 # Official sources (always allowed; not subject to the news allowlist)
 official:

@@ -10,6 +10,7 @@ import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SessionProvider } from "@/session";
+import { BallotDataProvider } from "@/ballotData";
 import { colors } from "@/theme";
 
 export default function RootLayout() {
@@ -26,16 +27,21 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <SessionProvider>
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.bg },
-            animation: "slide_from_right",
-          }}
-        />
-      </SessionProvider>
+      <BallotDataProvider>
+        <SessionProvider>
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.bg },
+              animation: "slide_from_right",
+              // Navigation is explicit (Back buttons only); no edge-swipe to go back.
+              gestureEnabled: false,
+              fullScreenGestureEnabled: false,
+            }}
+          />
+        </SessionProvider>
+      </BallotDataProvider>
     </SafeAreaProvider>
   );
 }

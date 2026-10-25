@@ -1,6 +1,6 @@
-import type { ContextBrief, Contest, Slot } from "@ftb/types";
+import type { ContextBrief, Contest, PolicyCard, Slot } from "@ftb/types";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { StyleSheet, Text } from "react-native";
 import { CandidateCard } from "@/components/CandidateCard";
 import {
@@ -14,8 +14,9 @@ import {
   Section,
   Title,
   TopBar,
+  TextButton,
 } from "@/components/ui";
-import { contestById, demoBallot, orderedProfiles } from "@/fixtures/travisDemo";
+import { useBallotData } from "@/ballotData";
 import { formatMoney } from "@/format";
 import { JUDICIAL_LABEL, officeKindLabel } from "@/labels";
 import { judicialAnswers, polePositions } from "@/matching";
@@ -23,6 +24,10 @@ import { useSession } from "@/session";
 import { colors, fonts } from "@/theme";
 
 export default function ContestScreen() {
+  const { data: demoBallot, contestById, orderedProfiles } = useBallotData();
+  const [confirm, setConfirm] = useState(false);
+  const [revealing, setRevealing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const session = useSession();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
@@ -38,28 +43,92 @@ export default function ContestScreen() {
         }
       >
         <SampleMark />
-        <Title>That contest is not in this sample.</Title>
+        <Title>That contest is not in this release.</Title>
       </Screen>
     );
   }
 
   const profiles = orderedProfiles(contest, session.order[contest.id]);
+  const pendingJudicialIndex = demoBallot.cards.findIndex(
+    (card) =>
+      card.kind === "judicial_pole" && !session.swipes.some((swipe) => swipe.cardId === card.id),
+  );
+  if (contest.officeKind === "judicial" && profiles.length > 1 && pendingJudicialIndex >= 0) {
+    return (
+      <Screen
+        header={<TopBar onBack={() => router.navigate("/ballot")} backLabel="Ballot" />}
+        footer={
+          <PrimaryButton
+            label="Explore the judicial questions"
+            onPress={() => {
+              session.setDeckIndex(pendingJudicialIndex);
+              router.navigate("/explore");
+            }}
+          />
+        }
+      >
+        <SampleMark />
+        <Kicker>Before you meet the court</Kicker>
+        <Title>A different kind of question.</Title>
+        <Body>
+          Judges interpret the law. Answer or skip the judicial questions first; we never compare
+          judges using policy positions.
+        </Body>
+      </Screen>
+    );
+  }
   const userPositions = polePositions(demoBallot.cards, session.swipes);
   const tradeoff = session.swipes.find((swipe) => swipe.cardId === "card-tradeoff");
+  const tradeoffCard = demoBallot.cards.find((card) => card.id === "card-tradeoff");
   const revealed = session.revealed[contest.id] === true;
 
   return (
     <Screen
       footer={
         profiles.length > 0 ? (
-          <PrimaryButton
-            label={revealed ? "See the names" : "Lift the mask"}
-            onPress={() => {
-              if (!revealed) session.revealContest(contest.id);
-              router.push({ pathname: "/reveal/[id]", params: { id: contest.id } });
-            }}
-          />
-        ) : undefined
+          <>
+            {confirm && !revealed ? (
+              <Note>
+                Ready? Names and parties will stay visible for this contest for the rest of this
+                session.
+              </Note>
+            ) : null}
+            {error ? <Note>{error}</Note> : null}
+            <PrimaryButton
+              label={
+                revealing
+                  ? "Loading candidate names…"
+                  : revealed
+                    ? "See the names"
+                    : confirm
+                      ? "Yes, reveal this contest"
+                      : "Reveal candidate names"
+              }
+              disabled={revealing}
+              onPress={async () => {
+                if (!revealed && !confirm) {
+                  setConfirm(true);
+                  return;
+                }
+                setRevealing(true);
+                setError(null);
+                try {
+                  if (!revealed) await session.revealContest(contest.id);
+                  router.push({ pathname: "/reveal/[id]", params: { id: contest.id } });
+                } catch (cause) {
+                  setError(cause instanceof Error ? cause.message : "Please try again.");
+                } finally {
+                  setRevealing(false);
+                }
+              }}
+            />
+            {confirm && !revealing && !revealed ? (
+              <TextButton label="Keep reading" onPress={() => setConfirm(false)} />
+            ) : null}
+          </>
+        ) : (
+          <PrimaryButton label="Back to the ballot" onPress={() => router.navigate("/ballot")} />
+        )
       }
       header={<TopBar onBack={() => router.navigate("/ballot")} backLabel="Ballot" />}
     >
@@ -72,8 +141,10 @@ export default function ContestScreen() {
 
       {contest.measure ? <Measure contest={contest} /> : null}
       {contest.officeKind === "judicial" ? <JudicialNotes /> : null}
-      {contest.id === "contest-council" && tradeoff?.kind === "tradeoff" ? (
-        <TradeoffNote chosen={tradeoff.chosen} />
+      {contest.id === "contest-council" &&
+      tradeoff?.kind === "tradeoff" &&
+      tradeoffCard?.kind === "tradeoff" ? (
+        <TradeoffNote card={tradeoffCard} chosen={tradeoff.chosen} />
       ) : null}
       <Context context={contest.context} />
 
@@ -97,7 +168,7 @@ function Measure({ contest }: { contest: Contest }) {
       <Banner
         tone="forest"
         title="No recommendation"
-        body="A proposition never gets a vote from this app. The connection to your cards is withheld unless a reviewed link exists. This sample does not claim one."
+        body="We do not recommend voting yes or no. Read the ballot language and compare the effects of each choice."
       />
       <Section title="Ballot language" icon="scroll">
         <Text style={styles.verbatim}>{measure.ballotText.text}</Text>
@@ -113,10 +184,7 @@ function Measure({ contest }: { contest: Contest }) {
           .
         </Text>
         <Text style={styles.missing}>Interest: Not stated</Text>
-        <Note>
-          Campaign spending for yes and no is not in this sample. A missing filing is not zero
-          dollars.
-        </Note>
+        <Note>A missing campaign-finance filing is not zero dollars.</Note>
       </Section>
     </>
   );
@@ -139,6 +207,7 @@ function SlotBlock({ label, slot }: { label: string; slot: Slot }) {
 }
 
 function JudicialNotes() {
+  const { data: demoBallot } = useBallotData();
   const session = useSession();
   const answers = judicialAnswers(demoBallot.cards, session.swipes);
   return (
@@ -160,17 +229,24 @@ function JudicialNotes() {
   );
 }
 
-function TradeoffNote({ chosen }: { chosen: "accept" | "decline" | "skip" }) {
-  const line =
+function TradeoffNote({
+  card,
+  chosen,
+}: {
+  card: Extract<PolicyCard, { kind: "tradeoff" }>;
+  chosen: "accept" | "decline" | "skip";
+}) {
+  const question = `${card.policy}, at the cost of ${card.cost}.`;
+  const answer =
     chosen === "accept"
-      ? "You said more homes were worth removing those parking minimums."
+      ? "You said that was worth it."
       : chosen === "decline"
         ? "You said that cost was too high."
-        : "You skipped the tradeoff.";
+        : "You skipped it.";
   return (
     <Banner
-      title="Your tradeoff"
-      body={`${line} That choice is kept separate from the comparison below.`}
+      title="Why you're seeing this: a question you answered"
+      body={`Earlier you were asked about this tradeoff: ${question} ${answer} City Council decides issues like this. It is only a reminder and does not change how the candidates are compared below.`}
     />
   );
 }

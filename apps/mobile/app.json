@@ -1,13 +1,15 @@
 {
   "expo": {
-    "name": "Fairy Tale Ballot",
+    "name": "Wishing Well",
+    "description": "Make a wish. Know your choice.",
     "slug": "fairy-tale-ballot",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/wishing-well-logo.png",
     "userInterfaceStyle": "light",
     "scheme": "fairytaleballot",
     "ios": {
+      "icon": "./assets/wishing-well-ios.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.milesfritzmather.fairytaleballot",
       "appleTeamId": "YG4U27L96Y",
@@ -17,16 +19,14 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#F3EDE2",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#F0DFC2",
+        "foregroundImage": "./assets/wishing-well-logo.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.milesfritzmather.fairytaleballot"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/wishing-well-logo.png"
     },
     "plugins": [
       "expo-router",

@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./work": "./src/work.ts"
   },
   "scripts": {
+    "work": "tsx src/work-cli.ts",
     "collect": "tsx --env-file-if-exists=../../.env src/cli.ts",
     "history": "tsx --env-file-if-exists=../../.env src/history-cli.ts",
     "playground": "tsx --env-file-if-exists=../../.env src/playground.ts",

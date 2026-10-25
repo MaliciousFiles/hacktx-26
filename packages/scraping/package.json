@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ftb/records": "workspace:*",
     "@ftb/types": "workspace:*",
     "cheerio": "^1.2.0",
     "robots-parser": "^3.0.1",

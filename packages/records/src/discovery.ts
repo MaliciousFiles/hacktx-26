@@ -4,6 +4,9 @@ import { z } from "zod";
 import type { SnapshotClient } from "./fetch";
 import { inWindow, isISODate, type DateWindow } from "./model";
 import { parseXml } from "./xml";
+import { workKey } from "./work";
+import { recordsImplementationHash } from "./implementation";
+import { decodeEntities } from "./document";
 
 const federalBillTypes = ["hr", "s", "hres", "sres", "hjres", "sjres", "hconres", "sconres"] as const;
 const texasBillTypes = ["HB", "SB", "HJR", "SJR", "HCR", "SCR", "HR", "SR"] as const;
@@ -40,6 +43,10 @@ export const discoverySchema = z.discriminatedUnion("kind", [
   }),
   /** Official OAG opinions index links for one AG path (e.g. ken-paxton). */
   z.object({
+    kind: z.literal("house-clerk-index"),
+    year: z.number().int().min(1990).max(9999), maxDocuments,
+  }).strict(),
+  z.object({
     kind: z.literal("oag-opinion-index"),
     agPath: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
     maxDocuments,
@@ -55,6 +62,7 @@ export interface DiscoveryFtpClient {
 export interface DiscoveryOptions {
   ftpFactory?: () => DiscoveryFtpClient;
   sleep?: (ms: number) => Promise<unknown>;
+  exhaustive?: boolean;
 }
 
 const govinfo = "https://www.govinfo.gov";
@@ -101,13 +109,35 @@ async function oagOpinionUrls(
     });
   }
   const linked = scored.sort((a, b) => b.n - a.n || a.url.localeCompare(b.url));
+  if (linked.length === 0) {
+    // The main index only links the current Attorney General's newest opinions. A past AG's
+    // own series page lists every opinion ID in a dropdown ("GA-1096 GA-1095 …"): take the
+    // newest number from it, then count down through the series below.
+    const series = await client.get(`${oagOpinions}/${spec.agPath}`, { format: "html" });
+    const ids = [...series.text.matchAll(/\b([A-Z]{1,3})-(\d{3,5})\b/g)];
+    if (ids[0]) {
+      const seriesPrefix = ids[0][1].toLowerCase();
+      const newestInSeries = Math.max(...ids.filter((id) => id[1].toLowerCase() === seriesPrefix).map((id) => Number(id[2])));
+      return countDownOpinions(client, spec, seriesPrefix, ids[0][2].length, newestInSeries, [], new Set());
+    }
+  }
   // The index only links the newest few opinions. Count down through the published
   // numeric series; each opinion page links its own official PDF.
   const newest = linked[0]?.n ?? 0;
   if (!prefix || newest < 1) return linked.map((row) => row.url);
+  return countDownOpinions(client, spec, prefix, width, newest, linked.map((row) => row.url), new Set(linked.map((row) => row.n)));
+}
+
+async function countDownOpinions(
+  client: SnapshotClient,
+  spec: Extract<DiscoverySpec, { kind: "oag-opinion-index" }>,
+  prefix: string,
+  width: number,
+  newest: number,
+  urls: string[],
+  have: Set<number>,
+): Promise<string[]> {
   const limit = spec.maxDocuments ?? newest;
-  const urls = linked.map((row) => row.url);
-  const have = new Set(linked.map((row) => row.n));
   for (let n = newest; n >= 1 && urls.length < limit; n--) {
     if (have.has(n)) continue;
     const id = `${prefix}-${String(n).padStart(width, "0")}`;
@@ -118,8 +148,10 @@ async function oagOpinionUrls(
       // has occasional filename typos (e.g. kp-05340.pdf), so match the directory, not the name.
       const pdf = /href="(\/sites\/default\/files\/opinion-files\/opinion\/\d{4}\/[^"/]+\.pdf)"/i.exec(doc.text);
       urls.push(pdf ? `https://www.texasattorneygeneral.gov${pdf[1]}` : page);
-    } catch {
-      // A missing/blocked page is skipped; coverage is reported as partial via maxDocuments/inventory size.
+    } catch (error) {
+      // A denial, transient failure or parser failure is not an absent opinion.
+      // Durable request work keeps even expected numeric-series holes visible.
+      if (!/HTTP (404|410)\b/.test(error instanceof Error ? error.message : "")) throw error;
     }
   }
   return urls;
@@ -138,7 +170,11 @@ async function recordUrls(client: SnapshotClient, spec: Extract<DiscoverySpec, {
     const entries = !("url" in parsed) ? [] : Array.isArray(parsed.url) ? parsed.url : [parsed.url];
     for (const entry of entries) {
       const { loc } = z.object({ loc: z.string().min(1) }).parse(entry);
-      const match = /^\/app\/details\/CREC-(\d{4}-\d{2}-\d{2})$/.exec(officialUrl(loc).pathname);
+      const pathname = officialUrl(loc).pathname;
+      // GovInfo's sitemap also lists non-daily packages (bound-edition volumes `-v170`, indexes `-i6`).
+      // They are not daily issues and carry no daily roll-call votes; skip them rather than fail the year.
+      if (/^\/app\/details\/CREC-\d{4}-\d{2}-\d{2}-[a-z]+\d+$/i.test(pathname)) continue;
+      const match = /^\/app\/details\/CREC-(\d{4}-\d{2}-\d{2})$/.exec(pathname);
       if (!match || !isISODate(match[1]) || Number(match[1].slice(0, 4)) !== year) {
         throw new Error(`Invalid CREC package URL for ${year}: ${loc}`);
       }
@@ -223,6 +259,36 @@ function houseClerkRollUrls(
   return urls;
 }
 
+/** Official paginated vote inventory, not guessed roll upper bounds or consecutive-404 stopping. */
+async function houseClerkIndexUrls(client: SnapshotClient, year: number, window: DateWindow): Promise<string[]> {
+  if (`${year}-12-31` < window.since || `${year}-01-01` >= window.before) return [];
+  const congress = Math.floor((year - 1789) / 2) + 1;
+  const session = year % 2 ? "1st" : "2nd";
+  const rolls = new Set<number>();
+  let total: number | undefined;
+  for (let page = 1; page <= 1000; page++) {
+    const url = new URL("https://clerk.house.gov/Votes/MemberVotes");
+    url.searchParams.set("CongressNum", String(congress)); url.searchParams.set("Session", session); url.searchParams.set("Page", String(page));
+    const snapshot = await client.get(url.href, { format: "html", allowHtmlFragment: true });
+    // The page's hidden currentCongress/currentSession fields describe the site's CURRENT session, not the
+    // queried one; correctness is verified by every vote link carrying the requested year below.
+    const count = /\bof\s+([\d,]+)\s+Results\b/i.exec(snapshot.text)?.[1];
+    if (!count) throw new Error("House vote inventory lacks a verifiable total");
+    const declared = Number(count.replaceAll(",", ""));
+    if (total !== undefined && declared !== total) throw new Error("House vote inventory changed its declared total during pagination");
+    total = declared;
+    const before = rolls.size;
+    for (const match of decodeEntities(snapshot.text).matchAll(/\/Votes\/(\d{4})(\d+)(?:[?"'#\s<]|$)/g)) {
+      if (Number(match[1]) !== year) throw new Error("House vote inventory linked another year");
+      rolls.add(Number(match[2]));
+    }
+    if (rolls.size > total) throw new Error("House vote inventory exceeds its declared total");
+    if (rolls.size === total) return [...rolls].sort((a, b) => a - b).map((roll) => `https://clerk.house.gov/evs/${year}/roll${String(roll).padStart(3, "0")}.xml`);
+    if (rolls.size === before) throw new Error("House vote inventory pagination stalled before exhaustion");
+  }
+  throw new Error("House vote inventory safety budget reached before exhaustion");
+}
+
 /** Enumerates only explicitly configured published inventories, not a lifetime record.
  * Bill index dates are not action dates: the document parsers apply the date window. */
 export async function discoverRecordUrls(
@@ -230,21 +296,36 @@ export async function discoverRecordUrls(
 ): Promise<{ urls: string[]; status: "complete" | "partial"; reason: string }> {
   spec = discoverySchema.parse(spec);
   if (!isISODate(window.since) || !isISODate(window.before) || window.since >= window.before) throw new Error("Invalid discovery date window");
-  if (spec.kind === "tlo-billhistory" && client.cacheMode === "offline") {
+  const journal = client.workJournal;
+  const task = { key: workKey(["discovery-v2", await recordsImplementationHash(), spec, window, options.exhaustive ?? false]),
+    kind: "inventory" as const, scope: client.workScope, payload: { spec, window, exhaustive: options.exhaustive ?? false } };
+  const previous = journal?.get(task.key);
+  const archived = previous?.state === "succeeded" ? previous.result as { urls: string[] } : undefined;
+  if (spec.kind === "tlo-billhistory" && client.cacheMode === "offline" && !archived) {
     throw new Error("TLO FTP discovery requires an explicit saved URLs plan in offline mode");
   }
-  const found = spec.kind === "govinfo-record" ? await recordUrls(client, spec, window)
-    : spec.kind === "govinfo-billstatus" ? await billUrls(client, spec)
-    : spec.kind === "house-clerk-rolls" ? houseClerkRollUrls(spec, window)
-    : spec.kind === "oag-opinion-index" ? await oagOpinionUrls(client, spec)
-    : await texasUrls(spec, options);
+  const enumeration = async () => {
+    const mark = client.mark();
+    const inventorySpec = options.exhaustive ? { ...spec, maxDocuments: undefined } as DiscoverySpec : spec;
+    const urls = inventorySpec.kind === "govinfo-record" ? await recordUrls(client, inventorySpec, window)
+      : inventorySpec.kind === "govinfo-billstatus" ? await billUrls(client, inventorySpec)
+      : inventorySpec.kind === "house-clerk-rolls" ? houseClerkRollUrls(inventorySpec, window)
+      : inventorySpec.kind === "house-clerk-index" ? await houseClerkIndexUrls(client, inventorySpec.year, window)
+      : inventorySpec.kind === "oag-opinion-index" ? await oagOpinionUrls(client, inventorySpec)
+      : await texasUrls(inventorySpec, options);
+    return { urls, snapshots: client.snapshotsSince(mark) };
+  };
+  const enumerated = journal ? await journal.run(task, enumeration, { reuse: true }) : await enumeration();
+  // Successful inventory replays must restore the provenance inventory as well as URLs.
+  if (journal) for (const snapshot of enumerated.snapshots) await client.restore(snapshot.id);
+  const found = enumerated.urls;
   // OAG opinions stay newest-first; other inventories stay lexicographically sorted.
   const urls = spec.kind === "oag-opinion-index" ? [...new Set(found)] : [...new Set(found)].sort();
-  if (spec.kind === "oag-opinion-index" && spec.maxDocuments !== undefined && urls.length >= spec.maxDocuments) {
+  if (!options.exhaustive && spec.kind === "oag-opinion-index" && spec.maxDocuments !== undefined && urls.length >= spec.maxDocuments) {
     return { urls: urls.slice(0, spec.maxDocuments), status: "partial",
-      reason: `Configured maxDocuments=${spec.maxDocuments} cap: collected the ${spec.maxDocuments} newest AG opinions; older opinions in the series were not collected.` };
+      reason: `Configured maxDocuments=${spec.maxDocuments} cap: collected the ${spec.maxDocuments} newest documents; older ones were not collected.` };
   }
-  if (spec.maxDocuments !== undefined && urls.length > spec.maxDocuments) {
+  if (!options.exhaustive && spec.maxDocuments !== undefined && urls.length > spec.maxDocuments) {
     return { urls: urls.slice(0, spec.maxDocuments), status: "partial",
       reason: `Configured maxDocuments=${spec.maxDocuments} cap: returning ${spec.maxDocuments} of ${urls.length} discovered documents; remaining documents were not collected.` };
   }

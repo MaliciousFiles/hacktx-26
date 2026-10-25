@@ -1,12 +1,14 @@
 import type { CandidateProfile, Contest, Position } from "@ftb/types";
+import { useState } from "react";
 import { Text, View, StyleSheet } from "react-native";
-import { issueById, identityFor } from "@/fixtures/travisDemo";
+import { issueById } from "@/fixtures/travisDemo";
+import { useBallotData } from "@/ballotData";
 import { formatIsoDate, formatMoney, monogram } from "@/format";
 import { FLAG_COPY, SOURCE_LABEL } from "@/labels";
 import { proximity } from "@/matching";
 import { useSession } from "@/session";
 import { colors, fonts, shadows } from "@/theme";
-import { Banner, Note, Section } from "@/components/ui";
+import { Banner, Note, Section, TextButton } from "@/components/ui";
 
 const PLAN_SLOTS = [
   ["goal", "Goal"],
@@ -27,6 +29,8 @@ export function CandidateCard({
   userPositions: Partial<Record<string, Position>>;
 }) {
   const session = useSession();
+  const [showAlignment, setShowAlignment] = useState(false);
+  const { identityFor } = useBallotData();
   const revealed = session.revealed[contest.id] === true;
   const mask = revealed ? session.openedMasks[profile.id] : session.masks?.map[profile.id];
   const identity = identityFor(profile.id);
@@ -59,9 +63,7 @@ export function CandidateCard({
           title="Objective information"
           body="There isn't enough comparable evidence to line this up with your answers. What is documented is below."
         />
-      ) : (
-        <Alignment profile={profile} userPositions={userPositions} />
-      )}
+      ) : null}
 
       {profile.platformHighlights.length > 0 ? (
         <Section title="In their own record" icon="scroll">
@@ -159,12 +161,25 @@ export function CandidateCard({
             Board certification: {profile.judicialProfile.boardCertified ? "listed" : "not listed"}.
           </Text>
           <Note>
-            Philosophy is not compared. This sample does not have enough independent sources.
+            Philosophy is not compared here. Read the available evidence rather than a policy score.
           </Note>
         </Section>
       ) : null}
 
       {profile.funding ? <Money profile={profile} /> : null}
+      {!objective && contest.officeKind !== "judicial" ? (
+        <>
+          <TextButton
+            label={
+              showAlignment
+                ? "Hide comparison with my answers"
+                : "Compare with my answers (optional)"
+            }
+            onPress={() => setShowAlignment(!showAlignment)}
+          />
+          {showAlignment ? <Alignment profile={profile} userPositions={userPositions} /> : null}
+        </>
+      ) : null}
     </View>
   );
 }
@@ -247,8 +262,8 @@ function Money({ profile }: { profile: CandidateProfile }) {
         </Text>
       ))}
       <Note>
-        No dark-money share is shown. Outside spending in this sample has no disclosed total to
-        divide.
+        No dark-money share is inferred. Unknown or unitemized money is not automatically
+        undisclosed money.
       </Note>
     </Section>
   );

@@ -41,6 +41,7 @@ export function assertUniqueMembers(members: { id: string }[]): void {
 export function validateMargin(
   members: { value: NonNullable<OfficialAction["vote"]>["value"] }[],
   margin: { yes: number; no: number; present: number; notVoting: number },
+  options: { tolerateOmittedRows?: boolean } = {},
 ): void {
   const actual = { yes: 0, no: 0, present: 0, notVoting: 0 };
   for (const member of members) {
@@ -48,7 +49,12 @@ export function validateMargin(
     else if (member.value === "yes" || member.value === "no" || member.value === "present") actual[member.value]++;
     else throw new Error("Unrecognized member vote cannot be reconciled against aggregate totals");
   }
-  if (Object.keys(actual).some((key) => actual[key as keyof typeof actual] !== margin[key as keyof typeof margin])) {
+  // Some official files declare totals larger than the rows they list (a senator's row simply
+  // missing). A listed row is still exact, so only a shortfall is tolerated, never an excess.
+  const matches = (key: keyof typeof actual) => options.tolerateOmittedRows
+    ? actual[key] <= margin[key]
+    : actual[key] === margin[key];
+  if ((Object.keys(actual) as (keyof typeof actual)[]).some((key) => !matches(key))) {
     throw new Error("Member votes do not match aggregate totals");
   }
 }

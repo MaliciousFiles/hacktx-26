@@ -22,7 +22,8 @@ import {
   Title,
   TopBar,
 } from "@/components/ui";
-import { demoBallot, issueById } from "@/fixtures/travisDemo";
+import { issueById } from "@/fixtures/travisDemo";
+import { useBallotData } from "@/ballotData";
 import { JUDICIAL_LABEL } from "@/labels";
 import { choiceText } from "@/matching";
 import { useSession } from "@/session";
@@ -31,6 +32,7 @@ import { colors, fonts, shadows } from "@/theme";
 type Option = { key: string; label: string; swipe: Swipe; selected: boolean };
 
 export default function Explore() {
+  const { data: demoBallot } = useBallotData();
   const session = useSession();
   const router = useRouter();
   const [guide, setGuide] = useState(true);
@@ -70,6 +72,7 @@ export default function Explore() {
 
   return (
     <Screen
+      key={card.id}
       header={
         <View pointerEvents="box-none" style={styles.header}>
           <Ribbon label="Open the ballot" onPress={() => router.navigate("/ballot")} />
@@ -86,9 +89,9 @@ export default function Explore() {
           <View style={styles.turnRow}>
             <View style={styles.swapNote}>
               <Icon name="swap" size={18} />
-              <Text style={styles.swapText}>Pages swap sides{"\n"}at random.</Text>
+              <Text style={styles.swapText}>Option order{"\n"}is randomized.</Text>
             </View>
-            <PrimaryButton label="Turn the page" arrow disabled={!answered} onPress={next} />
+            <PrimaryButton label="Next question" arrow disabled={!answered} onPress={next} />
           </View>
         </>
       }
@@ -140,7 +143,7 @@ export default function Explore() {
 
         <View
           accessibilityRole="radiogroup"
-          accessibilityLabel="Choose a page"
+          accessibilityLabel="Choose an answer"
           style={styles.pages}
         >
           {options.map((option, index) => (
@@ -270,7 +273,7 @@ function cardCopy(card: PolicyCard) {
     return {
       ...base,
       kicker: "A tradeoff",
-      prompt: "Pick the page you can live with.",
+      prompt: "Is the goal worth the stated cost?",
       guide: "Declining does not mean you oppose the goal. It means this cost is too high.",
     };
   }
@@ -278,20 +281,22 @@ function cardCopy(card: PolicyCard) {
     return {
       ...base,
       kicker: "Judicial philosophy",
-      prompt: "Tap the page that sounds more like you.",
+      prompt: "Choose the approach closest to your view.",
       guide:
-        "This is about how a judge reads the law, not about a policy. Skipping leaves it blank.",
+        "This asks how you think judges should interpret the law. It is separate from your policy views. You can skip if you are unsure.",
     };
   }
   return {
     ...base,
-    kicker: card.anchor ? "An anchor question" : "On this ballot",
-    prompt: "Tap the page that sounds more like you.",
-    guide: "Any pick is fine here. Skipping counts as no answer, never as neutral.",
+    kicker: card.anchor ? "Your priorities" : "On this ballot",
+    prompt: "Choose the option closest to your view.",
+    guide:
+      "Choose what you prefer, or skip if neither option fits. A skipped question is not treated as a neutral position.",
   };
 }
 
 function DeckDone() {
+  const { data: demoBallot } = useBallotData();
   const session = useSession();
   const router = useRouter();
   const lastCard = () => session.setDeckIndex(Math.max(demoBallot.cards.length - 1, 0));
@@ -300,17 +305,21 @@ function DeckDone() {
       header={<TopBar onBack={lastCard} backLabel="Last card" />}
       footer={
         <>
-          <PrimaryButton label="Walk the ballot" arrow onPress={() => router.navigate("/ballot")} />
+          <PrimaryButton
+            label="Explore my ballot"
+            arrow
+            onPress={() => router.navigate("/ballot")}
+          />
           <TextButton label="Review the last card" icon="back" onPress={lastCard} />
         </>
       }
     >
       <SampleMark />
-      <Kicker>The deck is finished</Kicker>
-      <Title>The names can wait.</Title>
+      <Kicker>Questions complete</Kicker>
+      <Title>Now compare the evidence.</Title>
       <Body>
-        Every contest on this sample is still ahead. The evidence comes first. A summary does not
-        choose for you.
+        Review your answers below, then open a contest to compare candidates’ plans and records.
+        Your answers help you explore differences; they do not decide your vote.
       </Body>
       <Ornament />
       <View style={styles.summary}>

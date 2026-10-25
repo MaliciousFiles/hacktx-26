@@ -14,12 +14,12 @@ export type GovinfoCrecConfig = z.infer<typeof govinfoCrecConfigSchema>;
 
 const voteSchema = z.object({
   "@chamber": z.enum(["SENATE", "HOUSE"]), "@congress": positiveCount, "@number": positiveCount,
-  "@yescount": count, "@nocount": count, "@nvcount": count, "@presentcount": count.optional(),
+  "@yescount": count, "@nocount": count, "@nvcount": count.optional(), "@presentcount": count.optional(),
   "@voteDate": text.optional(), voteDate: text.optional(),
   question: text.optional(), voteQuestion: text.optional(), title: text.optional(),
   result: xmlText.optional(),
   inDailyDigest: z.enum(["true", "false"]).optional(),
-  congMember: many(z.object({ "@bioGuideId": bioguide, "@role": text })),
+  congMember: many(z.object({ "@bioGuideId": bioguide.optional(), "@role": text })),
 });
 const contextSchema = z.object({
   titleInfo: many(z.object({ title: text })),
@@ -110,14 +110,14 @@ function parseVotes(xml: string) {
         const question = vote.question ?? vote.voteQuestion ?? vote.title ?? title;
         if (!question) throw new Error("Structured vote has neither a question nor a granule title");
         const members = vote.congMember.map((member, index) => ({
-          id: member["@bioGuideId"], raw: member["@role"], value: normalizeVote(member["@role"]), index: index + 1,
+          id: member["@bioGuideId"] ?? `unidentified:${index + 1}`, raw: member["@role"], value: normalizeVote(member["@role"]), index: index + 1,
         }));
         assertUniqueMembers(members);
         const margin = {
           yes: vote["@yescount"], no: vote["@nocount"],
-          present: vote["@presentcount"] ?? 0, notVoting: vote["@nvcount"],
+          present: vote["@presentcount"] ?? 0, notVoting: vote["@nvcount"] ?? 0,
         };
-        validateMargin(members, margin);
+        validateMargin(members, margin, { tolerateOmittedRows: true });
         const locator = `${path}/extension[${extensionIndex + 1}]/congVote[${voteIndex + 1}]`;
         votes.push({
           chamber: "senate", congress: vote["@congress"], session: metadata.session?.value,

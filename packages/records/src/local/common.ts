@@ -44,6 +44,8 @@ interface PageOptions<T> {
   maxPages: number;
   parse: (value: unknown) => T;
   style?: "socrata" | "odata";
+  /** Ask OData for `$count=true` so completeness is checked against the publisher's own total. */
+  count?: boolean;
 }
 
 /** A bounded pager for OData arrays/value envelopes and Socrata arrays. The
@@ -60,8 +62,12 @@ export async function pages<T>(options: PageOptions<T>): Promise<{
   const limitKey = socrata ? "$limit" : "$top";
   original.searchParams.set(limitKey, String(pageSize));
   original.searchParams.set(offsetKey, "0");
+  if (options.count && !socrata) original.searchParams.set("$count", "true");
   let url = new URL(original);
   let offset = 0;
+  // OData servers may page server-side (e.g. 15 rows per page) and treat `$top` as a TOTAL cap that
+  // is decremented in each nextLink. A chain that ends exactly at the cap is not the end of the data.
+  let chainStart = 0;
   const seen = new Set<string>();
   const rows: Located<T>[] = [];
   const problems: string[] = [];
@@ -128,12 +134,13 @@ export async function pages<T>(options: PageOptions<T>): Promise<{
           if (expected !== null) next.searchParams.set(field, expected);
         }
         url = next;
-      } else if (values.length < pageSize || offset === expectedCount) {
+      } else if ((expectedCount !== undefined && offset >= expectedCount) || offset - chainStart < pageSize) {
         if (expectedCount !== undefined && offset !== expectedCount) {
           problems.push("OData returned a different row total than its count without a continuation.");
         }
         return { rows, complete: problems.length === 0, problems };
       } else {
+        chainStart = offset;
         url = new URL(original);
         url.searchParams.set(offsetKey, String(offset));
       }

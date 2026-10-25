@@ -39,7 +39,7 @@ export function useReducedMotion(): boolean {
 /** A 0→1→0 value that loops forever (or sits at 0 when motion is reduced). */
 function useLoop(duration: number, { delay = 0, linear = false } = {}): Animated.Value {
   const reduced = useReducedMotion();
-  const value = useRef(new Animated.Value(0)).current;
+  const [value] = useState(() => new Animated.Value(0));
   useEffect(() => {
     if (reduced) {
       value.setValue(0);
@@ -88,7 +88,7 @@ export function Enter({
   style?: StyleProp<ViewStyle>;
 }) {
   const reduced = useReducedMotion();
-  const progress = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  const [progress] = useState(() => new Animated.Value(reduced ? 1 : 0));
   useEffect(() => {
     if (reduced) {
       progress.setValue(1);
@@ -225,7 +225,7 @@ export function Flourish({
   style?: StyleProp<ViewStyle>;
 }) {
   const reduced = useReducedMotion();
-  const t = useRef(new Animated.Value(0)).current;
+  const [t] = useState(() => new Animated.Value(0));
   const first = useRef(true);
   useEffect(() => {
     if (first.current) {
@@ -275,7 +275,7 @@ export function StampIn({
   style?: StyleProp<ViewStyle>;
 }) {
   const reduced = useReducedMotion();
-  const t = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  const [t] = useState(() => new Animated.Value(reduced ? 1 : 0));
   useEffect(() => {
     if (reduced) return;
     Animated.timing(t, {
@@ -311,7 +311,7 @@ export function StampIn({
 /** Draws a line in from the left. */
 export function DrawIn({ children, delay = 150 }: { children: ReactNode; delay?: number }) {
   const reduced = useReducedMotion();
-  const t = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  const [t] = useState(() => new Animated.Value(reduced ? 1 : 0));
   useEffect(() => {
     if (reduced) return;
     Animated.timing(t, {
@@ -340,7 +340,7 @@ export function PressableScale({
   style?: StyleProp<ViewStyle>;
   depth?: number;
 }) {
-  const t = useRef(new Animated.Value(0)).current;
+  const [t] = useState(() => new Animated.Value(0));
   const to = (value: number) =>
     Animated.spring(t, {
       toValue: value,

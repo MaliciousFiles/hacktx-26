@@ -1,6 +1,7 @@
 import type { OfficialAction } from "@ftb/types";
 import { z } from "zod";
 import type { RecordsAdapter } from "../adapters";
+import { collectionConfig } from "../adapters";
 import { candidateNames, inWindow, normalizeName, provenance, voteStance } from "../model";
 import {
   actionId, baseUrl, invalidConfig, localVote, nonAction, pages, pagingShape, report,
@@ -56,7 +57,7 @@ export const legistarAdapter: RecordsAdapter = {
   async collect(context, input) {
     const parsed = legistarConfigSchema.safeParse(input);
     if (!parsed.success) return invalidConfig(this.kind);
-    const config = parsed.data;
+    const config = collectionConfig(parsed.data, context);
     const tenant = new URL(config.baseUrl).pathname.split("/").filter(Boolean).at(-1)!;
     const identifier = context.request.candidate.identifiers?.[`legistar:${tenant}`];
     if (identifier !== undefined && !actorIdSchema.safeParse(identifier).success) {

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { assertHtmlDocument, assertPdfBytes, extractPdfText } from "./document";
 import type { Snapshot } from "./model";
 import { parseXml } from "./xml";
+import { RequestFailure, sharedWorkJournal, workKey, type WorkSpec } from "./work";
 
 export type CacheMode = "reuse" | "refresh" | "offline";
 interface FetchOptions {
@@ -19,10 +20,27 @@ interface FetchOptions {
   maxBytes?: number;
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<unknown>;
+  recovery?: boolean;
 }
 export interface DocumentOptions {
   format: "xml" | "json" | "html" | "pdf";
   root?: string;
+  /** Research archives may retain image-only PDFs. Never implies readable evidence. */
+  allowEmptyPdf?: boolean;
+  /** Explicitly requested public HTML fragments (e.g. Clerk vote pagination). */
+  allowHtmlFragment?: boolean;
+  /**
+   * POST these fields (application/x-www-form-urlencoded) instead of GET, for official search
+   * pages that only answer postbacks (ASP.NET). Volatile view-state validation tokens
+   * are sent but excluded from the cache key, so the same logical query is one snapshot.
+   */
+  form?: Record<string, string>;
+}
+
+function formCacheKey(form: Record<string, string> | undefined): string {
+  if (!form) return "";
+  const volatile = new Set(["__VIEWSTATE", "__VIEWSTATEGENERATOR", "__EVENTVALIDATION", "__VIEWSTATEENCRYPTED"]);
+  return JSON.stringify(Object.entries(form).filter(([name]) => !volatile.has(name) && !/^__VIEWSTATE\d+$/.test(name)).sort(([a], [b]) => a.localeCompare(b)));
 }
 
 const sensitiveParams = /^(api[-_]?key|key|token|access_token|app_token)$/i;
@@ -62,27 +80,49 @@ export class SnapshotClient {
   private readonly request: typeof fetch;
   private readonly sleep: (ms: number) => Promise<unknown>;
   private hosts = new Map<string, Promise<unknown>>();
-  private readonly seen = new Map<string, Snapshot>();
+  /** Metadata only: retaining every document's decoded text would grow without bound over a long run. */
+  private readonly seen = new Map<string, Omit<Snapshot, "text">>();
+  /** Append-only access log so a task can record just the snapshots it touched (not the whole candidate's). */
+  private readonly trail: string[] = [];
+  private scope = "unscoped";
 
   constructor(options: FetchOptions) {
     this.options = {
       mode: "reuse", intervalMs: 500, timeoutMs: 30_000, retries: 2,
-      maxBytes: 25_000_000, ...options,
+      maxBytes: 25_000_000, recovery: false, ...options,
     };
     this.request = options.fetch ?? fetch;
     this.sleep = options.sleep ?? delay;
   }
 
   get cacheMode(): CacheMode { return this.options.mode; }
+  get cacheDirectory(): string { return this.options.directory; }
+  get workJournal() { return this.options.recovery ? sharedWorkJournal(join(this.options.directory, "work")) : undefined; }
+  setWorkScope(scope: string) { this.scope = scope; }
+  get workScope() { return this.scope; }
+
+  async bytes(snapshot: Snapshot): Promise<Uint8Array> {
+    if (!/^[a-f0-9]{64}$/.test(snapshot.contentHash)) throw new Error("Invalid snapshot content hash");
+    const bytes = await readFile(join(this.options.directory, "objects", snapshot.contentHash));
+    if (sha256(bytes) !== snapshot.contentHash) throw new Error("Snapshot cache failed SHA-256 verification");
+    return new Uint8Array(bytes);
+  }
 
   snapshots(): Omit<Snapshot, "text">[] {
-    return [...this.seen.values()].map(({ text: _text, ...meta }) => meta).sort((a, b) => a.id.localeCompare(b.id));
+    return [...this.seen.values()].sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  /** Position in the access log; pair with snapshotsSince(). Checkpoints must stay O(task), not O(candidate). */
+  mark(): number { return this.trail.length; }
+  snapshotsSince(mark: number): Omit<Snapshot, "text">[] {
+    return [...new Set(this.trail.slice(mark))].map((id) => this.seen.get(id)!).sort((a, b) => a.id.localeCompare(b.id));
   }
 
   /** Share disk cache and throttling, but isolate a candidate's source inventory. */
   fork(): SnapshotClient {
     const client = new SnapshotClient({ ...this.options, fetch: this.request, sleep: this.sleep });
     client.hosts = this.hosts;
+    client.scope = this.scope;
     return client;
   }
 
@@ -97,6 +137,19 @@ export class SnapshotClient {
     if (sha256(bytes) !== meta.contentHash) throw new Error("Snapshot cache failed SHA-256 verification");
     return { ...meta, text: await this.decodeDocument(bytes, meta.format) };
   }
+  /** Re-registers an archived snapshot's provenance (verifying its bytes) without decoding its text. */
+  async restore(snapshotId: string): Promise<void> {
+    if (!/^[a-f0-9]{64}$/.test(snapshotId)) throw new Error("Invalid snapshot ID");
+    const known = this.seen.get(snapshotId);
+    if (known) { this.trail.push(snapshotId); return; }
+    const meta = metadataSchema.parse(JSON.parse(await readFile(
+      join(this.options.directory, "snapshots", `${snapshotId}.json`), "utf8",
+    )));
+    if (meta.id !== snapshotId) throw new Error("Snapshot ID mismatch");
+    const bytes = await readFile(join(this.options.directory, "objects", meta.contentHash));
+    if (sha256(bytes) !== meta.contentHash) throw new Error("Snapshot cache failed SHA-256 verification");
+    this.remember(meta);
+  }
 
   async get(value: string, options: DocumentOptions): Promise<Snapshot> {
     const url = new URL(value);
@@ -107,9 +160,15 @@ export class SnapshotClient {
       throw new Error("PDF over FTP is not enabled; use an HTTPS official PDF URL");
     }
     const sourceUrl = publicUrl(value);
-    const key = sha256(`${options.format}:${options.root ?? ""}:${sourceUrl}`);
+    const key = sha256(`${options.format}:${options.root ?? ""}:${sourceUrl}${options.form ? `:form:${formCacheKey(options.form)}` : ""}`);
+    const journal = this.workJournal;
+    const task: WorkSpec = { key: workKey(["records-request-v1", this.scope, key]), kind: "request", scope: this.scope,
+      payload: { url: sourceUrl, format: options.format, method: options.form ? "POST" : "GET", requestKey: key } };
     const cached = await this.cached(key, options);
-    if (cached && this.options.mode !== "refresh") return this.remember(cached);
+    if (cached && this.options.mode !== "refresh") {
+      journal?.cached(task, { snapshotId: cached.id, contentHash: cached.contentHash });
+      return this.remember(cached);
+    }
     if (this.options.mode === "offline") throw new Error(`Offline cache miss: ${sourceUrl}`);
     // Serialize by host, including FTP. A failed request doesn't poison the queue.
     const previous = this.hosts.get(url.hostname) ?? Promise.resolve();
@@ -117,8 +176,13 @@ export class SnapshotClient {
       try {
         // Another queued candidate may have populated the same inventory URL.
         const latest = await this.cached(key, options);
-        if (latest && this.options.mode === "reuse") return latest;
-        return await this.load(url, key, options, latest ?? cached);
+        if (latest && this.options.mode === "reuse") {
+          journal?.cached(task, { snapshotId: latest.id, contentHash: latest.contentHash });
+          return latest;
+        }
+        return journal ? await journal.run(task, () => this.load(url, key, options, latest ?? cached), {
+          checkpoint: (snapshot) => ({ snapshotId: snapshot.id, contentHash: snapshot.contentHash }),
+        }) : await this.load(url, key, options, latest ?? cached);
       } finally {
         await this.sleep(this.options.intervalMs);
       }
@@ -127,8 +191,10 @@ export class SnapshotClient {
     return this.remember(await next);
   }
 
-  private remember(snapshot: Snapshot): Snapshot {
-    this.seen.set(snapshot.id, snapshot);
+  private remember<T extends Omit<Snapshot, "text">>(snapshot: T): T {
+    const { text: _text, ...meta } = snapshot as T & { text?: string };
+    this.seen.set(snapshot.id, meta);
+    this.trail.push(snapshot.id);
     return snapshot;
   }
 
@@ -144,11 +210,12 @@ export class SnapshotClient {
     } else if (options.format === "json") {
       JSON.parse(text); // HTML block/error pages fail here, even when HTTP says 200.
     } else if (options.format === "html") {
+      if (options.allowHtmlFragment && /^\s*<(?:div|nav|section)\b/i.test(text) && text.trim()) return;
       assertHtmlDocument(text);
     } else {
       assertPdfBytes(bytes);
       // Re-run extraction as the validation gate; empty extractors are rejected.
-      if (!(await extractPdfText(bytes)).trim()) throw new Error("PDF produced no extractable text");
+      if (!options.allowEmptyPdf && !text.trim()) throw new Error("PDF produced no extractable text");
     }
   }
 
@@ -188,9 +255,11 @@ export class SnapshotClient {
       for (let attempt = 0; attempt <= this.options.retries; attempt++) {
         try {
           response = await this.request(url.href, {
+            ...(options.form ? { method: "POST", body: new URLSearchParams(options.form).toString() } : {}),
             headers: {
               "User-Agent": "FairyTaleBallot/0.1 (official-records research)",
               Accept: acceptHeader(options.format),
+              ...(options.form ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
               ...(cached?.etag ? { "If-None-Match": cached.etag } : {}),
               ...(cached?.lastModified ? { "If-Modified-Since": cached.lastModified } : {}),
             },
@@ -208,12 +277,12 @@ export class SnapshotClient {
           const ms = Number.isFinite(retryMs) ? Math.max(0, retryMs) : 500 * 2 ** attempt;
           await response.body?.cancel();
           // Don't ignore a long publisher-requested delay by retrying too soon.
-          if (ms > 30_000) throw new Error(`Source requested a long retry delay; retry later: ${publicUrl(url.href)}`);
+          if (ms > 30_000) throw new RequestFailure(`Source requested a long retry delay; retry later: ${publicUrl(url.href)}`, response.status, ms);
           await this.sleep(ms); continue;
         }
         if (!response.ok) {
           await response.body?.cancel();
-          throw new Error(`HTTP ${response.status}: ${publicUrl(url.href)}`);
+          throw new RequestFailure(`HTTP ${response.status}: ${publicUrl(url.href)}`, response.status);
         }
         break;
       }

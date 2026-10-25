@@ -36,6 +36,35 @@ so a generically titled full-race forum is discoverable; their responses are
 shared through the cache for opponents. Debate searches include the election
 year. No templates target scandals, praise, or a preferred stance.
 
+### SerpAPI usage, key failover and budget
+
+- **Cost per candidate:** 7 candidate-specific searches (campaign, questionnaire,
+  debate, forum, YouTube debate video, speech, news) plus the contest-wide debate
+  query, which is identical for every candidate in a contest and therefore paid once
+  (cache hit for opponents). Social snippet finders (X without a bearer token,
+  Facebook, Instagram, TikTok, Threads) and YouTube run **only for reviewed
+  handles**, 1 search each; snippet paging (10 results per page, up to
+  `ceil(maxSocialItems/10)` pages) now stops at the first later page with no owned
+  posts in the window. Before, it paged until a short page. Template counts are
+  unchanged: dropping templates would cut coverage, and skipping them for candidates
+  with a campaign site would break symmetry (PLAN §3.9).
+- **Cache identity ignores `api_key`.** Switching keys never re-spends a search.
+  Snapshots written before this change (id hashed with the key) are still read.
+- **Keys:** `SERPAPI_API_KEY`, then `SERPAPI_API_KEY_FALLBACK`. On HTTP 429, or
+  401/403 whose JSON error mentions "run out of searches", "plan" or "limit", the
+  client moves to the next key for the rest of the process and retries that request
+  once. A 5xx is not exhaustion. Quota responses are never written to the cache, and
+  any found in old caches are ignored. When all keys are exhausted, searches fail with
+  a coverage gap ("SerpAPI unavailable"), not empty results.
+- **Budget:** `SERPAPI_MAX_REQUESTS` (default unlimited) caps live SerpAPI calls per
+  process; cache hits are free. Hitting it records an error coverage row per skipped
+  search. Because candidates are processed in order, a budget stop leaves later
+  candidates with less coverage than earlier ones. This is flagged as a gap on each
+  affected candidate; rerun with more budget (cached searches replay free) before
+  publishing so every candidate has the same coverage.
+- **Counter:** the pipeline progress log and the scraping CLI print
+  `serpapi requests: N live, M cached, key #k`.
+
 ### Debates first
 
 Look at `voice[].leads` with `priority: "debate_review"` first. These are pages or

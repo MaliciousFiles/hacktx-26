@@ -89,6 +89,7 @@ export function buildResearchInput(
     ...(options.houseRollCap !== undefined ? { houseRollCap: options.houseRollCap } : {}),
     ...(options.documentCap !== undefined ? { documentCap: options.documentCap } : {}),
     ...(options.includeTloFtp !== undefined ? { includeTloFtp: options.includeTloFtp } : {}),
+    ...(options.exhaustive !== undefined ? { exhaustive: options.exhaustive } : {}),
     ...(options.cacheDirectory ? { cacheDirectory: options.cacheDirectory } : {}),
     ...(options.cacheMode ? { cacheMode: options.cacheMode } : {}),
     ...(options.congressApiKey ? { congressApiKey: options.congressApiKey } : {}),
@@ -268,6 +269,7 @@ export interface RecordsStageOptions {
   houseRollCap?: number;
   documentCap?: number;
   includeTloFtp?: boolean;
+  exhaustive?: boolean;
   cacheDirectory?: string;
   cacheMode?: HistoryResearchInput["cacheMode"];
   congressApiKey?: string;
@@ -277,6 +279,9 @@ export interface RecordsStageOptions {
 }
 
 export interface CandidateRecords {
+  /** Private research context only; never converted into Source/action evidence. */
+  documents?: import("@ftb/records").ResearchDocument[];
+  recovery?: import("@ftb/records").RecordsResult["recovery"];
   target: RecordsTarget;
   request: CandidateResearchRequest;
   actions: OfficialAction[];
@@ -326,6 +331,8 @@ export async function collectCandidateRecords(
         target,
         request: result.request,
         actions,
+        documents: result.documents ?? [],
+        recovery: result.recovery,
         sources: actions.map((action) => actionToSource(action, target.contestId)),
         coverage: result.coverage,
         identityNotes: [],
@@ -340,6 +347,8 @@ export async function collectCandidateRecords(
       target,
       request: result.request,
       actions,
+      documents: result.documents ?? [],
+      recovery: result.recovery,
       sources: actions.map((a) => actionToSource(a, target.contestId)),
       coverage: result.coverage,
       gaps: result.gaps,

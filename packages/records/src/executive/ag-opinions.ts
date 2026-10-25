@@ -4,9 +4,10 @@ import { z } from "zod";
 import type { AdapterContext, AdapterResult, RecordsAdapter } from "../adapters";
 import { htmlToPlainText, textSpanLocator } from "../document";
 import { inWindow, provenance } from "../model";
-import { hostAllowed, officialHttps, parsePrintedDate, tenureSchema } from "./shared";
+import { hostAllowed, officialHttps, parseHeaderDate, tenureSchema } from "./shared";
 
 const adapterVersion = "ag-opinions/v1";
+const HEADER_CHARS = 1200;
 
 const configSchema = z.object({
   urls: z.array(officialHttps).min(1),
@@ -54,7 +55,9 @@ export const agOpinionsAdapter: RecordsAdapter = {
           problems.push(`Press release rejected as AG opinion proof: ${url}`);
           continue;
         }
-        const date = parsePrintedDate(plain);
+        // The date is the letter's header; later dates in the body cite statutes and earlier opinions.
+        const folderYear = /\/opinion\/(\d{4})\//.exec(new URL(url).pathname)?.[1];
+        const date = parseHeaderDate(plain.slice(0, HEADER_CHARS), folderYear ? Number(folderYear) : undefined);
         if (!date) {
           problems.push(`No printed date in ${url}`);
           continue;
@@ -65,7 +68,9 @@ export const agOpinionsAdapter: RecordsAdapter = {
         }
         if (!inWindow(date, context.window)) continue;
 
+        const fromUrl = /\/([a-z]{2})-?(\d{3,5})\.pdf$/i.exec(new URL(url).pathname);
         const idMarker = config.opinionId
+          ?? (fromUrl ? `${fromUrl[1].toUpperCase()}-${fromUrl[2]}` : undefined)
           ?? plain.match(/\bKP-\d+\b/i)?.[0]
           ?? plain.match(/Opinion\s+No\.?\s*([A-Z0-9-]+)/i)?.[0]
           ?? "opinion";

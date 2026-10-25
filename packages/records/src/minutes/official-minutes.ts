@@ -27,6 +27,7 @@ const configSchema = z.object({
   /** Optional host suffix allowlist, e.g. ["boarddocs.com","roundrockisd.org"]. */
   allowedHostSuffixes: z.array(z.string().trim().min(1)).optional(),
   enableLlmFallback: z.boolean().default(true),
+  documentFormat: z.enum(["pdf", "html"]).optional(),
 }).strict();
 
 export type OfficialMinutesConfig = z.infer<typeof configSchema>;
@@ -126,7 +127,7 @@ export function createOfficialMinutesAdapter(llm?: SemanticExtractor): RecordsAd
           continue;
         }
         try {
-          const isPdf = /\.pdf$/i.test(url);
+          const isPdf = config.documentFormat ? config.documentFormat === "pdf" : /\.pdf$/i.test(url);
           const snapshot = await context.client.get(url, { format: isPdf ? "pdf" : "html" });
           const plain = isPdf ? snapshot.text : htmlToPlainText(snapshot.text);
           const date = meetingDateFromText(plain, config.meetingDate);

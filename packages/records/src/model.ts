@@ -45,11 +45,38 @@ export interface RecordCoverage {
   before: ISODate; // exclusive, fixed by request (not wall-clock)
 }
 
+/** Private research context, NOT an attributed action or scoring evidence. */
+export interface ResearchDocument {
+  id: string;
+  candidateId: string;
+  title: string;
+  sourceUrl: string;
+  sourceFamily: string;
+  relationship: "office_context" | "board_minutes" | "court_context";
+  date: string | null;
+  dateBasis: "meeting_inventory" | "unknown";
+  textBasis: "native" | "ocr_unreviewed" | "unreadable";
+  snapshotId: string;
+  contentHash: string;
+  /** OCR text lives separately from the immutable original PDF snapshot. */
+  derivedTextHash?: string;
+  /** Frozen derivative copied into private research archives for offline/DB review. */
+  derivedText?: {
+    engine: "apple-vision-v1";
+    osVersion: string;
+    totalPages: number;
+    pages: { page: number; lines: { text: string; confidence: number }[] }[];
+  };
+  reviewRequired: true;
+}
+
 export interface RecordsResult {
   request: CandidateResearchRequest;
   actions: OfficialAction[];
   snapshots: Omit<Snapshot, "text">[];
   coverage: RecordCoverage[];
+  documents?: ResearchDocument[];
+  recovery?: { directory: string; counts: ReturnType<import("./work").WorkJournal["counts"]> };
 }
 
 export interface DateWindow {

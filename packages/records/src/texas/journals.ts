@@ -37,6 +37,14 @@ export interface JournalVote {
   yesSpan?: { start: number; end: number };
   noSpan?: { start: number; end: number };
   presentSpan?: { start: number; end: number };
+  /**
+   * Senate rolls that name only the Nays (or nothing, when unanimous). Every
+   * seated senator not named as Nay/absent/present voted Yea; only set when the
+   * absent list reconciles with the declared totals.
+   */
+  impliedYes?: boolean;
+  absent?: string[];
+  impliedSpan?: { start: number; end: number };
   margin: { yes: number; no: number; present?: number };
   sameAsPrevious: boolean;
   deemedYeaExcept: boolean;
@@ -71,6 +79,8 @@ function cleanMemberName(part: string): string {
 function splitNames(raw: string): string[] {
   return raw.split(";").map(cleanMemberName).filter(Boolean);
 }
+
+const senateSeats = 31;
 
 function splitSenateNames(raw: string): string[] {
   return raw.split(",").map(cleanMemberName).filter(Boolean);
@@ -135,7 +145,9 @@ export function parseHouseJournalVotes(plain: string, date: string): JournalVote
 
     // Question text stays after the previous record's lists.
     const questionStart = Math.max(previousEnd, match.index - 240);
-    const question = plain.slice(questionStart, match.index + match[0].length).replace(/\s+/g, " ").trim();
+    let question = plain.slice(questionStart, match.index + match[0].length).replace(/\s+/g, " ").trim();
+    // A window cut mid-sentence starts at the next sentence instead of a fragment.
+    if (questionStart > previousEnd) question = question.replace(/^[^.!?]*[.!?]\s+(?=[A-Z])/, "");
     previousEnd = match.index + match[0].length + (blockEnd >= 0 ? blockEnd : block.length);
     votes.push({
       record,
@@ -155,6 +167,28 @@ export function parseHouseJournalVotes(plain: string, date: string): JournalVote
     });
   }
   return votes;
+}
+
+const billId = /\b(?:CS)?(?:SB|HB|SJR|HJR|SCR|HCR|SR|HR)\s*\d+\b/g;
+
+/**
+ * Readable question for a Senate roll call: the text after the previous roll's name lists
+ * (never the lists themselves), led by the bill when the immediate text doesn't name it.
+ */
+function senateQuestion(joined: string, index: number, end: number): string {
+  const window = joined.slice(Math.max(0, index - 1500), end);
+  let cut = 0;
+  for (const list of window.matchAll(/(?:^|\n)\s*(?:Yeas?|Nays?|Absent-excused|Absent|Present-not voting)\s*:[^\n]*\n/gi)) {
+    cut = list.index + list[0].length;
+  }
+  let text = window.slice(cut).replace(/\s+/g, " ").trim();
+  if (text.length > 500) text = text.slice(-500);
+  if (!new RegExp(billId.source).test(text)) {
+    const before = [...joined.slice(Math.max(0, index - 4000), index).matchAll(billId)];
+    const last = before[before.length - 1];
+    if (last) text = `${last[0].replace(/\s+/g, " ")}: ${text}`;
+  }
+  return text;
 }
 
 /**
@@ -177,10 +211,11 @@ export function parseSenateJournalVotes(plain: string, date: string): JournalVot
     const noCount = Number(match[2]);
     const sameAsPrevious = /\(Same as previous roll call\)/i.test(match[0]);
     const questionStart = Math.max(0, match.index - 240);
-    const question = joined.slice(questionStart, match.index + match[0].length).replace(/\s+/g, " ").trim();
+    const question = senateQuestion(joined, match.index, match.index + match[0].length);
 
     if (sameAsPrevious) {
-      if (!previous) throw new Error("Senate roll call references a missing previous roll");
+      // The previous roll had no named lists (e.g. unanimous), so nothing is attributable.
+      if (!previous) continue;
       const vote: JournalVote = {
         ...previous,
         question,
@@ -195,16 +230,41 @@ export function parseSenateJournalVotes(plain: string, date: string): JournalVot
 
     const afterOrigin = match.index + match[0].length;
     const after = joined.slice(afterOrigin, afterOrigin + 2500);
-    const yeas = /Yeas?:\s*([^\n]+)/i.exec(after);
-    const nays = /Nays?:\s*([^\n]+)/i.exec(after);
-    if (!yeas || !nays) throw new Error("Senate roll call is missing an explicit Yeas or Nays list");
-    const yes = splitSenateNames(yeas[1]);
-    const no = splitSenateNames(nays[1]);
-    countMatch(yes, yesCount, "Senate Yeas");
+    // Lists must follow this roll call directly. Unanimous votes often omit them
+    // (and the next roll's lists must never be borrowed), so those are not attributable.
+    const lists = /^\s*Yeas?:\s*([^\n]+)(?:\n+\s*Nays?:\s*([^\n]+))?/i.exec(after);
+    const nayOnly = lists ? undefined : /^\s*Nays?:\s*([^\n]+)/i.exec(after);
+    const listsLength = lists ? lists[0].length : nayOnly ? nayOnly[0].length : 0;
+    const naysText = lists ? lists[2] : nayOnly?.[1];
+    if (naysText === undefined && noCount > 0) {
+      previous = undefined;
+      continue;
+    }
+    // No Yeas list: the journal omits it. Reconcile the absent lists with the totals
+    // before treating every other seated senator as a Yea.
+    let absent: string[] | undefined;
+    let tailEnd = listsLength;
+    if (!lists) {
+      absent = [];
+      const trailing = /^\s*(?:Absent-excused|Absent|Present-not voting|Present, not voting)\s*:\s*([^\n]+)/i;
+      for (let rest = trailing.exec(after.slice(tailEnd)); rest; rest = trailing.exec(after.slice(tailEnd))) {
+        absent.push(...splitSenateNames(rest[1]));
+        tailEnd += rest[0].length;
+      }
+      if (senateSeats - yesCount - noCount !== absent.length) {
+        previous = undefined;
+        continue;
+      }
+    }
+    const yes = lists ? splitSenateNames(lists[1]) : [];
+    const no = naysText ? splitSenateNames(naysText) : [];
+    if (lists) countMatch(yes, yesCount, "Senate Yeas");
     countMatch(no, noCount, "Senate Nays");
-    const listSpan = (side: RegExpExecArray) => {
-      const start = afterOrigin + side.index + side[0].indexOf(side[1]);
-      return { start, end: start + side[1].length };
+    const spanOf = (text: string | undefined) => {
+      if (!text) return undefined;
+      const at = after.indexOf(text);
+      const start = afterOrigin + at;
+      return { start, end: start + text.length };
     };
     const vote: JournalVote = {
       question,
@@ -212,8 +272,11 @@ export function parseSenateJournalVotes(plain: string, date: string): JournalVot
       yes,
       no,
       present: [],
-      yesSpan: listSpan(yeas),
-      noSpan: listSpan(nays),
+      yesSpan: spanOf(lists?.[1]),
+      noSpan: spanOf(naysText),
+      ...(absent
+        ? { impliedYes: true, absent, impliedSpan: { start: afterOrigin, end: afterOrigin + Math.max(tailEnd, 1) } }
+        : {}),
       margin: { yes: yesCount, no: noCount },
       sameAsPrevious: false,
       deemedYeaExcept: false,
@@ -261,6 +324,9 @@ function actionId(chamber: string, date: string, record: number | string, candid
 
 function memberLocator(plain: string, vote: JournalVote, rawLabel: string, value: "yes" | "no" | "present"): string {
   // Names repeat across roll calls; bind the label inside this vote's side-list span only.
+  if (vote.impliedYes && value === "yes" && vote.impliedSpan) {
+    return textSpanLocator(vote.impliedSpan.start, vote.impliedSpan.end);
+  }
   const span = value === "yes" ? vote.yesSpan : value === "no" ? vote.noSpan : vote.presentSpan;
   if (!span) throw new Error("Vote side list span missing for member provenance");
   const list = plain.slice(span.start, span.end);
@@ -379,9 +445,12 @@ async function collectJournal(context: AdapterContext, value: unknown): Promise<
             // Candidate not among explicit exceptions — do not invent a Yea.
             continue;
           }
-          if (!yea && !nay && !present) continue;
+          const implied = Boolean(
+            vote.impliedYes && !yea && !nay && !present && !findLabel(vote.absent ?? [], labels),
+          );
+          if (!yea && !nay && !present && !implied) continue;
           const value = yea ? "yes" as const : nay ? "no" as const : "present" as const;
-          const rawLabel = yea ?? nay ?? present!;
+          const rawLabel = yea ?? nay ?? present ?? config.journalLabels[0];
           const action = toAction(context, config, snapshot, plain, vote, rawLabel, value);
           actions.set(action.id, action);
         } catch (error) {

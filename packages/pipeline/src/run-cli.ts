@@ -18,7 +18,7 @@ async function implementationHash(): Promise<string> {
   for (const name of ["pipeline", "scraping", "records", "types"]) {
     const dir = join(root, "packages", name, "src");
     for (const file of (await readdir(dir, { recursive: true }))
-      .filter((file) => file.endsWith(".ts"))
+      .filter((file) => /\.(?:ts|swift)$/.test(file))
       .sort()) {
       entries.push([`${name}/${file}`, hash(await readFile(join(dir, file)))]);
     }
@@ -41,7 +41,8 @@ export async function runCli(): Promise<void> {
   });
   if (values.input) {
     // Prepared batch (sources/actions already collected): snapshot → classify → generate → publish.
-    if (values.config || values.fixture) throw new Error("--input is exclusive with --config/--fixture");
+    if (values.config || values.fixture)
+      throw new Error("--input is exclusive with --config/--fixture");
     const batch = JSON.parse(await readFile(resolve(values.input), "utf8")) as BatchInput;
     const result = await runBatch(batch, modelConfigFromEnv(resolve(values.out)));
     if (!result.success) throw new Error([...result.errors, ...result.leaks].join("\n"));
@@ -78,7 +79,23 @@ export async function runCli(): Promise<void> {
     if (!result.success) process.exitCode = 1;
     return;
   }
-  const raw = JSON.parse(await readFile(resolve(values.config!), "utf8"));
+  await runConfig(JSON.parse(await readFile(resolve(values.config!), "utf8")), {
+    out: values.out,
+    offline: values.offline,
+    researchOnly: values["research-only"],
+    acquisitionConcurrency,
+  });
+}
+
+export interface RunConfigOptions {
+  out: string;
+  offline: boolean;
+  researchOnly: boolean;
+  acquisitionConcurrency: number;
+}
+
+/** Run one ballot-run config (already parsed JSON) with the repo's source and issue policies. */
+export async function runConfig(raw: any, values: RunConfigOptions): Promise<void> {
   if (raw.analysis) {
     raw.analysis = {
       ...raw.analysis,
@@ -121,8 +138,8 @@ export async function runCli(): Promise<void> {
   const result = await runBallotPipeline(spec, {
     directory: resolve(values.out),
     offline: values.offline,
-    researchOnly: values["research-only"],
-    acquisitionConcurrency,
+    researchOnly: values.researchOnly,
+    acquisitionConcurrency: values.acquisitionConcurrency,
     onProgress: (message) => console.error(`[${new Date().toISOString()}] ${message}`),
     gitSha,
     env: process.env,

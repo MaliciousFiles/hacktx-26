@@ -3,4 +3,5 @@ export { OAG_OPINIONS_INDEX, TX_AG_OPINION_SERIES, matchTxAgOpinionSeries } from
 export type { TxAgOpinionSeries } from "./tx-ag";
 export { governorOrdersAdapter } from "./governor-orders";
 export { texasRegisterAdapter } from "./texas-register";
-export { parsePrintedDate, tenureSchema } from "./shared";
+export { parseHeaderDate, parsePrintedDate, tenureSchema } from "./shared";
+export * from "./lrl-governor-orders";

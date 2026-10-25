@@ -74,7 +74,7 @@ export function headingDateFromText(plain: string, labelPattern: string): string
 /** First printed date. Only for documents whose first date is the document date (e.g. AG opinion letters). */
 export function parsePrintedDate(plain: string): string | undefined {
   const named = plain.match(
-    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})\b/i,
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})\s*,\s*(\d{4})\b/i,
   );
   if (named) {
     const months: Record<string, string> = {
@@ -88,6 +88,26 @@ export function parsePrintedDate(plain: string): string | undefined {
   const iso = plain.match(/\b(20\d{2}|19\d{2})-(\d{2})-(\d{2})\b/);
   if (iso) return isoDate(iso[0]);
   return undefined;
+}
+
+/**
+ * Letter-header date from OCR'd opinion scans, which print "May 27,2014", "February lo,2003", "March 13.2003",
+ * "March 282003" or "March 3 1,2003". Day digits misread as l/I/o/O are repaired, the result must be a real
+ * calendar date, and when `expectedYear` is given (the publication folder) it must be within a year of it so a
+ * misread header can never silently adopt a date from the body.
+ */
+export function parseHeaderDate(header: string, expectedYear?: number): string | undefined {
+  const match = /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+([0-9lIOo]{1,2}(?:\s[0-9lIOo])?)\s*[,.]?\s*((?:19|20)\d{2})\b/i.exec(header);
+  if (!match) return undefined;
+  const months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+  const day = Number(match[2].replace(/\s/g, "").replace(/[lI]/g, "1").replace(/[Oo]/g, "0"));
+  const month = months.indexOf(match[1].toLowerCase()) + 1;
+  if (!Number.isInteger(day) || day < 1 || day > 31) return undefined;
+  try {
+    const date = isoDate(`${match[3]}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
+    if (expectedYear !== undefined && Math.abs(Number(date.slice(0, 4)) - expectedYear) > 1) return undefined;
+    return date;
+  } catch { return undefined; }
 }
 
 export function hostAllowed(url: string, suffixes: string[]): boolean {
