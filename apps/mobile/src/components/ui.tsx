@@ -23,6 +23,7 @@ export function Screen({
   header,
   footer,
   tray,
+  scroll = true,
 }: {
   children: ReactNode;
   /** Pinned under the status bar; content scrolls beneath it and fades out. */
@@ -30,6 +31,8 @@ export function Screen({
   footer?: ReactNode;
   /** Full-width bottom shelf, drawn under the footer. */
   tray?: ReactNode;
+  /** False pins the page: children fill the space between header and footer, nothing scrolls. */
+  scroll?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const [headerHeight, setHeaderHeight] = useState(header ? HEADER_GUESS : 0);
@@ -41,16 +44,22 @@ export function Screen({
       <Glow />
       <PaperDots color="rgba(160,96,70,0.07)" gap={9} />
 
-      <ScrollView
-        style={styles.fill}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: top + 8, paddingBottom: footer || tray ? 28 : bottomInset + 32 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.column}>{children}</View>
-      </ScrollView>
+      {scroll ? (
+        <ScrollView
+          style={styles.fill}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: top + 8, paddingBottom: footer || tray ? 28 : bottomInset + 32 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.column}>{children}</View>
+        </ScrollView>
+      ) : (
+        <View style={[styles.fill, styles.pinned, { paddingTop: top + 8 }]}>
+          <View style={[styles.column, styles.fill]}>{children}</View>
+        </View>
+      )}
 
       {footer ? (
         <View style={[styles.footer, { paddingBottom: tray ? 12 : bottomInset }]}>
@@ -60,7 +69,7 @@ export function Screen({
       ) : null}
 
       {tray ? (
-        <View style={[styles.tray, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View style={[styles.tray, { paddingBottom: Math.max(insets.bottom - 8, 8) }]}>
           <View style={styles.trayRow}>{tray}</View>
         </View>
       ) : null}
@@ -333,7 +342,7 @@ export function Tile({
     >
       <Flourish kind="wiggle" trigger={on}>
         <View style={[styles.tile, on && styles.tileOn]}>
-          <Icon name={icon} size={26} strokeWidth={1.9} fill={on ? colors.goldDeep : undefined} />
+          <Icon name={icon} size={20} strokeWidth={2} fill={on ? colors.goldDeep : undefined} />
         </View>
       </Flourish>
       <Text style={styles.tileLabel}>{label}</Text>
@@ -352,7 +361,7 @@ export function GuideTile({ on, onPress }: { on: boolean; onPress: () => void })
       style={styles.tileWrap}
     >
       <View style={styles.guideTile}>
-        <Godmother size={50} />
+        <Godmother size={36} />
       </View>
       <Text style={styles.tileLabel}>guide</Text>
     </PressableScale>
@@ -462,6 +471,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   fill: { flex: 1 },
   scrollContent: { alignItems: "center", paddingHorizontal: 20 },
+  pinned: { paddingHorizontal: 20, paddingBottom: 12 },
   column: { width: "100%", maxWidth: 520, alignSelf: "center" },
   topLayer: { position: "absolute", top: 0, left: 0, right: 0 },
   header: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 20 },
@@ -474,7 +484,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 2,
     borderTopColor: colors.bevel,
     boxShadow: "inset 0 3px 0 rgba(255,246,226,0.6)",
-    paddingTop: 12,
+    paddingTop: 6,
     paddingHorizontal: 14,
     alignItems: "center",
   },
@@ -617,10 +627,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   textButtonLabel: { fontFamily: fonts.bold, color: colors.line, fontSize: 15 },
-  tileWrap: { width: 66, alignItems: "center", gap: 6 },
+  tileWrap: { width: 58, alignItems: "center", gap: 2 },
   tile: {
-    width: 56,
-    height: 52,
+    width: 44,
+    height: 34,
     borderRadius: 10,
     borderWidth: 2,
     borderColor: colors.line,
@@ -633,8 +643,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
     boxShadow: `inset 0 0 0 3px ${colors.gold}, inset 0 0 0 4px ${colors.lineSoft}, 0 3px 0 ${colors.bevel}`,
   },
-  guideTile: { width: 58, height: 52, alignItems: "center", justifyContent: "flex-end" },
-  tileLabel: { fontFamily: fonts.bold, color: colors.line, fontSize: 14, lineHeight: 15 },
+  guideTile: { width: 44, height: 34, alignItems: "center", justifyContent: "flex-end" },
+  tileLabel: { fontFamily: fonts.bold, color: colors.line, fontSize: 12, lineHeight: 14 },
   star: {
     flexDirection: "row",
     alignItems: "center",

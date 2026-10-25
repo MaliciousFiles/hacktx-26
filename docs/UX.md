@@ -178,23 +178,26 @@ ASCII wireframes are for structure only. Spacing, color and type come from `VISU
 **E2 · Pole card** (swipe deck, decided Oct 25)
 ```
 ┌──────────────────────────────┐
-│ Housing · 3 of 14            │
-│ Swipe right to agree, left   │
-│ to disagree.                 │
 │ ┌──────────────────────────┐ │
-│ │ [scene art]              │ │
+│ │ [scene art]  sample mark │ │
+│ │ ⌂ HOUSING · ANCHOR       │ │
 │ │ Cities should allow more │ │  ◄ ONE pole per card: which pole
 │ │ apartments by default.   │ │    is shown is random per device
+│ │ [More info ▾]            │ │
 │ └──────────────────────────┘ │
+│ ═════════════════════════════│  ◄ paper edges: one per card left
 │ ← Disagree          Agree →  │
-│ [ ← Disagree ] [ Agree → ]   │
-│ back · skip · ☆ matters      │
+│ back · skip · ☆ · so far · 🧚│  ◄ compact tray
 └──────────────────────────────┘
 ```
-- Tinder style: one statement per card. Swipe (or tap) right to agree, left to disagree. The next card comes in right away; Back returns to the previous card to change its answer ("You said: Agree").
+- Tinder style: the deck is a stack and you swipe the top card off. Right = agree, left = disagree. The next card is face up underneath, and the stack's thickness is the number of cards left. Back returns to the previous card to change it ("You said: Agree").
+- The screen doesn't scroll. A sideways drag owns the touch, so the page can't move up or down mid-swipe; only an open "More info" scrolls, and not while dragging.
+- Haptics: a light tick when a drag passes the point where letting go counts, and a firmer tap when the card flies off. Reduce Motion skips the fling.
+- **More info** on every card: what the issue is, its two neutral ends (from `config/issues.yaml`), and exactly what Agree and Disagree each record. Judicial cards explain the dimension in plain words. Cards have no long-form text in the contract today; adding one is a contract change (APP_BUILD §9).
 - The statement is one of the card's two poles, chosen by the persisted per-device flip. Agree records the shown pole; disagree records the other one. The recorded `chosen: "a" | "b"` always refers to `poleA`/`poleB` in the data, never to the gesture.
-- **Known tradeoff:** showing one pole invites agreeing with whatever is shown. The per-device flip spreads that across poles, but friend testing (Suite F) should check for it.
-- The Agree and Disagree buttons are real buttons with screen-reader labels and the same look, and the card exposes matching accessibility actions (PLAN §2). Reduce Motion skips the fling.
+- **Known tradeoff:** showing one pole invites agreeing with whatever is shown. The per-device flip spreads that across poles, and More info shows the other view, but friend testing (Suite F) should check for it.
+- **Decided Oct 25: no on-screen Agree/Disagree buttons.** Swiping is the only visual input. Screen readers still get agree/disagree accessibility actions on the card. This overrides the "every gesture has a button" rule in §6 for this screen.
+- The Fairy Godmother's tip appears on the first card and again when the judicial cards start, and steps aside after 10 seconds or the first swipe.
 - Skip records `chosen: "skip"`, which means missing, not neutral.
 - ⭐ toggles `starred` and works on any card type.
 
@@ -206,10 +209,10 @@ ASCII wireframes are for structure only. Spacing, color and type come from `VISU
 │  │ ─────── at the cost of ─│  │
 │  │ a higher sales tax      │  │
 │  └────────────────────────┘  │
-│  [ ← Not worth it ] [ Worth it → ]
+│  ← Not worth it      Worth it →
 │  Saying "not worth it" doesn't mean you oppose buses.
 ```
-- Swipe right = `accept` (worth it), left = `decline` (not worth it); the buttons mirror them. The footnote is always visible (Inv. 22).
+- Swipe right = `accept` (worth it), left = `decline` (not worth it). The footnote on the card is always visible (Inv. 22).
 - Tradeoff answers feed only the reflection summary (E5) and the "questions to consider" prompts. They never feed matching.
 
 **E4 · Judicial mini-deck**: a short interstitial ("Judges aren't scored on policy. These four cards are about how a judge reads the law."), then 4 judicial pole cards in the same layout as E2 with a distinct "Judicial" badge.
@@ -451,7 +454,7 @@ Two stats, both computed on the device from picks and the identities returned by
 
 ## 6. Accessibility
 
-- Every gesture has a button with the same effect (swipe → option buttons; long-press → menu item).
+- Every gesture has a button with the same effect (long-press → menu item), except the Explore deck, which is swipe-only by decision (§3.2 E2) and exposes accessibility actions instead.
 - Screen-reader order follows the visual order. Pole cards announce "Option 1 of 2: …". The ⭐ toggle announces its state.
 - Supports Dynamic Type / font scaling up to 200% without clipping. Cards grow taller; text never shrinks.
 - Color is never the only signal: every chip pairs color with an icon and text.

@@ -1,7 +1,8 @@
-// A card you can fling left or right, Tinder style (UX.md §3.2). Built on React Native's own
-// responder system + Animated so Expo Go needs no extra native module. Buttons stay the primary input:
-// `fling` lets them run the same animation, and screen readers get matching accessibility actions.
-import { forwardRef, useImperativeHandle, useRef, type ReactNode } from "react";
+// The top card of the Explore stack: fling it right or left, Tinder style (UX.md §3.2). Built on
+// React Native's own responder system + Animated, so Expo Go needs no extra gesture module.
+// Swipes are the input; screen readers get matching accessibility actions.
+import * as Haptics from "expo-haptics";
+import { useRef, type ReactNode } from "react";
 import {
   Animated,
   Easing,
@@ -11,10 +12,11 @@ import {
   StyleSheet,
   Text,
   useWindowDimensions,
-  View,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
-import type { Verdict } from "@/lib/deck";
 import { useReducedMotion } from "@/components/motion";
+import type { Verdict } from "@/lib/deck";
 import { colors, fonts, shadows } from "@/theme";
 
 const native = Platform.OS !== "web";
@@ -22,68 +24,83 @@ const native = Platform.OS !== "web";
 const DISTANCE = 110;
 const VELOCITY = 0.6;
 
-export type SwipeCardHandle = { fling: (verdict: Verdict) => void };
+// Haptics are a nicety: a phone without them (or the web) just stays quiet.
+function buzz(kind: "tick" | "commit") {
+  if (!native) return;
+  const run =
+    kind === "tick"
+      ? Haptics.selectionAsync()
+      : Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  run.catch(() => {});
+}
 
-export const SwipeCard = forwardRef<
-  SwipeCardHandle,
-  {
-    children: ReactNode;
-    onSwipe: (verdict: Verdict) => void;
-    agreeLabel: string;
-    disagreeLabel: string;
-    accessibilityLabel: string;
-  }
->(function SwipeCard({ children, onSwipe, agreeLabel, disagreeLabel, accessibilityLabel }, ref) {
+export function SwipeCard({
+  children,
+  onSwipe,
+  onDragging,
+  agreeLabel,
+  disagreeLabel,
+  accessibilityLabel,
+  style,
+}: {
+  children: ReactNode;
+  onSwipe: (verdict: Verdict) => void;
+  /** True while a sideways drag owns the touch, so the card's own scrolling can pause. */
+  onDragging?: (dragging: boolean) => void;
+  agreeLabel: string;
+  disagreeLabel: string;
+  accessibilityLabel: string;
+  style?: StyleProp<ViewStyle>;
+}) {
   const { width } = useWindowDimensions();
   const reduced = useReducedMotion();
   const x = useRef(new Animated.Value(0)).current;
   const busy = useRef(false);
-  // Keep the latest callback without rebuilding the responder mid-gesture.
-  const latest = useRef({ onSwipe, reduced, width });
-  latest.current = { onSwipe, reduced, width };
+  // Raw responder props rather than PanResponder: on the web, PanResponder keeps stale mouse
+  // history after a release, so a second drag on the same card never registered.
+  const drag = useRef({ x0: 0, y0: 0, lastX: 0, lastT: 0, vx: 0, past: 0 });
 
   const fling = (verdict: Verdict) => {
     if (busy.current) return;
     busy.current = true;
-    const done = () => latest.current.onSwipe(verdict);
-    if (latest.current.reduced) {
+    buzz("commit");
+    const done = () => onSwipe(verdict);
+    if (reduced) {
       done();
       return;
     }
-    const to = (verdict === "agree" ? 1 : -1) * latest.current.width * 1.3;
     Animated.timing(x, {
-      toValue: to,
+      toValue: (verdict === "agree" ? 1 : -1) * width * 1.3,
       duration: 220,
       easing: Easing.out(Easing.quad),
       useNativeDriver: native,
     }).start(done);
   };
 
-  useImperativeHandle(ref, () => ({ fling }));
-
-  // Raw responder props rather than PanResponder: on the web, PanResponder keeps stale mouse
-  // history after a release, so a second drag on the same card never registered.
-  const drag = useRef({ x0: 0, y0: 0, lastX: 0, lastT: 0, vx: 0 });
   const point = (event: GestureResponderEvent) => ({
     x: event.nativeEvent.pageX,
     y: event.nativeEvent.pageY,
     t: event.nativeEvent.timestamp || Date.now(),
   });
-  const settle = () =>
+  const settle = () => {
+    onDragging?.(false);
     Animated.spring(x, { toValue: 0, friction: 6, useNativeDriver: native }).start();
+  };
+
   const handlers: GestureResponderHandlers = {
     onStartShouldSetResponderCapture: (event) => {
       const p = point(event);
-      drag.current = { x0: p.x, y0: p.y, lastX: p.x, lastT: p.t, vx: 0 };
+      drag.current = { x0: p.x, y0: p.y, lastX: p.x, lastT: p.t, vx: 0, past: 0 };
       return false;
     },
-    // Only claim clearly sideways drags, so the page still scrolls vertically.
+    // Claim clearly sideways drags in the capture phase, before the card's scroll area can.
     onMoveShouldSetResponderCapture: (event) => {
       const p = point(event);
       const dx = p.x - drag.current.x0;
       const dy = p.y - drag.current.y0;
       return !busy.current && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy);
     },
+    onResponderGrant: () => onDragging?.(true),
     onResponderTerminationRequest: () => false,
     onResponderMove: (event) => {
       const p = point(event);
@@ -91,9 +108,17 @@ export const SwipeCard = forwardRef<
       if (dt > 0) drag.current.vx = (p.x - drag.current.lastX) / dt;
       drag.current.lastX = p.x;
       drag.current.lastT = p.t;
-      x.setValue(p.x - drag.current.x0);
+      const dx = p.x - drag.current.x0;
+      // A light tick each time the drag crosses the point where letting go would count.
+      const past = dx > DISTANCE ? 1 : dx < -DISTANCE ? -1 : 0;
+      if (past !== drag.current.past) {
+        if (past !== 0) buzz("tick");
+        drag.current.past = past;
+      }
+      x.setValue(dx);
     },
     onResponderRelease: (event) => {
+      onDragging?.(false);
       const dx = point(event).x - drag.current.x0;
       const { vx } = drag.current;
       if (dx > DISTANCE || (dx > 0 && vx > VELOCITY)) fling("agree");
@@ -132,7 +157,7 @@ export const SwipeCard = forwardRef<
       onAccessibilityAction={(event) =>
         fling(event.nativeEvent.actionName === "agree" ? "agree" : "disagree")
       }
-      style={[styles.card, { transform: [{ translateX: x }, { rotate }] }]}
+      style={[styles.card, style, { transform: [{ translateX: x }, { rotate }] }]}
     >
       {children}
       {/* Both stamps look the same: color never says which answer is "good". */}
@@ -150,7 +175,7 @@ export const SwipeCard = forwardRef<
       </Animated.View>
     </Animated.View>
   );
-});
+}
 
 const styles = StyleSheet.create({
   card: {

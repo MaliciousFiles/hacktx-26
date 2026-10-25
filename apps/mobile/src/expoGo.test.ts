@@ -18,6 +18,7 @@ const EXPO_GO_NATIVE = new Set([
   "expo-crypto",
   "expo-file-system",
   "expo-font",
+  "expo-haptics",
   "expo-linking",
   "expo-router",
   "expo-secure-store",

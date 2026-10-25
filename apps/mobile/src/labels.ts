@@ -95,3 +95,15 @@ export const BUCKET_COPY = {
   worlds_apart: { emoji: "🌙", label: "Worlds Apart" },
   clouded: { emoji: "🪞", label: "Clouded Mirror" },
 } as const;
+
+/** Plain-language background for the judicial cards' "More info". */
+export const JUDICIAL_DETAIL: Record<JudicialDim, string> = {
+  text_vs_purpose:
+    "Some judges read a law by its exact words. Others read it in light of the problem lawmakers were trying to solve. Both are mainstream approaches.",
+  restraint_vs_review:
+    "When a law is challenged, some judges lean toward leaving lawmakers' choices in place. Others are more willing to strike a law down.",
+  precedent:
+    "Past rulings guide future ones. Judges differ on how strong a reason they need before departing from them.",
+  procedural_strictness:
+    "Courts differ on how strictly they hold the government and the parties to deadlines, filing rules and procedure.",
+};
