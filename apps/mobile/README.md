@@ -4,7 +4,7 @@ Expo SDK 58 app (Expo Router, routes in `src/app/`).
 
 ## Run it on your phone (Expo Go)
 
-One command, from the repo root:
+One command, from the repo root or `apps/mobile`:
 
 ```sh
 pnpm mobile

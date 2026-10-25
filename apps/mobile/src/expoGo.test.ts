@@ -52,9 +52,12 @@ describe("Expo Go workflow", () => {
 
   // expo-dev-client is installed, so a bare `expo start` serves a development-build QR
   // code (exp+fairy-tale-ballot://) that Expo Go can't open. Every start script needs --go.
-  it.each(["start", "dev", "go", "go:tunnel", "go:clear"])("`%s` passes --go", (script) => {
-    expect(mobilePkg.scripts[script]).toMatch(/^expo start --go\b/);
-  });
+  it.each(["mobile", "start", "dev", "go", "go:tunnel", "go:clear"])(
+    "`%s` passes --go",
+    (script) => {
+      expect(mobilePkg.scripts[script]).toMatch(/^expo start --go\b/);
+    },
+  );
 
   it("every native dependency is bundled in Expo Go", () => {
     const deps = Object.keys(mobilePkg.dependencies ?? {});
