@@ -1,4 +1,5 @@
 // cards.ts — Generates PolicyCard[] (PoleCard, TradeoffCard, JudicialCard) from taxonomy and reviewed configurations (PLAN.md §6.2, §6.7).
+import { createHash } from "node:crypto";
 import type {
   PolicyCard,
   PoleCard,
@@ -12,25 +13,33 @@ import type {
  * Creates PoleCard entries from defined issues.
  */
 export function buildPoleCardsFromIssues(issues: Issue[]): PoleCard[] {
-  // Only child issues or concrete policy axes get pole cards
-  return issues
-    .filter((issue) => !issue.id.startsWith("judicial."))
-    .map((issue) => ({
+  // Child issues are the stance axes (§6.1); broad parent topics are for
+  // retrieval only. Taxonomies without children use their concrete axes.
+  const policy = issues.filter((issue) => !issue.id.startsWith("judicial."));
+  const children = policy.filter((issue) => issue.parentId !== undefined);
+  const axes = children.length ? children : policy;
+  const anchored = new Set<string>();
+  return axes.map((issue) => {
+    // One anchor per topic, so important issues are asked even if no candidate addresses them.
+    const topic = issue.parentId ?? issue.id;
+    const anchor = !anchored.has(topic);
+    anchored.add(topic);
+    // Neither pole is systematically "A": a stable hash decides the stored
+    // order, and the app still randomizes on-screen side (§6.2).
+    const positiveFirst = createHash("sha256").update(issue.id).digest()[0]! % 2 === 0;
+    return {
       id: `card-pole-${issue.id.replace(/\./g, "-")}`,
-      kind: "pole",
-      deck: "policy",
-      anchor: issue.parentId === undefined, // parent issues as anchor cards
+      kind: "pole" as const,
+      deck: "policy" as const,
+      anchor,
       issueId: issue.id,
-      poleA: issue.positivePole,
-      poleB: issue.negativePole,
+      poleA: positiveFirst ? issue.positivePole : issue.negativePole,
+      poleB: positiveFirst ? issue.negativePole : issue.positivePole,
       vector: {
-        [issue.id]: {
-          a: 1.0,
-          b: -1.0,
-          weight: 1.0,
-        },
+        [issue.id]: { a: positiveFirst ? 1 : -1, b: positiveFirst ? -1 : 1, weight: 1 },
       },
-    }));
+    };
+  });
 }
 
 /**
@@ -45,7 +54,8 @@ export function buildJudicialCards(): JudicialCard[] {
       deck: "judicial",
       anchor: true,
       dimension: "text_vs_purpose",
-      poleA: "Reads the law's exact words strictly as written, even if the result seems unintended.",
+      poleA:
+        "Reads the law's exact words strictly as written, even if the result seems unintended.",
       poleB: "Reads laws in light of their underlying purpose and practical consequences.",
       coordinates: { a: -1.0, b: 1.0 },
     },
@@ -56,7 +66,8 @@ export function buildJudicialCards(): JudicialCard[] {
       anchor: true,
       dimension: "restraint_vs_review",
       poleA: "Defers to elected lawmakers and upholds statutes unless clearly unconstitutional.",
-      poleB: "Actively exercises judicial review to strike down overreaching laws and protect rights.",
+      poleB:
+        "Actively exercises judicial review to strike down overreaching laws and protect rights.",
       coordinates: { a: -1.0, b: 1.0 },
     },
     {
@@ -123,9 +134,16 @@ export function buildTradeoffCards(): TradeoffCard[] {
 /**
  * Build the full default PolicyCard deck.
  */
-export function buildCardDeck(issues: Issue[]): PolicyCard[] {
+export function buildCardDeck(
+  issues: Issue[],
+  options: { includeJudicial?: boolean } = {},
+): PolicyCard[] {
   const poleCards = buildPoleCardsFromIssues(issues);
-  const judicialCards = buildJudicialCards();
-  const tradeoffCards = buildTradeoffCards();
+  const known = new Set(issues.map((issue) => issue.id));
+  // A tradeoff whose issues aren't in this taxonomy/ballot can't be interpreted.
+  const tradeoffCards = buildTradeoffCards().filter((card) =>
+    [...card.policyIssues, ...card.costIssues].every((id) => known.has(id)),
+  );
+  const judicialCards = options.includeJudicial === false ? [] : buildJudicialCards();
   return [...poleCards, ...tradeoffCards, ...judicialCards];
 }

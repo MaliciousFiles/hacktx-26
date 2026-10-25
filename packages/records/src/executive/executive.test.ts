@@ -105,9 +105,45 @@ describe("executive HTML/PDF adapters", () => {
         actorLabels: ["Greg Abbott"],
         memberCandidateId: "gov-1",
         actionType: "appointment",
+        tenure: { candidateId: "gov-1", start: "2015-01-20", sourceUrl: "https://gov.texas.gov/" },
       },
     );
     expect(result.actions).toHaveLength(1);
     expect(result.actions[0].type).toBe("appointment");
+    expect(result.actions[0].date).toBe("2025-01-10");
+  });
+
+  it("dates a Register appointment by its heading, not a term-expiration date", async () => {
+    const html = `<!DOCTYPE html><html><body>
+      <h2>The Governor</h2>
+      <p>Jane Doe for a term to expire February 1, 2031.</p>
+      <p>Appointments for January 10, 2025</p>
+      <p>Governor Greg Abbott appointed Jane Doe to the commission.</p>
+    </body></html>`;
+    const client = new SnapshotClient({ directory, intervalMs: 0, fetch: vi.fn<typeof fetch>().mockResolvedValue(new Response(html)) });
+    const config = {
+      urls: ["https://www.sos.state.tx.us/texreg/index.shtml"], role: "Governor of Texas", section: "The Governor",
+      actorLabels: ["Greg Abbott"], memberCandidateId: "gov-1", actionType: "appointment",
+      tenure: { candidateId: "gov-1", start: "2015-01-20", sourceUrl: "https://gov.texas.gov/" },
+    };
+    const context = { request: { ...request, candidate: { id: "gov-1", name: "Greg Abbott" } }, window: dateWindow(request), client };
+    expect((await texasRegisterAdapter.collect(context, config)).actions[0]?.date).toBe("2025-01-10");
+    // Without verified office tenure, a name in the section isn't attribution.
+    const { tenure: _tenure, ...untenured } = config;
+    expect((await texasRegisterAdapter.collect(context, untenured)).actions).toEqual([]);
+  });
+
+  it("dates a governor order by its signature, not a WHEREAS recital", async () => {
+    const html = `<!DOCTYPE html><html><body>
+      <h1>Executive Order GA-50</h1>
+      <p>WHEREAS, on March 13, 2020, I certified a disaster;</p>
+      <p>Given under my hand this the 3rd day of February, 2025.</p>
+    </body></html>`;
+    const client = new SnapshotClient({ directory, intervalMs: 0, fetch: vi.fn<typeof fetch>().mockResolvedValue(new Response(html)) });
+    const result = await governorOrdersAdapter.collect(
+      { request: { ...request, candidate: { id: "gov-1", name: "Greg Abbott" } }, window: dateWindow(request), client },
+      { urls: ["https://gov.texas.gov/orders/ga-50"], tenure: { candidateId: "gov-1", start: "2015-01-20", sourceUrl: "https://gov.texas.gov/" } },
+    );
+    expect(result.actions[0]?.date).toBe("2025-02-03");
   });
 });

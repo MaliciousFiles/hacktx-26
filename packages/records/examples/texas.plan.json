@@ -9,6 +9,7 @@
         "role": "Texas House District 54",
         "memberName": "Buckley",
         "memberCandidateId": "example-buckley",
+        "memberSessions": ["89R"],
         "memberIdentitySourceUrl": "https://capitol.texas.gov/Members/MemberInfo.aspx?Chamber=H&Code=A3585&Leg=89"
       }
     }

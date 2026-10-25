@@ -11,6 +11,10 @@ Contemporary web collection: [packages/scraping/README.md](./packages/scraping/R
 covers campaign platforms, dedicated debate/forum discovery, news, social accounts,
 exact-span quote leads, and frozen offline replay.
 
+Database storage: [packages/pipeline/DATABASE.md](packages/pipeline/DATABASE.md)
+covers private PostgreSQL research archives, approved frozen releases, local setup,
+and read-only API credentials.
+
 ## Layout
 
 | Path                | Package         | What                                                                          |

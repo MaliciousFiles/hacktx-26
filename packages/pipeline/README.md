@@ -117,6 +117,27 @@ Debates/news/questionnaires require approved speaker spans, never just a model's
 speech. Official-action interpretation also needs reviewed issue linkage and
 attribution; omnibus bills aren't automatically classified on every issue.
 
+## The core loop: says → does → compare
+
+- **Says:** the candidate's verified campaign site, verified social posts, and
+  reviewed single-candidate questionnaires (`web.verifiedDocuments` with
+  `candidateId`) are their own words. Debates, forums, multi-candidate guides and
+  news need approved speaker spans (`attributions`). Search snippets never count.
+- **Does:** records actions are already actor-verified by their adapters. Each
+  scorable action (authored bill or recorded yes/no vote) is classified for what
+  the **measure** would do if enacted, then mirrored for a "no" vote. Procedural
+  votes (cloture, tabling, recommittal, the rule…), consent/voice votes and
+  unreviewed omnibus measures (relevant to >2 issues) are never scored.
+  Unanimous/untallied votes weigh about zero and don't count as events.
+- **Platform:** one neutral sentence per compared issue built from reviewed pole
+  labels and cited to the candidate's own statements — no generated prose.
+- **Says vs. Does:** emitted only with ≥2 independent events on **both** sides,
+  using the same action weighting; the app can show each side's dates from the
+  cited evidence.
+- **Ballot building:** the release includes the Explore deck (child-issue pole
+  cards, one anchor per topic, poles in no fixed order, tradeoffs whose issues
+  exist, judicial deck when a judicial race is contested).
+
 ## Gates and remaining gaps — not a finished product
 
 - Full comparisons require three common sufficiently supported issues across
@@ -138,3 +159,7 @@ attribution; omnibus bills aren't automatically classified on every issue.
 Exit `2` means synthetic mode or coverage gaps, even when an objective-only release
 was written successfully. Exit `0` is never a promise of complete internet coverage.
 Inspect `coverage.json`, not just the process exit status.
+# Ballot-wide collection status
+
+See [CORPUS.md](CORPUS.md) for the live Travis County lookup, parallel acquisition,
+and the unresolved official-ballot/full-history coverage requirements.

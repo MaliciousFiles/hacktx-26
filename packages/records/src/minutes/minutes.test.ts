@@ -6,6 +6,7 @@ import type { CandidateResearchRequest } from "@ftb/types";
 import { SnapshotClient } from "../fetch";
 import { dateWindow } from "../model";
 import { createOfficialMinutesAdapter } from "./official-minutes";
+import { rulesExtractVotes } from "../extract";
 
 let directory: string;
 beforeEach(async () => {
@@ -21,7 +22,37 @@ const request: CandidateResearchRequest = {
   month: 11, year: 2026,
 };
 
+describe("deterministic minutes rules", () => {
+  it("doesn't mark a vote as consent because of a neighboring item's heading", () => {
+    const text = "Consent Agenda\nItems approved.\n\n7. Motion to adopt the tax rate\nRivera - Yes\n";
+    expect(rulesExtractVotes({ schemaId: "t", sourceText: text, instruction: "", memberLabels: ["Rivera"] }).votes[0]?.consent).toBeUndefined();
+  });
+
+  it("keeps 'Surname, Initial' names intact and maps repeated names to their own span", () => {
+    const text = "Motion to approve\nAyes: Bell, C.; Bell, K.\nNays: Lee\n";
+    const votes = rulesExtractVotes({ schemaId: "t", sourceText: text, instruction: "", memberLabels: ["Bell, K."] }).votes;
+    expect(votes.map((vote) => vote.member.value)).toEqual(["Bell, K."]);
+    expect(text.slice(votes[0]!.member.start, votes[0]!.member.end)).toBe("Bell, K.");
+    expect(rulesExtractVotes({ schemaId: "t", sourceText: text, instruction: "", memberLabels: ["Bell"] }).votes).toEqual([]);
+  });
+});
+
 describe("official minutes adapter", () => {
+  it("doesn't date a meeting from 'approval of the minutes of' another meeting", async () => {
+    const html = `<!DOCTYPE html><html><body>
+      <p>Approval of the minutes of May 3, 2024</p>
+      <p>Motion to approve the budget</p>
+      <p>Rivera - Yes</p>
+    </body></html>`;
+    const client = new SnapshotClient({ directory, intervalMs: 0, fetch: vi.fn<typeof fetch>().mockResolvedValue(new Response(html)) });
+    const result = await createOfficialMinutesAdapter({ id: "mock", extract: vi.fn() }).collect(
+      { request, window: dateWindow(request), client },
+      { urls: ["https://go.boarddocs.com/tx/rrisd/Board.nsf/undated"], role: "RRISD Trustee", body: "RRISD", memberLabels: ["Rivera"], memberCandidateId: "r1", enableLlmFallback: false },
+    );
+    expect(result.actions).toEqual([]);
+    expect(result.status).toBe("needs_review");
+  });
+
   it("attributes deterministic Name - Yes rows without calling LLM", async () => {
     const html = `<!DOCTYPE html><html><body>
       <p>Board Meeting April 2, 2025</p>

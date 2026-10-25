@@ -19,7 +19,12 @@ import type {
   OfficialAction,
 } from "@ftb/types";
 import { cachedCall } from "./cached_call.js";
-import { requestJev, requestOllama, validateClassifierResponse } from "./providers.js";
+import {
+  requestJev,
+  requestJevTopics,
+  requestOllama,
+  validateClassifierResponse,
+} from "./providers.js";
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 
@@ -48,6 +53,8 @@ interface JevClassifyRequest {
   positivePoleLabel: string;
   projectionVersion: string;
   mode: string;
+  /** A person's statement vs. an official measure's text (votes/authorship). */
+  subject: "statement" | "measure";
 }
 
 interface JevClassifyResponse {
@@ -183,6 +190,57 @@ export interface IssuePoleLabel {
   id: IssueId;
   negativePole: string;
   positivePole: string;
+  label?: string;
+}
+
+/** Issues whose screen probability reaches this are classified for stance (draft). */
+export const TOPIC_SCREEN_MIN = 0.15;
+/** At most this many issues per passage (a passage rarely argues more). */
+export const TOPIC_SCREEN_MAX = 3;
+
+/**
+ * Cheap cached topic screen: one Jev call per passage picks the issues worth a
+ * stance question. Deterministic over frozen output (ties broken by issue id).
+ * The same screen runs for every candidate (Invariant 9).
+ */
+export async function screenIssues(
+  input: ClassificationInput,
+  subject: "statement" | "measure",
+  issues: IssuePoleLabel[],
+  config: ClassifyConfig,
+): Promise<IssuePoleLabel[]> {
+  const list = issues.map((issue) => ({
+    id: issue.id,
+    label: issue.label ?? issue.id,
+    negativePole: issue.negativePole,
+    positivePole: issue.positivePole,
+  }));
+  const spec: CachedCallSpec = {
+    model: "jev",
+    modelVersion: config.jevModelVersion,
+    rubricVersion: config.rubricVersion,
+    questions: {
+      task: "topic_screen_v1",
+      subject,
+      issues: list,
+      projectionVersion: input.projectionVersion,
+      mode: input.mode,
+    },
+    inputHash: createHash("sha256").update(input.text).digest("hex"),
+  };
+  const probs = await cachedCall(spec, () =>
+    requestJevTopics(
+      { text: input.text, subject, issues: list },
+      config.jevApiKey,
+      config.jevModelVersion,
+    ),
+  );
+  return issues
+    .map((issue) => ({ issue, p: probs[issue.id] ?? 0 }))
+    .filter((item) => item.p >= TOPIC_SCREEN_MIN)
+    .sort((a, b) => b.p - a.p || (a.issue.id < b.issue.id ? -1 : 1))
+    .slice(0, TOPIC_SCREEN_MAX)
+    .map((item) => item.issue);
 }
 
 /**
@@ -206,6 +264,7 @@ export async function classifyOne(
     positivePoleLabel: issue.positivePole,
     projectionVersion: input.projectionVersion,
     mode: input.mode,
+    subject: actionId ? "measure" : "statement",
   };
 
   let jevResponse: JevClassifyResponse;

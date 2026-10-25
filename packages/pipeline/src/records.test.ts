@@ -6,6 +6,7 @@ import type { Evidence, OfficialAction } from "@ftb/types";
 import type { HistoryResearchResult } from "@ftb/records";
 import {
   actionToSource,
+  buildResearchInput,
   classifyActions,
   collectCandidateRecords,
   mirrorDistribution,
@@ -67,6 +68,16 @@ function research(actions: OfficialAction[], coverageStatus: "complete" | "parti
 }
 
 describe("targetFromContest", () => {
+  it("preserves verified prior-office identifiers through the history bridge", () => {
+    const candidate = {
+      id: "local",
+      name: "Zohaib Qadri",
+      identifiers: { austin_council_district: "9" },
+    };
+    expect(
+      buildResearchInput({ ...target, candidate }, { month: 11, year: 2026 }).identifiers,
+    ).toEqual(candidate.identifiers);
+  });
   it("omits empty district and keeps the race sought", () => {
     expect(target).toEqual({
       contestId: "contest-1",

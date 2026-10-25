@@ -31,7 +31,7 @@ function isTx(jurisdiction: string): boolean {
 }
 
 /**
- * Name + race sought → full prior-office history plan.
+ * Name + race sought → bounded prior-office discovery plan (not a full corpus).
  *
  * Race sought only defines the election cutoff (and ballot context). It does
  * **not** select which office families to search. Every supported family is
@@ -55,9 +55,12 @@ export function buildHistoryPlan(
   const years = yearsInWindow(request, since);
   const congresses = congressesForYears(years);
   const rationale: string[] = [
-    `Full-history scan for ${request.candidate.name} (race sought: ${request.position.office}) — every supported office family is probed; the ballot race is not a prior-office filter.`,
+    `Bounded history scan for ${request.candidate.name} (race sought: ${request.position.office}) — every supported office family is probed; the ballot race is not a prior-office filter. This is not a complete career inventory.`,
   ];
-  const gaps: string[] = [];
+  const gaps: string[] = [
+    `Bounded discovery since ${since}: per-source document cap ${documentCap}, House roll cap ${houseRollCap}. Increasing caps alone does not establish complete career coverage.`,
+    "Federal automatic inventories cover 2023 onward only, House roll upper bounds are configured rather than discovered to exhaustion, and Texas FTP discovery covers only 89R. Earlier terms and other sessions require additional inventories.",
+  ];
   const sources: RecordsPlan["sources"] = [];
   const tx = isTx(request.position.jurisdiction);
 
@@ -68,133 +71,176 @@ export function buildHistoryPlan(
 
   // ——— U.S. House (always; soft-skipped without bioguide) ———
   for (const year of years.filter((y) => y >= 2023)) {
-    add({
-      id: `house-clerk-${year}`,
-      adapter: "house-clerk",
+    add(
+      {
+        id: `house-clerk-${year}`,
+        adapter: "house-clerk",
+        discovery: {
+          kind: "house-clerk-rolls",
+          year,
+          fromRoll: 1,
+          toRoll: year === 2025 ? 362 : year === 2024 ? 520 : 300,
+          maxDocuments: houseRollCap,
+        },
+        config: {
+          urls: [`https://clerk.house.gov/evs/${year}/roll001.xml`],
+          role: "U.S. House of Representatives",
+        },
+      },
+      `U.S. House Clerk EVS rolls for ${year} (bioguide-bound; cap ${houseRollCap}).`,
+    );
+  }
+  add(
+    {
+      id: "govinfo-billstatus-house",
+      adapter: "govinfo-billstatus",
       discovery: {
-        kind: "house-clerk-rolls",
-        year,
-        fromRoll: 1,
-        toRoll: year === 2025 ? 362 : year === 2024 ? 520 : 300,
-        maxDocuments: houseRollCap,
+        kind: "govinfo-billstatus",
+        congresses: congresses.filter((c) => c >= 118),
+        billTypes: ["hr", "hres"],
+        maxDocuments: documentCap,
       },
       config: {
-        urls: [`https://clerk.house.gov/evs/${year}/roll001.xml`],
+        urls: ["https://www.govinfo.gov/bulkdata/BILLSTATUS/119/hr/BILLSTATUS-119hr1.xml"],
         role: "U.S. House of Representatives",
       },
-    }, `U.S. House Clerk EVS rolls for ${year} (bioguide-bound; cap ${houseRollCap}).`);
-  }
-  add({
-    id: "govinfo-billstatus-house",
-    adapter: "govinfo-billstatus",
-    discovery: {
-      kind: "govinfo-billstatus",
-      congresses: congresses.filter((c) => c >= 118),
-      billTypes: ["hr", "hres"],
-      maxDocuments: documentCap,
     },
-    config: {
-      urls: ["https://www.govinfo.gov/bulkdata/BILLSTATUS/119/hr/BILLSTATUS-119hr1.xml"],
-      role: "U.S. House of Representatives",
-    },
-  }, `U.S. House BILLSTATUS sponsorship (bioguide-bound; cap ${documentCap}).`);
+    `U.S. House BILLSTATUS sponsorship (bioguide-bound; cap ${documentCap}).`,
+  );
 
   // ——— U.S. Senate (always; soft-skipped without bioguide) ———
   for (const year of years.filter((y) => y >= 2023)) {
-    add({
-      id: `govinfo-crec-${year}`,
-      adapter: "govinfo-crec",
-      discovery: { kind: "govinfo-record", years: [year], maxDocuments: documentCap },
+    add(
+      {
+        id: `govinfo-crec-${year}`,
+        adapter: "govinfo-crec",
+        discovery: { kind: "govinfo-record", years: [year], maxDocuments: documentCap },
+        config: {
+          urls: [`https://www.govinfo.gov/metadata/pkg/CREC-${year}-01-03/mods.xml`],
+          role: "U.S. Senate",
+        },
+      },
+      `U.S. Senate CREC MODS votes for ${year} (bioguide-bound; cap ${documentCap}).`,
+    );
+  }
+  add(
+    {
+      id: "govinfo-billstatus-senate",
+      adapter: "govinfo-billstatus",
+      discovery: {
+        kind: "govinfo-billstatus",
+        congresses: congresses.filter((c) => c >= 118),
+        billTypes: ["s", "sres"],
+        maxDocuments: documentCap,
+      },
       config: {
-        urls: [`https://www.govinfo.gov/metadata/pkg/CREC-${year}-01-03/mods.xml`],
+        urls: ["https://www.govinfo.gov/bulkdata/BILLSTATUS/119/s/BILLSTATUS-119s1.xml"],
         role: "U.S. Senate",
       },
-    }, `U.S. Senate CREC MODS votes for ${year} (bioguide-bound; cap ${documentCap}).`);
-  }
-  add({
-    id: "govinfo-billstatus-senate",
-    adapter: "govinfo-billstatus",
-    discovery: {
-      kind: "govinfo-billstatus",
-      congresses: congresses.filter((c) => c >= 118),
-      billTypes: ["s", "sres"],
-      maxDocuments: documentCap,
     },
-    config: {
-      urls: ["https://www.govinfo.gov/bulkdata/BILLSTATUS/119/s/BILLSTATUS-119s1.xml"],
-      role: "U.S. Senate",
-    },
-  }, `U.S. Senate BILLSTATUS sponsorship (bioguide-bound; cap ${documentCap}).`);
+    `U.S. Senate BILLSTATUS sponsorship (bioguide-bound; cap ${documentCap}).`,
+  );
 
   // ——— Texas legislature ———
   if (tx) {
     if (options.includeTloFtp) {
-      add({
-        id: "tlo-billhistory-recent",
-        adapter: "tlo-billhistory",
-        discovery: {
-          kind: "tlo-billhistory",
-          sessions: ["89R"],
-          billTypes: ["HB", "SB"],
-          maxDocuments: Math.min(documentCap, 10),
+      add(
+        {
+          id: "tlo-billhistory-recent",
+          adapter: "tlo-billhistory",
+          discovery: {
+            kind: "tlo-billhistory",
+            sessions: ["89R"],
+            billTypes: ["HB", "SB"],
+            maxDocuments: Math.min(documentCap, 10),
+          },
+          config: {
+            urls: [
+              "ftp://ftp.legis.state.tx.us/bills/89R/billhistory/house_bills/HB00001_HB00099/HB%202.xml",
+            ],
+            role: "Texas Legislature",
+          },
         },
-        config: {
-          urls: ["ftp://ftp.legis.state.tx.us/bills/89R/billhistory/house_bills/HB00001_HB00099/HB%202.xml"],
-          role: "Texas Legislature",
-        },
-      }, "TLO bill-history XML via FTP (authorship/actions; name/member-code match).");
+        "TLO bill-history XML via FTP (authorship/actions; name/member-code match).",
+      );
     } else {
-      gaps.push("TX Legislature TLO bill-history FTP auto-discovery skipped (often multi-minute); pass includeTloFtp or a manual URL plan.");
+      gaps.push(
+        "TX Legislature TLO bill-history FTP auto-discovery skipped (often multi-minute); pass includeTloFtp or a manual URL plan.",
+      );
     }
-    gaps.push("TX House/Senate journal floor votes need session journal URL inventories per candidate term (adapter exists; auto URL discovery not wired yet).");
+    gaps.push(
+      "TX House/Senate journal floor votes need session journal URL inventories per candidate term (adapter exists; auto URL discovery not wired yet).",
+    );
   } else {
-    gaps.push("TX Legislature sources skipped — jurisdiction is not Texas; set jurisdiction to us/tx (or similar) to probe TLO/journals.");
+    gaps.push(
+      "TX Legislature sources skipped — jurisdiction is not Texas; set jurisdiction to us/tx (or similar) to probe TLO/journals.",
+    );
   }
 
-  // ——— Local (Austin Council) — name match; empty result ≠ never held office elsewhere ———
-  if (tx || /austin/i.test(request.position.jurisdiction)) {
-    add({
-      id: "austin-socrata-votes",
-      adapter: "socrata-votes",
-      config: {
-        endpoint: "https://datahub.austintexas.gov/resource/3c89-i35a.json",
-        role: "Austin City Council",
+  // ——— Local (Austin Council) ———
+  // A name alone can match a different person who served on the council, so
+  // only plan this source with an upstream-verified prior council district.
+  const austinDistrict = request.candidate.identifiers?.["austin_council_district"];
+  if (austinDistrict) {
+    add(
+      {
+        id: "austin-socrata-votes",
+        adapter: "socrata-votes",
+        config: {
+          endpoint: "https://datahub.austintexas.gov/resource/3c89-i35a.json",
+          role: `Austin City Council District ${austinDistrict}`,
+          candidateDistrict: austinDistrict,
+        },
       },
-    }, "Austin Council Socrata votes (exact full-name match; 0 hits means no match in this dataset, not proof of no local service).");
-  } else {
-    gaps.push("Austin Council Socrata not planned outside TX/Austin jurisdictions.");
+      "Austin Council Socrata votes (verified prior district + exact full-name match).",
+    );
+  } else if (tx || /austin/i.test(request.position.jurisdiction)) {
+    gaps.push(
+      "Austin Council votes not collected: needs a verified prior council district (identifiers.austin_council_district); name-only matching could attribute another member's votes.",
+    );
   }
 
   // ——— Texas AG opinions (exact OAG series name match) ———
   const agSeries = matchTxAgOpinionSeries(candidateNames(request));
   if (agSeries) {
-    add({
-      id: `oag-opinions-${agSeries.path}`,
-      adapter: "ag-opinions",
-      discovery: {
-        kind: "oag-opinion-index",
-        agPath: agSeries.path,
-        maxDocuments: documentCap,
-      },
-      config: {
-        urls: [`${OAG_OPINIONS_INDEX}/${agSeries.path}`],
-        role: "Texas Attorney General",
-        tenure: {
-          candidateId: request.candidate.id,
-          start: agSeries.tenureStart,
-          ...(agSeries.tenureEnd ? { end: agSeries.tenureEnd } : {}),
-          sourceUrl: OAG_OPINIONS_INDEX,
+    add(
+      {
+        id: `oag-opinions-${agSeries.path}`,
+        adapter: "ag-opinions",
+        discovery: {
+          kind: "oag-opinion-index",
+          agPath: agSeries.path,
+          maxDocuments: documentCap,
+        },
+        config: {
+          urls: [`${OAG_OPINIONS_INDEX}/${agSeries.path}`],
+          role: "Texas Attorney General",
+          tenure: {
+            candidateId: request.candidate.id,
+            start: agSeries.tenureStart,
+            ...(agSeries.tenureEnd ? { end: agSeries.tenureEnd } : {}),
+            sourceUrl: OAG_OPINIONS_INDEX,
+          },
         },
       },
-    }, `Texas AG opinions for OAG series ${agSeries.path} (exact name match on ${OAG_OPINIONS_INDEX}).`);
+      `Texas AG opinions for OAG series ${agSeries.path} (exact name match on ${OAG_OPINIONS_INDEX}).`,
+    );
   } else if (tx) {
-    gaps.push("Texas AG opinions: no exact full-name match to a published OAG opinion series on the official index (not proof the person never served as AG).");
+    gaps.push(
+      "Texas AG opinions: no exact full-name match to a published OAG opinion series on the official index (not proof the person never served as AG).",
+    );
   }
 
   // ——— Governor / Register / Judicial / minutes — adapters exist; auto indexes not wired ———
-  gaps.push("Governor orders / Texas Register: adapters exist; need configured official document URLs + verified tenure (auto index crawl not wired yet).");
-  gaps.push("TX judicial (SCOTX/TAMES/SCJC): adapters exist; need configured opinion/order URLs or index pages per candidate.");
-  gaps.push("Official minutes / CivicClerk / Legistar: adapters exist; need per-body endpoint or minutes URL configuration.");
+  gaps.push(
+    "Governor orders / Texas Register: adapters exist; need configured official document URLs + verified tenure (auto index crawl not wired yet).",
+  );
+  gaps.push(
+    "TX judicial (SCOTX/TAMES/SCJC): adapters exist; need configured opinion/order URLs or index pages per candidate.",
+  );
+  gaps.push(
+    "Official minutes / CivicClerk / Legistar: adapters exist; need per-body endpoint or minutes URL configuration.",
+  );
 
   // Always attempt House/Congress.gov identity so bioguide-bound sources can run when
   // the person has congressional service — including when the race sought is not federal.

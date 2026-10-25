@@ -67,8 +67,18 @@ const configSchema = z
             url: z.string().url(),
             type: z.enum(["questionnaire", "debate_speech"]),
             verifiedVia: z.string().url(),
+            candidateId: z.string().min(1).optional(),
+            contestId: z.string().min(1).optional(),
           })
-          .strict(),
+          .strict()
+          .refine(
+            (doc) => !!doc.candidateId !== !!doc.contestId,
+            "Bind a document to exactly one candidate or contest",
+          )
+          .refine(
+            (doc) => doc.type === "questionnaire" || !doc.candidateId,
+            "Debates have several speakers; bind them to a contest",
+          ),
       )
       .default([]),
     // Exact network hosts, in addition to static provider hosts. Do not auto-add hosts from search results.

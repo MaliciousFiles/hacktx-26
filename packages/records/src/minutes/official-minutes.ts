@@ -31,21 +31,57 @@ const configSchema = z.object({
 
 export type OfficialMinutesConfig = z.infer<typeof configSchema>;
 
-function meetingDateFromText(plain: string, fallback?: string): string | undefined {
-  const named = plain.match(
-    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})\b/i,
-  );
-  if (named) {
-    const months: Record<string, string> = {
-      january: "01", february: "02", march: "03", april: "04", may: "05", june: "06",
-      july: "07", august: "08", september: "09", october: "10", november: "11", december: "12",
-    };
-    const month = months[named[1].toLowerCase()];
-    if (month) return isoDate(`${named[3]}-${month}-${named[2].padStart(2, "0")}`);
-  }
-  const iso = plain.match(/\b(20\d{2}|19\d{2})-(\d{2})-(\d{2})\b/);
-  if (iso) return isoDate(iso[0]);
-  return fallback;
+const MONTHS: Record<string, string> = {
+  january: "01", february: "02", march: "03", april: "04", may: "05", june: "06",
+  july: "07", august: "08", september: "09", october: "10", november: "11", december: "12",
+};
+const MONTH = "January|February|March|April|May|June|July|August|September|October|November|December";
+
+function namedDate(month: string, day: string, year: string): string | undefined {
+  const mm = MONTHS[month.toLowerCase()];
+  if (!mm) return undefined;
+  try { return isoDate(`${year}-${mm}-${day.padStart(2, "0")}`); } catch { return undefined; }
+}
+
+/** Parse a single date string (e.g. an extracted vote-date span). */
+function parseDateValue(value: string): string | undefined {
+  const named = new RegExp(`\\b(${MONTH})\\s+(\\d{1,2}),\\s+(\\d{4})\\b`, "i").exec(value);
+  if (named) return namedDate(named[1]!, named[2]!, named[3]!);
+  const iso = /\b(?:20|19)\d{2}-\d{2}-\d{2}\b/.exec(value);
+  try { return iso ? isoDate(iso[0]) : undefined; } catch { return undefined; }
+}
+
+/**
+ * Meeting date from the minutes heading only: a date on the same line as
+ * "Meeting"/"Minutes" near the top. The first date anywhere can be "approve
+ * the minutes of May 3", a posting date, or a future hearing. A verified
+ * configured meetingDate takes precedence.
+ */
+function meetingDateFromText(plain: string, configured?: string): string | undefined {
+  if (configured) return isoDate(configured);
+  const head = plain.slice(0, 800);
+  const heading = new RegExp(
+    `^[^\\n]*\\b(?:meeting|minutes|session)\\b[^\\n\\d]{0,60}?(${MONTH})\\s+(\\d{1,2}),\\s+(\\d{4})|^\\s*(${MONTH})\\s+(\\d{1,2}),\\s+(\\d{4})[^\\n]{0,60}\\b(?:meeting|session)\\b`,
+    "im",
+  ).exec(head);
+  if (!heading) return undefined;
+  if (/approv/i.test(heading[0])) return undefined; // "approval of minutes of …"
+  return heading[1]
+    ? namedDate(heading[1], heading[2]!, heading[3]!)
+    : namedDate(heading[4]!, heading[5]!, heading[6]!);
+}
+
+/**
+ * LLM spans must describe one coherent vote: member and vote on the same line
+ * and close together, motion text before the member. Prevents pairing an
+ * attendance-list name with "Aye" from a different sentence.
+ */
+function coherentLlmVote(text: string, vote: { member: { start: number; end: number }; vote: { start: number; end: number }; motion: { start: number; end: number } }): boolean {
+  const [a, b] = vote.member.start < vote.vote.start ? [vote.member, vote.vote] : [vote.vote, vote.member];
+  const between = text.slice(a.end, b.start);
+  return between.length <= 40 && !between.includes("\n") &&
+    vote.motion.end <= Math.min(vote.member.start, vote.vote.start) &&
+    Math.min(vote.member.start, vote.vote.start) - vote.motion.end <= 400;
 }
 
 function hostOk(url: string, suffixes?: string[]): boolean {
@@ -118,9 +154,9 @@ export function createOfficialMinutesAdapter(llm?: SemanticExtractor): RecordsAd
             if (!labels.has(normalizeName(vote.member.value))) continue;
             const valueToken = normalizeVoteToken(vote.vote.value);
             if (valueToken === "other") continue;
-            const voteDate = vote.date
-              ? (meetingDateFromText(vote.date.value) ?? date)
-              : date;
+            if (extracted.method === "llm" && !coherentLlmVote(plain, vote)) continue;
+            const parsedVoteDate = vote.date ? parseDateValue(vote.date.value) : undefined;
+            const voteDate = parsedVoteDate ?? date;
             if (!inWindow(voteDate, context.window)) continue;
 
             const id = `minutes:${createHash("sha256").update(JSON.stringify([
@@ -140,15 +176,17 @@ export function createOfficialMinutesAdapter(llm?: SemanticExtractor): RecordsAd
               officialText: vote.motion.value.replace(/\s+/g, " ").trim() || vote.motion.value,
               sourceUrl: snapshot.sourceUrl,
               extraction: isPdf ? "pdf" : "html",
-              dateBasis: vote.date ? "action_date" : "document_date",
+              dateBasis: parsedVoteDate ? "action_date" : "document_date",
               consent: vote.consent === true ? true : undefined,
               attribution: { method: "named_record", sourceActorId: vote.member.value },
               vote: {
                 value: valueToken,
                 raw: vote.vote.value,
                 question: vote.motion.value,
-                questionBasis: "vote_question",
-                method: "roll_call",
+                // Text preceding the vote row; not a verified motion caption.
+                questionBasis: "document_title",
+                // Named member rows are a recorded vote; model-extracted ones aren't verified as such.
+                method: extracted.method === "llm" ? "unknown" : "roll_call",
               },
               provenance: [
                 provenance(snapshot, methodTag, textSpanLocator(vote.member.start, vote.member.end)),

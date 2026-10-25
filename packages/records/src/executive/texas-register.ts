@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { AdapterContext, AdapterResult, RecordsAdapter } from "../adapters";
 import { htmlToPlainText, textSpanLocator, uniqueSpan } from "../document";
 import { inWindow, normalizeName, provenance } from "../model";
-import { hostAllowed, officialHttps, parsePrintedDate, tenureSchema } from "./shared";
+import { headingDateFromText, hostAllowed, officialHttps, signedDateFromText, tenureSchema } from "./shared";
 
 const adapterVersion = "texas-register/v1";
 
@@ -16,7 +16,9 @@ const configSchema = z.object({
   /** Actor name that must appear in the section body. */
   actorLabels: z.array(z.string().trim().min(1)).min(1),
   memberCandidateId: z.string().trim().min(1),
-  tenure: tenureSchema.optional(),
+  /** Required: these are acts of an office holder (appointments, orders), so a
+   * name appearing in the section is not enough to attribute them. */
+  tenure: tenureSchema,
   actionType: z.enum([
     "executive_order", "legal_opinion", "appointment", "signed", "rule_vote",
   ]).default("appointment"),
@@ -60,21 +62,25 @@ export const texasRegisterAdapter: RecordsAdapter = {
           continue;
         }
         const body = plain.slice(sectionHit.index, sectionHit.index + 8000);
-        const actor = config.actorLabels.find((label) => body.toLocaleLowerCase("en-US").includes(normalizeName(label)));
+        // Whole-word, exactly printed label. A substring match would also hit
+        // mentions like "appointed by Governor X" in someone else's entry.
+        const actor = config.actorLabels.find((label) =>
+          new RegExp(`(?<![\\p{L}])${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "u").test(body),
+        );
         if (!actor || !labels.has(normalizeName(actor))) {
           problems.push(`Named actor not present in ${config.section} section`);
           continue;
         }
-        const date = parsePrintedDate(body) ?? parsePrintedDate(plain);
+        // Heading/signing date only; the first date in a section can be a term
+        // expiration ("for a term to expire February 1, 2031") or a recital.
+        const date = headingDateFromText(body, "Appointments?") ?? signedDateFromText(body);
         if (!date) {
-          problems.push(`No printed date near ${config.section}`);
+          problems.push(`No heading or signing date in ${config.section}`);
           continue;
         }
-        if (config.tenure) {
-          if (date < config.tenure.start || (config.tenure.end && date > config.tenure.end)) {
-            problems.push(`Register date ${date} outside verified tenure`);
-            continue;
-          }
+        if (date < config.tenure.start || (config.tenure.end && date > config.tenure.end)) {
+          problems.push(`Register date ${date} outside verified tenure`);
+          continue;
         }
         if (!inWindow(date, context.window)) continue;
 

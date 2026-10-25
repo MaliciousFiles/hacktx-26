@@ -310,6 +310,7 @@ describe("tloBillHistoryAdapter attribution (synthetic records)", () => {
       memberName: "Smith",
       memberCandidateId: context.request.candidate.id,
       memberIdentitySourceUrl: crosswalkUrl,
+      memberSessions: ["89R"],
     });
     expect(result.actions).toHaveLength(1);
     expect(result.actions[0].attribution).toEqual({
@@ -350,6 +351,7 @@ describe("tloBillHistoryAdapter attribution (synthetic records)", () => {
         memberName: "Smith",
         memberCandidateId: context.request.candidate.id,
         memberIdentitySourceUrl: crosswalkUrl,
+        memberSessions: ["89R"],
       };
       expect((await tloBillHistoryAdapter.collect(context, boundConfig)).actions).toHaveLength(1);
       const otherContext: AdapterContext = {
@@ -362,6 +364,19 @@ describe("tloBillHistoryAdapter attribution (synthetic records)", () => {
       expect(result.status).toBe("needs_review");
     },
   );
+
+  it("does not apply a surname crosswalk outside the sessions it was verified for", async () => {
+    const { context, config } = setup(xml({ authors: "Smith | Doe" }));
+    const result = await tloBillHistoryAdapter.collect(context, {
+      ...config,
+      memberName: "Smith",
+      memberCandidateId: context.request.candidate.id,
+      memberIdentitySourceUrl: crosswalkUrl,
+      memberSessions: ["88R"],
+    });
+    expect(result.actions).toEqual([]);
+    expect(result.reason).toContain("outside the verified memberSessions");
+  });
 
   it("does not accept candidate binding in place of an official identity evidence URL", async () => {
     const { context, config } = setup(xml({ authors: "Smith" }));

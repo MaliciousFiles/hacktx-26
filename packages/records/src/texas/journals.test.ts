@@ -56,7 +56,22 @@ describe("deterministic journal parsers", () => {
     expect(votes[1].sameAsPrevious).toBe(true);
     expect(votes[1].no).toEqual(["Cook", "Eckhardt"]);
     expect(votes[2]).toMatchObject({ deemedYeaExcept: true, no: ["Eckhardt"], yes: [] });
-    expect(votes[3].no).toEqual(["Cook"]);
+    // "asked to be recorded" is not a roll-call vote and could contradict one.
+    expect(votes).toHaveLength(3);
+  });
+
+  it("never reads Present names or question text across record boundaries", () => {
+    const plain = `
+HB 1 passed by (Record 10): 1 Yeas, 0 Nays.
+Yeas — Alders.
+${"x".repeat(150)} filler then (Record 11): 1 Yeas, 0 Nays, 1 Present, not voting.
+Yeas — Cain.
+Present, not voting — Buckley.
+`;
+    const votes = parseHouseJournalVotes(plain, "2025-04-14");
+    expect(votes[0]!.present).toEqual([]);
+    expect(votes[1]!.present).toEqual(["Buckley"]);
+    expect(votes[1]!.question).not.toContain("Alders");
   });
 });
 

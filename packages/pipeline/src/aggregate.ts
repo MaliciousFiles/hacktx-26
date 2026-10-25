@@ -58,25 +58,44 @@ function recencyDecay(eventDate: EventDate, asOfDate: string): Prob {
 
 // ── Evidence weight ────────────────────────────────────────────────────────────
 
+const NEAR_ZERO = 0.02; // draft; freeze in prereg.yaml
+const VOTE_TYPES = new Set<OfficialAction["type"]>([
+  "floor_vote",
+  "committee_vote",
+  "board_vote",
+  "rule_vote",
+  "permit_vote",
+  "budget_vote",
+]);
+
 /**
  * Action evidence outweighs voice (Invariant 12).
  * Contested votes (margin recorded, minority ≥10%) outweigh unanimous.
  */
-function evidenceWeight(ev: Evidence, actions: OfficialAction[], asOfDate: string): number {
-  let base = ev.kind === "action" ? 2.0 : 1.0;
-
-  // Find linked action to check if contested
-  if (ev.actionId) {
-    const action = actions.find((a) => a.id === ev.actionId);
-    if (action?.margin) {
-      const total = action.margin.yes + action.margin.no;
-      const minority = Math.min(action.margin.yes, action.margin.no);
-      const isContested = total > 0 && minority / total >= 0.1;
-      base *= isContested ? 1.5 : 0.5; // unanimous votes weigh about 0 relative
-    }
+function actionFactor(ev: Evidence, actions: OfficialAction[]): number {
+  // Invariant 12: contested recorded votes outweigh unanimous, voice and consent
+  // votes, which weigh about 0. A vote without a recorded margin can't be shown
+  // to be contested, so it doesn't get contested weight either.
+  if (!ev.actionId) return 1;
+  const action = actions.find((a) => a.id === ev.actionId);
+  const isVote = !!action && VOTE_TYPES.has(action.type);
+  if (action?.consent || action?.vote?.method === "voice") return NEAR_ZERO;
+  if (action?.margin) {
+    const total = action.margin.yes + action.margin.no;
+    const minority = Math.min(action.margin.yes, action.margin.no);
+    return total > 0 && minority / total >= 0.1 ? 1.5 : NEAR_ZERO;
   }
+  return isVote ? NEAR_ZERO : 1;
+}
 
-  return base * ev.relevance * recencyDecay(ev.eventDate, asOfDate);
+/** A near-zero-weight act (e.g. unanimous vote) isn't an independent stance event. */
+function countsAsEvent(ev: Evidence, actions: OfficialAction[]): boolean {
+  return actionFactor(ev, actions) > NEAR_ZERO;
+}
+
+function evidenceWeight(ev: Evidence, actions: OfficialAction[], asOfDate: string): number {
+  const base = ev.kind === "action" ? 2.0 : 1.0;
+  return base * actionFactor(ev, actions) * ev.relevance * recencyDecay(ev.eventDate, asOfDate);
 }
 
 // ── Stance aggregation ─────────────────────────────────────────────────────────
@@ -114,7 +133,9 @@ function aggregateStances(
     const position: Position = totalWeight > 0 ? weightedPos / totalWeight : 0;
 
     // evidenceStrength = distinct source breadth + recency + agreement (not model confidence)
-    const distinctEvents = new Set(evs.map((e) => eventIds[e.id] ?? e.sourceId)).size;
+    const distinctEvents = new Set(
+      evs.filter((e) => countsAsEvent(e, actions)).map((e) => eventIds[e.id] ?? e.sourceId),
+    ).size;
     const meanPosition = evs.reduce((sum, ev) => sum + ev.position, 0) / evs.length;
     const spread = Math.sqrt(
       evs.reduce((sum, ev) => sum + (ev.position - meanPosition) ** 2, 0) / evs.length,
@@ -141,6 +162,7 @@ function aggregateStances(
 
 function computeEvidenceState(
   evidence: Evidence[],
+  actions: OfficialAction[],
   eventIds: Record<string, string> = {},
 ): { overall: EvidenceState; byIssue: Record<IssueId, EvidenceState> } {
   const issueGroups = new Map<IssueId, Evidence[]>();
@@ -152,7 +174,9 @@ function computeEvidenceState(
 
   const byIssue: Record<IssueId, EvidenceState> = {};
   for (const [issueId, evs] of issueGroups) {
-    const distinctSources = new Set(evs.map((e) => eventIds[e.id] ?? e.sourceId)).size;
+    const distinctSources = new Set(
+      evs.filter((e) => countsAsEvent(e, actions)).map((e) => eventIds[e.id] ?? e.sourceId),
+    ).size;
     if (distinctSources >= SUFFICIENT_EVENTS_PER_ISSUE) byIssue[issueId] = "sufficient";
     else if (evs.length > 0) byIssue[issueId] = "thin";
     else byIssue[issueId] = "none";
@@ -171,30 +195,46 @@ function computeEvidenceState(
 
 // ── Says vs. Does ──────────────────────────────────────────────────────────────
 
+/** Independent events required on EACH side before a Says vs. Does gap is shown (draft). */
+const SAYS_DOES_MIN_EVENTS = 2;
+
 function computeSaysVsDoes(
   stances: Record<IssueId, StanceAgg>,
   evidence: Evidence[],
+  actions: OfficialAction[],
+  asOfDate: string,
+  eventIds: Record<string, string> = {},
 ): SaysVsDoes[] {
   const result: SaysVsDoes[] = [];
+  const weightedMean = (evs: Evidence[]): Position | undefined => {
+    let sum = 0;
+    let total = 0;
+    for (const ev of evs) {
+      const w = evidenceWeight(ev, actions, asOfDate);
+      sum += ev.position * w;
+      total += w;
+    }
+    return total > 0 ? sum / total : undefined;
+  };
+  const events = (evs: Evidence[]) =>
+    new Set(evs.filter((e) => countsAsEvent(e, actions)).map((e) => eventIds[e.id] ?? e.sourceId))
+      .size;
 
-  const issueIds = Object.keys(stances) as IssueId[];
-  for (const issueId of issueIds) {
-    const voiceEvs = evidence.filter((e) => e.issueId === issueId && e.kind === "voice");
-    const actionEvs = evidence.filter((e) => e.issueId === issueId && e.kind === "action");
-    const socialEvs = evidence.filter(
-      (e) =>
-        e.issueId === issueId &&
-        (e.sourceType === "social_post" || e.sourceType === "social_snippet"),
-    );
+  for (const issueId of Object.keys(stances) as IssueId[]) {
+    const onIssue = evidence.filter((e) => e.issueId === issueId);
+    // Truncated search snippets are leads, not a full statement.
+    const voiceEvs = onIssue.filter((e) => e.kind === "voice" && e.sourceType !== "social_snippet");
+    const actionEvs = onIssue.filter((e) => e.kind === "action");
+    const socialEvs = voiceEvs.filter((e) => e.sourceType === "social_post");
 
-    if (actionEvs.length < 1 || voiceEvs.length < 1) continue; // need both to compute gap
-
-    const says = voiceEvs.reduce((s, e) => s + e.position, 0) / voiceEvs.length;
-    const does = actionEvs.reduce((s, e) => s + e.position, 0) / actionEvs.length;
-    const social =
-      socialEvs.length > 0
-        ? socialEvs.reduce((s, e) => s + e.position, 0) / socialEvs.length
-        : undefined;
+    // Only with adequate independent evidence on BOTH sides (PLAN §6.9). One
+    // speech vs. one unanimous vote is not a measurable gap.
+    if (events(voiceEvs) < SAYS_DOES_MIN_EVENTS || events(actionEvs) < SAYS_DOES_MIN_EVENTS)
+      continue;
+    const says = weightedMean(voiceEvs);
+    const does = weightedMean(actionEvs);
+    if (says === undefined || does === undefined) continue;
+    const social = socialEvs.length ? weightedMean(socialEvs) : undefined;
 
     result.push({
       issueId,
@@ -350,18 +390,27 @@ export function aggregateCandidate(
   const stances = aggregateStances(input.evidence, input.actions, input.asOfDate, input.eventIds);
   const { overall: evidenceState, byIssue: issueEvidenceState } = computeEvidenceState(
     input.evidence,
+    input.actions,
     input.eventIds,
   );
-  const coverage = evidenceState === "none" ? "objective_only" : "full";
+  // Invariant 1: thin evidence abstains to Objective Info Mode rather than comparing.
+  const coverage = evidenceState === "sufficient" ? "full" : "objective_only";
 
-  // PresentedEvidence: redact quote text, keep everything else
+  // Verbatim excerpt; callers must run the identity redactor/leak gate before
+  // serializing, and then mark the excerpt redacted.
   const presentedEvidence: PresentedEvidence[] = input.evidence.map((ev) => {
     const { quote, ...rest } = ev;
     return { ...rest, excerpt: quote, redacted: false };
   });
 
   const specificity = computeSpecificity(input.evidence);
-  const saysVsDoes = computeSaysVsDoes(stances, input.evidence);
+  const saysVsDoes = computeSaysVsDoes(
+    stances,
+    input.evidence,
+    input.actions,
+    input.asOfDate,
+    input.eventIds,
+  );
   const funding = aggregateFunding(
     input.moneyFlows,
     input.entities,

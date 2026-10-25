@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { AdapterContext, AdapterResult, RecordsAdapter } from "../adapters";
 import { htmlToPlainText, textSpanLocator } from "../document";
 import { inWindow, provenance } from "../model";
-import { hostAllowed, officialHttps, parsePrintedDate, tenureSchema } from "./shared";
+import { hostAllowed, officialHttps, signedDateFromText, tenureSchema } from "./shared";
 
 const adapterVersion = "governor-orders/v1";
 
@@ -46,9 +46,10 @@ export const governorOrdersAdapter: RecordsAdapter = {
           problems.push(`Document is not an executive order/proclamation: ${url}`);
           continue;
         }
-        const date = parsePrintedDate(plain);
+        // Only the signing phrase; a WHEREAS recital date is not when the order was issued.
+        const date = signedDateFromText(plain);
         if (!date) {
-          problems.push(`No printed date in ${url}`);
+          problems.push(`No signing/issuance date phrase in ${url}`);
           continue;
         }
         if (date < config.tenure.start || (config.tenure.end && date > config.tenure.end)) {

@@ -30,17 +30,26 @@ export async function runCli(): Promise<void> {
       config: { type: "string" },
       out: { type: "string", default: "dist" },
       offline: { type: "boolean", default: false },
+      concurrency: { type: "string", default: "3" },
+      "research-only": { type: "boolean", default: false },
       fixture: { type: "boolean", default: false },
       help: { type: "boolean", short: "h" },
     },
   });
   if (values.help || (!values.config && !values.fixture)) {
     console.log(
-      "Usage: pnpm -F @ftb/pipeline start --config <verified-ballot-run.json> [--out dist] [--offline]\nExplicit synthetic fixture mode: pnpm -F @ftb/pipeline start --fixture",
+      "Usage: pnpm -F @ftb/pipeline start --config <verified-ballot-run.json> [--out dist] [--offline] [--concurrency 1-16]\nExplicit synthetic fixture mode: pnpm -F @ftb/pipeline start --fixture",
     );
     process.exitCode = values.help ? 0 : 1;
     return;
   }
+  const acquisitionConcurrency = Number(values.concurrency);
+  if (
+    !Number.isInteger(acquisitionConcurrency) ||
+    acquisitionConcurrency < 1 ||
+    acquisitionConcurrency > 16
+  )
+    throw new Error("--concurrency must be an integer from 1 to 16");
   if (values.fixture) {
     if (values.config) throw new Error("Fixture and live config modes are mutually exclusive");
     const payload = JSON.parse(
@@ -82,9 +91,11 @@ export async function runCli(): Promise<void> {
       issues: z.array(
         z.object({
           id: z.string(),
+          parentId: z.string().optional(),
+          label: z.string(),
           negativePole: z.string(),
           positivePole: z.string(),
-          levels: z.array(z.string()),
+          levels: z.array(z.enum(["federal", "state", "local"])),
         }),
       ),
     })
@@ -98,6 +109,9 @@ export async function runCli(): Promise<void> {
   const result = await runBallotPipeline(spec, {
     directory: resolve(values.out),
     offline: values.offline,
+    researchOnly: values["research-only"],
+    acquisitionConcurrency,
+    onProgress: (message) => console.error(`[${new Date().toISOString()}] ${message}`),
     gitSha,
     env: process.env,
     policy: {

@@ -38,6 +38,28 @@ export function issueAlignment(user: Position, candidate: Position): Prob {
  * with the dimension string), keeping them separate from policy vectors.
  * skip → null (missing, not neutral).
  */
+/** Draft constants; freeze in prereg.yaml (PLAN.md §6). */
+export const SCORING_DRAFT = {
+  /** ⭐ multiplies an issue's salience. It never changes direction. */
+  starMultiplier: 2,
+  /** Cards needed for full count-based certainty. */
+  cardsForFullCertainty: 3,
+  /** User certainty required for an issue to enter the alignment score. */
+  minUserCertainty: 0.3,
+  /** Comparable sufficient issues required for a bucket (§6.6). */
+  minIssues: 3,
+  /** Distance to a bucket cutoff treated as near-threshold uncertainty. */
+  cloudedMargin: 0.03,
+  /** Below this clarity, a near-threshold score is Clouded rather than a bucket. */
+  cloudedClarity: 0.7,
+} as const;
+
+function cardIssues(card: PolicyCard): IssueId[] {
+  if (card.kind === "pole") return Object.keys(card.vector);
+  if (card.kind === "tradeoff") return [...card.policyIssues, ...card.costIssues];
+  return [`judicial.${card.dimension}`];
+}
+
 export function computeUserVector(
   swipes: Swipe[],
   cards: PolicyCard[],
@@ -45,44 +67,52 @@ export function computeUserVector(
 ): UserVector {
   const cardMap = new Map<string, PolicyCard>(cards.map((c) => [c.id, c]));
 
-  // accumulate weighted sums per issue
-  const sums: Record<IssueId, { weightedPos: number; totalWeight: number; count: number }> = {};
+  // Pole/judicial choices per issue: [position, weight]
+  const picks: Record<IssueId, [Position, number][]> = {};
+  // ⭐ on any card kind (including a tradeoff or a skip) marks its issues as important.
+  const starred = new Set<IssueId>();
 
   for (const swipe of swipes) {
-    if (swipe.kind === "tradeoff") continue; // no signed vector
-    if (swipe.chosen === "skip") continue;
-
     const card = cardMap.get(swipe.cardId);
     if (!card) continue;
+    if (swipe.starred) for (const issueId of cardIssues(card)) starred.add(issueId);
+
+    if (swipe.kind === "tradeoff") continue; // no signed vector, by contract
+    if (swipe.chosen === "skip") continue; // missing, not neutral
 
     if (swipe.kind === "pole" && card.kind === "pole") {
-      const poleCard = card as PoleCard;
-      for (const [issueId, mapping] of Object.entries(poleCard.vector)) {
-        const pos: Position = swipe.chosen === "a" ? mapping.a : mapping.b;
-        const w = mapping.weight;
-        if (!sums[issueId]) sums[issueId] = { weightedPos: 0, totalWeight: 0, count: 0 };
-        sums[issueId].weightedPos += pos * w;
-        sums[issueId].totalWeight += w;
-        sums[issueId].count += 1;
+      for (const [issueId, mapping] of Object.entries((card as PoleCard).vector)) {
+        if (!(mapping.weight > 0)) continue; // a zero-weight mapping is not a stance
+        (picks[issueId] ??= []).push([
+          swipe.chosen === "a" ? mapping.a : mapping.b,
+          mapping.weight,
+        ]);
       }
     }
 
     if (swipe.kind === "judicial_pole" && card.kind === "judicial_pole") {
       const issueId: IssueId = `judicial.${card.dimension}`;
-      const pos: Position = swipe.chosen === "a" ? card.coordinates.a : card.coordinates.b;
-      if (!sums[issueId]) sums[issueId] = { weightedPos: 0, totalWeight: 0, count: 0 };
-      sums[issueId].weightedPos += pos;
-      sums[issueId].totalWeight += 1;
-      sums[issueId].count += 1;
+      (picks[issueId] ??= []).push([
+        swipe.chosen === "a" ? card.coordinates.a : card.coordinates.b,
+        1,
+      ]);
     }
   }
 
   const vector: UserVector = {};
-  for (const [issueId, { weightedPos, totalWeight, count }] of Object.entries(sums)) {
-    const position: Position = totalWeight > 0 ? weightedPos / totalWeight : 0;
-    // userCertainty: scales with number of independent cards (low at 1, higher with more)
-    const userCertainty: Prob = Math.min(1, count / 3);
-    const sal = salience[issueId] ?? 1;
+  for (const [issueId, list] of Object.entries(picks)) {
+    const totalWeight = list.reduce((sum, [, w]) => sum + w, 0);
+    if (!(totalWeight > 0)) continue;
+    const position: Position = list.reduce((sum, [p, w]) => sum + p * w, 0) / totalWeight;
+    // Certainty needs both several independent cards AND consistent answers:
+    // contradictory picks (+1, −1, +1) must not look certain.
+    const variance = list.reduce((sum, [p, w]) => sum + w * (p - position) ** 2, 0) / totalWeight;
+    const consistency = 1 - Math.min(1, Math.sqrt(variance));
+    const userCertainty: Prob =
+      Math.min(1, list.length / SCORING_DRAFT.cardsForFullCertainty) * consistency;
+    const sal =
+      Math.max(0, salience[issueId] ?? 1) *
+      (starred.has(issueId) ? SCORING_DRAFT.starMultiplier : 1);
     vector[issueId] = { position, userCertainty, salience: sal };
   }
 
@@ -93,9 +123,11 @@ export function computeUserVector(
 // ── §6.5 Matching ─────────────────────────────────────────────────────────────
 
 /**
- * Per-issue proximity averaged, weighted by salience × candidate evidenceStrength.
- * Missing issues must NOT improve alignment.
- * Only issues where BOTH user and candidate have evidence are compared.
+ * Per-issue proximity averaged, weighted by salience × user certainty × candidate
+ * evidenceStrength (§6.5). Missing issues must NOT improve alignment.
+ * Only issues where the candidate's stance is `sufficient` and the user's
+ * certainty clears the threshold are compared. Without enough comparable issues,
+ * the result is Clouded: no comparison, never a negative verdict.
  */
 export function computeMatchResult(
   userVector: UserVector,
@@ -107,27 +139,31 @@ export function computeMatchResult(
 ): MatchResult {
   let weightedSum = 0;
   let totalWeight = 0;
+  let qualitySum = 0;
   let issuesCompared = 0;
 
   for (const [issueId, userStance] of Object.entries(userVector)) {
     if (!userStance) continue; // skip — not neutral
     const candidateStance = stances[issueId];
     if (!candidateStance) continue; // missing → does not improve score
-    const evState = issueEvidenceState[issueId];
-    if (evState === "none") continue; // no defensible comparison
+    if (issueEvidenceState[issueId] !== "sufficient") continue; // thin/none: no defensible comparison
+    if (userStance.userCertainty < SCORING_DRAFT.minUserCertainty) continue;
 
+    const quality = userStance.userCertainty * candidateStance.evidenceStrength;
+    const weight = userStance.salience * quality;
+    if (!(weight > 0)) continue;
     const proximity = issueAlignment(userStance.position, candidateStance.position);
-    const weight = userStance.salience * candidateStance.evidenceStrength;
     weightedSum += proximity * weight;
     totalWeight += weight;
+    qualitySum += quality;
     issuesCompared += 1;
   }
 
+  const sufficient = issuesCompared >= SCORING_DRAFT.minIssues;
+  // matchClarity reflects coverage and evidence quality, not model confidence.
+  const matchClarity: Prob = sufficient ? clampProb(qualitySum / issuesCompared) : 0;
   const avgProximity: Prob = totalWeight > 0 ? weightedSum / totalWeight : 0;
-  const bucket = proximityToBucket(avgProximity);
-
-  // matchClarity = coverage × average evidenceStrength
-  const matchClarity: Prob = issuesCompared >= 3 ? Math.min(1, totalWeight / issuesCompared) : 0;
+  const bucket: Bucket = sufficient ? proximityToBucket(avgProximity, matchClarity) : "clouded";
 
   return {
     candidateId,
@@ -184,14 +220,26 @@ export function computeContestMatch(
     results.push(result);
   }
 
+  // Only claim "no strong match" when every candidate was actually compared with
+  // sufficient coverage and none is (or might be, near a threshold) ≥ 0.80.
   const noStrongMatch =
     results.length > 0 &&
-    results.every((r) => r.bucket !== "happily_ever_after" || r.matchClarity === 0);
+    results.every(
+      (r) => r.matchClarity > 0 && r.bucket !== "happily_ever_after" && r.bucket !== "clouded",
+    );
 
   return { contestId: contest.id, results, noStrongMatch };
 }
 
-function proximityToBucket(avg: Prob): Bucket {
+const CUTOFFS = [0.8, 0.6, 0.4] as const;
+
+function proximityToBucket(avg: Prob, clarity: Prob): Bucket {
+  // Near-threshold with modest clarity: don't pretend to know which side it falls on.
+  if (
+    clarity < SCORING_DRAFT.cloudedClarity &&
+    CUTOFFS.some((cutoff) => Math.abs(avg - cutoff) < SCORING_DRAFT.cloudedMargin)
+  )
+    return "clouded";
   if (avg >= 0.8) return "happily_ever_after";
   if (avg >= 0.6) return "good_company";
   if (avg >= 0.4) return "different_paths";

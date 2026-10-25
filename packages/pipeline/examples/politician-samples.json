@@ -1,0 +1,200 @@
+{
+  "releaseId": "politician-review-2026-10-24-v1",
+  "asOfDate": "2026-10-24",
+  "campaignWindow": { "since": "2025-11-08", "until": "2026-11-03" },
+  "election": { "month": 11, "year": 2026 },
+  "demo": true,
+  "ballot": {
+    "id": "individual-politician-review-not-a-ballot",
+    "ballotStyleId": "RESEARCH-ONLY-NOT-AN-OFFICIAL-BALLOT-STYLE",
+    "provenance": {
+      "url": "https://fixture.example/individual-politician-review",
+      "verifiedBy": "sample-source-check-not-ballot-certification",
+      "verifiedAt": "2026-10-24"
+    },
+    "contests": [
+      {
+        "id": "review-casar",
+        "title": "Texas U.S. House District 37",
+        "office": "us_house",
+        "officeKind": "legislative",
+        "level": "federal",
+        "districtType": "us_house",
+        "districtId": "37",
+        "jurisdiction": "us/tx",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "sample-casar",
+            "name": "Greg Casar",
+            "identifiers": { "bioguide": "C001131", "austin_council_district": "4" },
+            "incumbent": true,
+            "recordInOffice": "federal"
+          }
+        ]
+      },
+      {
+        "id": "review-qadri",
+        "title": "Austin City Council District 9",
+        "office": "city_council",
+        "officeKind": "legislative",
+        "level": "local",
+        "districtType": "city_council",
+        "districtId": "9",
+        "jurisdiction": "us/tx/austin",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "sample-qadri",
+            "name": "Zohaib Qadri",
+            "aliases": ["Zo Qadri", "Zohaib \"Zo\" Qadri"],
+            "identifiers": { "austin_council_district": "9" },
+            "incumbent": true,
+            "recordInOffice": "local"
+          }
+        ]
+      },
+      {
+        "id": "review-hinojosa",
+        "title": "Texas Governor",
+        "office": "governor",
+        "officeKind": "executive",
+        "level": "state",
+        "districtType": "state",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "sample-hinojosa",
+            "name": "Gina Hinojosa",
+            "incumbent": false,
+            "recordInOffice": "state"
+          }
+        ]
+      }
+    ]
+  },
+  "web": {
+    "allowedPageHosts": [
+      "www.casarforcongress.com",
+      "casarforcongress.com",
+      "www.zoforaustin.com",
+      "zoforaustin.com",
+      "ginafortexas.com",
+      "www.ginafortexas.com",
+      "www.texastribune.org",
+      "texastribune.org",
+      "www.kut.org",
+      "kut.org",
+      "www.statesman.com",
+      "statesman.com",
+      "www.tpr.org",
+      "tpr.org",
+      "www.kvue.com",
+      "kvue.com",
+      "www.kxan.com",
+      "kxan.com",
+      "ballotpedia.org",
+      "www.vote411.org",
+      "vote411.org"
+    ],
+    "speechDomains": ["texastribune.org", "kut.org", "tpr.org", "kvue.com", "kxan.com"],
+    "campaignSites": [
+      {
+        "candidateId": "sample-casar",
+        "url": "https://www.casarforcongress.com/",
+        "verifiedVia": "https://www.casarforcongress.com/about"
+      },
+      {
+        "candidateId": "sample-qadri",
+        "url": "https://www.zoforaustin.com/",
+        "verifiedVia": "https://www.zoforaustin.com/meetzo"
+      },
+      {
+        "candidateId": "sample-hinojosa",
+        "url": "https://ginafortexas.com/",
+        "verifiedVia": "https://ginafortexas.com/"
+      }
+    ],
+    "resultsPerQuery": 5,
+    "maxPagesPerChannel": 3,
+    "maxQuotesPerSource": 10,
+    "maxSocialItems": 10
+  },
+  "records": {
+    "documentCap": 3,
+    "houseRollCap": 3,
+    "includeTloFtp": false,
+    "plans": {
+      "sample-casar": {
+        "since": "2025-01-01",
+        "identity": { "provider": "house", "config": { "state": "TX" } },
+        "sources": [
+          {
+            "id": "house-2025-sequential-rolls-218-220",
+            "adapter": "house-clerk",
+            "config": {
+              "urls": [
+                "https://clerk.house.gov/evs/2025/roll218.xml",
+                "https://clerk.house.gov/evs/2025/roll219.xml",
+                "https://clerk.house.gov/evs/2025/roll220.xml"
+              ],
+              "role": "U.S. House of Representatives"
+            }
+          }
+        ]
+      },
+      "sample-qadri": {
+        "since": "2026-09-01",
+        "sources": [
+          {
+            "id": "austin-recent-votes",
+            "adapter": "socrata-votes",
+            "config": {
+              "endpoint": "https://datahub.austintexas.gov/resource/3c89-i35a.json",
+              "role": "Austin City Council District 9",
+              "candidateDistrict": "9",
+              "pageSize": 1000,
+              "maxPages": 10
+            }
+          }
+        ]
+      },
+      "sample-hinojosa": {
+        "since": "2024-11-01",
+        "sources": [
+          {
+            "id": "tlo-89r-first-three-authored-bills",
+            "adapter": "tlo-billhistory",
+            "config": {
+              "urls": [
+                "ftp://ftp.legis.state.tx.us/bills/89R/billhistory/house_bills/HB01100_HB01199/HB%201157.xml",
+                "ftp://ftp.legis.state.tx.us/bills/89R/billhistory/house_bills/HB01100_HB01199/HB%201159.xml",
+                "ftp://ftp.legis.state.tx.us/bills/89R/billhistory/house_bills/HB01100_HB01199/HB%201161.xml"
+              ],
+              "role": "Texas House District 49",
+              "memberName": "Hinojosa",
+              "memberCandidateId": "sample-hinojosa",
+              "memberSessions": ["89R"],
+              "memberIdentitySourceUrl": "https://house.texas.gov/members/3210/legislation/R"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "analysis": {
+    "mode": "names_and_party",
+    "projectionVersion": "experimental-review-v1-not-evaluated",
+    "approvedBy": "experimental-source-review-only-not-publication",
+    "rubricVersion": "sample-review-v1",
+    "jevModelVersion": "jev-1.14.0",
+    "maxCallsPerCandidate": 60,
+    "lowConfidenceThreshold": 0.8,
+    "fallbackEvaluated": false
+  }
+}

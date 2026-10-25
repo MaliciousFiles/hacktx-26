@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
+import { planSchema } from "@ftb/records";
 import {
   collectVoice,
   FrozenWebClient,
@@ -8,16 +9,27 @@ import {
   scrapeSocial,
   socialFinders,
   SOCIAL_PLATFORMS,
-  type VoiceOptions,
 } from "@ftb/scraping";
-import type { CandidateProfile, Contest, Evidence, OfficialAction, Source } from "@ftb/types";
+import type {
+  CandidateProfile,
+  CitedSentence,
+  Contest,
+  Evidence,
+  Issue,
+  OfficialAction,
+  PresentedEvidence,
+  Source,
+} from "@ftb/types";
+import { buildCardDeck } from "./cards.js";
 import { collectCandidateRecords, scoreDecision, type CandidateRecords } from "./records.js";
-import { classifyOne, type ClassifyConfig } from "./classify.js";
-import { normalizeSource } from "./normalize.js";
+import { classifyOne, screenIssues, type ClassifyConfig, type IssuePoleLabel } from "./classify.js";
+import { normalizeSource, PARTY_LABELS, redactPartyMarkers, redactTerms } from "./normalize.js";
 import { aggregateCandidate } from "./aggregate.js";
 import { validateQuote, identityLeakGate } from "./validate.js";
 import { publishRelease, type PublishPayload } from "./publish.js";
 import { withModelCache } from "./cached_call.js";
+import { SnapshotClient } from "@ftb/records";
+import { mapConcurrent } from "./concurrency.js";
 
 const id = z.string().regex(/^[a-zA-Z0-9_-]+$/);
 const date = z.string().date();
@@ -115,8 +127,18 @@ export const ballotRunSchema = z
                 url: z.string().url(),
                 type: z.enum(["questionnaire", "debate_speech"]),
                 verifiedVia: z.string().url(),
+                candidateId: id.optional(),
+                contestId: id.optional(),
               })
-              .strict(),
+              .strict()
+              .refine(
+                (doc) => !!doc.candidateId !== !!doc.contestId,
+                "Bind a document to exactly one candidate or contest",
+              )
+              .refine(
+                (doc) => doc.type === "questionnaire" || !doc.candidateId,
+                "Debates have several speakers; bind them to a contest",
+              ),
           )
           .default([]),
         resultsPerQuery: z.number().int().min(1).max(100).default(10),
@@ -127,6 +149,7 @@ export const ballotRunSchema = z
       .strict(),
     records: z
       .object({
+        plans: z.record(z.string(), planSchema).optional(),
         since: date.optional(),
         documentCap: z.number().int().positive().default(12),
         houseRollCap: z.number().int().positive().default(12),
@@ -139,14 +162,19 @@ export const ballotRunSchema = z
         mode: z.enum(["names_only", "names_and_party"]),
         projectionVersion: z.string().min(1),
         approvedBy: z.string().min(1),
-        evaluationHash: z.string().regex(/^[a-f0-9]{64}$/),
+        // Required for publishable runs. Omitted only in demo/test runs, which
+        // are then explicitly marked unevaluated (never a real release).
+        evaluationHash: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
         rubricVersion: z.string().min(1),
         jevModelVersion: pinned,
         geminiModelVersion: pinned.optional(),
         ollamaModelVersion: pinned.optional(),
         ollamaModelDigest: z.string().min(1).optional(),
         fallbackEvaluated: z.boolean().default(false),
-        maxCallsPerCandidate: z.number().int().min(1).max(100),
+        maxCallsPerCandidate: z.number().int().min(1).max(1000),
         lowConfidenceThreshold: z.number().min(0.5).max(1),
       })
       .strict()
@@ -168,16 +196,25 @@ export const ballotRunSchema = z
       )
       .default([]),
   })
-  .strict();
+  .strict()
+  .refine((spec) => spec.demo || !spec.analysis || !!spec.analysis.evaluationHash, {
+    message:
+      "Publishable analysis requires the evaluationHash of a completed golden-set evaluation",
+    path: ["analysis", "evaluationHash"],
+  });
 export type BallotRunSpec = z.infer<typeof ballotRunSchema>;
 export interface RunPolicy {
   version: string;
   newsDomains: string[];
   questionnaireDomains: string[];
-  issues: { id: string; negativePole: string; positivePole: string; levels: string[] }[];
+  issues: Issue[];
   versions: Record<string, string>;
 }
 export interface BallotRunOptions {
+  acquisitionConcurrency?: number;
+  /** Produce private review artifacts only. Never emit a serving release. */
+  researchOnly?: boolean;
+  onProgress?: (message: string) => void;
   directory: string;
   offline?: boolean;
   gitSha: string;
@@ -195,6 +232,7 @@ export interface BallotRunOptions {
   collectRecords?: typeof collectCandidateRecords;
   collectVoice?: typeof collectVoice;
   classify?: typeof classifyOne;
+  screen?: typeof screenIssues;
 }
 
 export interface CandidateRunCoverage {
@@ -227,15 +265,49 @@ export function passageSpans(
   return spans;
 }
 
-const fixedLabels = ["Democrat", "Democratic", "Republican", "Libertarian", "Green Party"];
+const fixedLabels = PARTY_LABELS;
+/** Unreviewed actions relevant to more issues than this are treated as omnibus (draft). */
+const MAX_UNREVIEWED_ACTION_ISSUES = 2;
+// Bill/resolution numbers are searchable and identify their sponsors (Invariant 7).
+const BILL_NUMBER =
+  /\b(?:H\.?\s?R\.?|S\.?|H\.?\s?B\.?|S\.?\s?B\.?|H\.?\s?J\.?\s?R\.?|S\.?\s?J\.?\s?R\.?|H\.?\s?C\.?\s?R\.?|S\.?\s?C\.?\s?R\.?|H\.?\s?Res\.?|S\.?\s?Res\.?)\s?\d{1,5}\b/g;
 function redact(text: string, values: string[]): string {
-  for (const value of [...new Set(values)].filter(Boolean).sort((a, b) => b.length - a.length)) {
-    text = text.replace(
-      new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
-      "[REDACTED]",
-    );
+  return redactPartyMarkers(redactTerms(text, values)).replace(BILL_NUMBER, "[MEASURE]");
+}
+
+/**
+ * Deterministic, neutral, cited platform highlights from the candidate's OWN
+ * words (never records, news or opponents). One sentence per compared issue,
+ * built from reviewed pole labels — no generated prose to hallucinate.
+ */
+export function platformHighlights(
+  evidence: PresentedEvidence[],
+  issues: Issue[],
+): CitedSentence[] {
+  const out: CitedSentence[] = [];
+  for (const issue of [...issues].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+    const own = evidence
+      .filter(
+        (item) =>
+          item.issueId === issue.id &&
+          item.kind === "voice" &&
+          item.sourceType !== "social_snippet",
+      )
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    if (!own.length) continue;
+    const position = own.reduce((sum, item) => sum + item.position, 0) / own.length;
+    const text =
+      position >= 0.25
+        ? `On ${issue.label.toLowerCase()}, their own statements favor: ${issue.positivePole}.`
+        : position <= -0.25
+          ? `On ${issue.label.toLowerCase()}, their own statements favor: ${issue.negativePole}.`
+          : `On ${issue.label.toLowerCase()}, their own statements take a mixed or middle position.`;
+    out.push({
+      text,
+      citations: own.slice(0, 3).map((item) => ({ kind: "candidate", id: item.id })),
+    });
   }
-  return text;
+  return out;
 }
 
 function objectiveProfile(
@@ -276,8 +348,13 @@ async function writeFrozenJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, serialized);
 }
 
-export function runBallotPipeline(input: BallotRunSpec, options: BallotRunOptions) {
+export async function runBallotPipeline(input: BallotRunSpec, options: BallotRunOptions) {
   const spec = ballotRunSchema.parse(input);
+  if (spec.analysis && !spec.analysis.evaluationHash && !options.researchOnly) {
+    throw new Error(
+      "Unevaluated demo analysis is research-only; it cannot create a serving release",
+    );
+  }
   return withModelCache(
     {
       directory: join(options.directory, spec.releaseId, "model-cache"),
@@ -315,7 +392,14 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
     )
   )
     throw new Error("Candidate contest missing its official roster");
-  const configHash = hash(JSON.stringify({ spec, policy: options.policy, gitSha: options.gitSha }));
+  const configHash = hash(
+    JSON.stringify({
+      spec,
+      policy: options.policy,
+      gitSha: options.gitSha,
+      researchOnly: options.researchOnly ?? false,
+    }),
+  );
   const runDir = join(options.directory, spec.releaseId);
   await mkdir(runDir, { recursive: true });
   const configPath = join(runDir, "config-hash.txt");
@@ -326,6 +410,12 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   await writeFile(configPath, configHash);
+  await writeFrozenJson(join(runDir, "input.json"), {
+    spec,
+    policy: options.policy,
+    gitSha: options.gitSha,
+    researchOnly: options.researchOnly ?? false,
+  });
   const client =
     options.client ??
     new FrozenWebClient({
@@ -347,66 +437,109 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
     contest.candidates.map((candidate) => ({ contest, candidate })),
   );
   const names = targets.flatMap(({ candidate }) => [candidate.name, ...candidate.aliases]);
-  const privateResearch = [];
-  const allSources: Source[] = [],
-    allActions: OfficialAction[] = [];
-  const coverage: CandidateRunCoverage[] = [];
-  for (const { contest, candidate } of targets) {
-    const records = await (options.collectRecords ?? collectCandidateRecords)(
-      {
-        contestId: contest.id,
-        candidate: {
-          id: candidate.id,
-          name: candidate.name,
-          aliases: candidate.aliases,
-          identifiers: candidate.identifiers,
-        },
-        office: contest.office,
-        jurisdiction: contest.jurisdiction,
-        ...(contest.districtId ? { district: contest.districtId } : {}),
-      },
-      spec.election,
-      {
-        ...spec.records,
-        cacheDirectory: join(runDir, "records-cache"),
-        cacheMode: options.offline ? "offline" : "reuse",
-        congressApiKey: options.env?.CONGRESS_GOV_API_KEY,
-      },
-    );
-    const webOptions: VoiceOptions = {
-      ...spec.web,
-      client,
-      fetchedAt: spec.asOfDate,
-      window,
-      serpApiKey: options.env?.SERPAPI_API_KEY,
-      newsDomains: options.policy.newsDomains,
-      questionnaireDomains: options.policy.questionnaireDomains,
-    };
-    const voice = await (options.collectVoice ?? collectVoice)(
-      {
-        contestId: contest.id,
-        searchContext: `${contest.title} ${contest.jurisdiction.replaceAll("/", " ")}`,
-        request: {
+  const recordsClient = new SnapshotClient({
+    directory: join(runDir, "records-cache"),
+    mode: options.offline ? "offline" : "reuse",
+    intervalMs: 750,
+    retries: 5,
+  });
+  let completed = 0;
+  const acquisitions = await mapConcurrent(
+    targets,
+    options.acquisitionConcurrency ?? 1,
+    async ({ contest, candidate }) => {
+      options.onProgress?.(
+        `[${completed}/${targets.length}] ${candidate.name}: acquisition started`,
+      );
+      const recordsPromise = (options.collectRecords ?? collectCandidateRecords)(
+        {
+          contestId: contest.id,
           candidate: {
             id: candidate.id,
             name: candidate.name,
             aliases: candidate.aliases,
             identifiers: candidate.identifiers,
           },
-          position: {
-            office: contest.office,
-            jurisdiction: contest.jurisdiction,
-            district: contest.districtId,
-          },
-          ...spec.election,
+          office: contest.office,
+          jurisdiction: contest.jurisdiction,
+          ...(contest.districtId ? { district: contest.districtId } : {}),
         },
-      },
-      webOptions,
-    );
+        spec.election,
+        {
+          ...spec.records,
+          plan: spec.records.plans?.[candidate.id],
+          cacheDirectory: join(runDir, "records-cache"),
+          cacheMode: options.offline ? "offline" : "reuse",
+          client: recordsClient.fork(),
+          congressApiKey: options.env?.CONGRESS_GOV_API_KEY,
+          onProgress: (message) => options.onProgress?.(`${candidate.name}: records/${message}`),
+        },
+      );
+      const voicePromise = (options.collectVoice ?? collectVoice)(
+        {
+          contestId: contest.id,
+          searchContext: `${contest.title} ${contest.jurisdiction.replaceAll("/", " ")}`,
+          request: {
+            candidate: {
+              id: candidate.id,
+              name: candidate.name,
+              aliases: candidate.aliases,
+              identifiers: candidate.identifiers,
+            },
+            position: {
+              office: contest.office,
+              jurisdiction: contest.jurisdiction,
+              district: contest.districtId,
+            },
+            ...spec.election,
+          },
+        },
+        {
+          ...spec.web,
+          client,
+          fetchedAt: spec.asOfDate,
+          window,
+          serpApiKey: options.env?.SERPAPI_API_KEY,
+          newsDomains: options.policy.newsDomains,
+          questionnaireDomains: options.policy.questionnaireDomains,
+        },
+      );
+      // Drain both tasks even if one fails: no writes continue after this job rejects.
+      const results = await Promise.allSettled([recordsPromise, voicePromise]);
+      const [recordsResult, voiceResult] = results;
+      if (recordsResult.status === "rejected") throw recordsResult.reason;
+      if (voiceResult.status === "rejected") throw voiceResult.reason;
+      const result = {
+        contestId: contest.id,
+        candidateId: candidate.id,
+        records: recordsResult.value,
+        voice: voiceResult.value,
+      };
+      await mkdir(join(runDir, "candidate-checkpoints"), { recursive: true });
+      await writeFrozenJson(join(runDir, "candidate-checkpoints", `${candidate.id}.json`), {
+        configHash,
+        ...result,
+      });
+      completed++;
+      options.onProgress?.(
+        `[${completed}/${targets.length}] ${candidate.name}: acquisition saved (${result.records.actions.length} actions, ${result.voice.sources.length} web pages)`,
+      );
+      return result;
+    },
+  );
+  const privateResearch = [];
+  const allSources: Source[] = [],
+    allActions: OfficialAction[] = [];
+  const coverage: CandidateRunCoverage[] = [];
+  for (const [index, { contest, candidate }] of targets.entries()) {
+    const { records, voice } = acquisitions[index]!;
     const actions = records.actions.filter(
       (action) => action.actorId === candidate.id && action.date <= spec.asOfDate,
     );
     const actionIds = new Set(actions.map((action) => action.id));
+    options.onProgress?.(
+      `${candidate.name}: ${actions.length} actions, ${voice.sources.length} voice pages`,
+    );
     allActions.push(...actions);
     allSources.push(
       ...records.sources.filter((source) => actionIds.has(source.id.replace(/^src-/, ""))),
@@ -430,7 +563,7 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
           )
           .map((row) => `${row.channel}: ${row.status}`),
         "Finance collection not connected",
-        "Generated highlights/plans and reviewed Explore deck not connected",
+        "Plan Explorer slots (goal/mechanism/cost/funding/timeline) not connected; Explore deck is generated from issues.yaml and still needs human framing review",
         "Debate captions/transcription and unreviewed speaker attribution remain unavailable",
       ],
     });
@@ -466,10 +599,27 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
     ...source,
     contentHash: hash(source.originalText),
   }));
+  await writeFrozenJson(join(runDir, "acquisition.json"), {
+    configHash,
+    demo: spec.demo,
+    sources,
+    actions: allActions,
+    research: privateResearch,
+    social,
+    snapshots: client.snapshots(),
+  });
   const review: { candidateId: string; sourceId?: string; issueId?: string; reason: string }[] = [];
   const rawEvidence: Evidence[] = [];
+  const classificationAttempts: {
+    candidateId: string;
+    sourceId: string;
+    issueId: string;
+    span: { start: number; end: number };
+    result: Awaited<ReturnType<typeof classifyOne>>;
+  }[] = [];
   const eventByEvidence = new Map<string, string>();
   for (const { contest, candidate } of targets) {
+    options.onProgress?.(`${candidate.name}: classifying frozen sources`);
     const row = coverage.find((item) => item.candidateId === candidate.id)!;
     if (!spec.analysis) {
       row.gaps.push("Analysis disabled: no evaluated classification projection configured");
@@ -493,6 +643,28 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
       (issue) => issue.id.includes(".") && issue.levels.includes(contest.level),
     );
     const byText = new Set<string>();
+    const candidateSources = sources.filter(
+      (source) =>
+        source.contestId === contest.id &&
+        (!source.candidateId || source.candidateId === candidate.id),
+    );
+    const hasActions = candidateSources.some(
+      (source) =>
+        source.type === "official_action" &&
+        allActions.some(
+          (action) => `src-${action.id}` === source.id && scoreDecision(action).scorable,
+        ),
+    );
+    const hasVoice = candidateSources.some(
+      (source) =>
+        source.type !== "official_action" &&
+        source.type !== "social_snippet" &&
+        (source.candidateId === candidate.id ||
+          spec.attributions.some(
+            (entry) => entry.sourceId === source.id && entry.candidateId === candidate.id,
+          )),
+    );
+    const sideOperations = { action: 0, voice: 0 };
     for (const source of sources
       .filter((source) => source.contestId === contest.id)
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
@@ -513,11 +685,36 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
           entry.start < entry.end &&
           entry.end <= source.originalText.length,
       );
+      // Official actions were attributed by the records adapter (member ID,
+      // named record or verified tenure, with provenance), so they don't need
+      // a speech-attribution span. They still need a scorable direction.
+      const action =
+        source.type === "official_action"
+          ? allActions.find(
+              (item) => `src-${item.id}` === source.id && item.actorId === candidate.id,
+            )
+          : undefined;
+      // Reserve equal operations for says/does when both are available; an
+      // alphabetically early page must not consume the entire candidate budget.
+      const side = action ? "action" : "voice";
+      const sideCap =
+        hasActions && hasVoice
+          ? Math.floor(spec.analysis.maxCallsPerCandidate / 2)
+          : spec.analysis.maxCallsPerCandidate;
+      const canCall = () =>
+        row.modelCalls < spec.analysis!.maxCallsPerCandidate && sideOperations[side] < sideCap;
+      if (source.type === "official_action") {
+        const decision = action ? scoreDecision(action) : undefined;
+        if (!decision?.scorable) continue; // kept as a citable record, not a stance
+      }
+      // Own speech: the candidate's verified campaign site, verified account
+      // posts, or a questionnaire mapped to this candidate in review.
       const ownSource =
+        !action &&
         approved.length === 0 &&
         source.candidateId === candidate.id &&
-        ["campaign_site", "social_post"].includes(source.type);
-      if (!ownSource && approved.length === 0) {
+        ["campaign_site", "social_post", "questionnaire"].includes(source.type);
+      if (!action && !ownSource && approved.length === 0) {
         review.push({
           candidateId: candidate.id,
           sourceId: source.id,
@@ -525,24 +722,21 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
         });
         continue;
       }
-      // Action interpretation must be reviewed against a specific issue; don't label omnibus bills on every axis.
-      const action =
-        source.type === "official_action"
-          ? allActions.find(
-              (item) => `src-${item.id}` === source.id && item.actorId === candidate.id,
-            )
-          : undefined;
-      if (
-        source.type === "official_action" &&
-        (!action || !scoreDecision(action).scorable || action.issueIds.length === 0)
-      )
-        continue;
-      const ranges = ownSource
-        ? passageSpans(source.originalText)
-        : approved.flatMap((entry) => passageSpans(source.originalText, entry.start, entry.end));
+      const ranges =
+        action || ownSource
+          ? passageSpans(source.originalText)
+          : approved.flatMap((entry) => passageSpans(source.originalText, entry.start, entry.end));
+      // An action's issues: reviewed issueIds if present; otherwise each contest
+      // issue is checked by the relevance gate and omnibus measures are withheld.
+      const actionIssues = action?.issueIds.length
+        ? issues.filter((issue) => action.issueIds.includes(issue.id))
+        : issues;
+      const pending: Evidence[] = [];
       for (const span of ranges) {
         const text = source.originalText.slice(span.start, span.end);
-        const fingerprint = hash(text.replace(/\s+/g, " "));
+        // Each vote is its own event even when bill text repeats; identical
+        // speech passages are classified once.
+        const fingerprint = hash(`${action?.id ?? ""}\u0000${text.replace(/\s+/g, " ")}`);
         if (byText.has(fingerprint)) continue;
         byText.add(fingerprint);
         const view = { ...source, originalText: text, text };
@@ -552,19 +746,46 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
           candidateNames: names,
           partyLabels: fixedLabels,
         });
-        for (const issue of issues.filter(
-          (issue) => !action || action.issueIds.includes(issue.id),
-        )) {
-          if (row.modelCalls >= spec.analysis.maxCallsPerCandidate) break;
+        const config: ClassifyConfig = {
+          ...spec.analysis,
+          jevApiKey: options.env?.JEV_API_KEY ?? "",
+          geminiApiKey: options.env?.GEMINI_API_KEY ?? "",
+          ollamaApiKey: options.env?.OLLAMA_API_KEY,
+          outDir: runDir,
+        };
+        let passageIssues: IssuePoleLabel[] = action ? actionIssues : issues;
+        // One cheap topic-screen call per passage instead of a stance call per
+        // issue. Reviewed action issueIds skip it. Counts toward the budget.
+        const screen = options.screen ?? (options.classify ? undefined : screenIssues);
+        if (screen && !(action && action.issueIds.length)) {
+          if (!canCall()) break;
           row.modelCalls++;
+          sideOperations[side]++;
           try {
-            const config: ClassifyConfig = {
-              ...spec.analysis,
-              jevApiKey: options.env?.JEV_API_KEY ?? "",
-              geminiApiKey: options.env?.GEMINI_API_KEY ?? "",
-              ollamaApiKey: options.env?.OLLAMA_API_KEY,
-              outDir: runDir,
-            };
+            passageIssues = await screen(
+              projection,
+              action ? "measure" : "statement",
+              passageIssues,
+              config,
+            );
+          } catch {
+            review.push({
+              candidateId: candidate.id,
+              sourceId: source.id,
+              reason: "Topic screen unavailable",
+            });
+            continue;
+          }
+        }
+        for (const issue of passageIssues) {
+          if (!canCall()) break;
+          row.modelCalls++;
+          sideOperations[side]++;
+          if (row.modelCalls % 10 === 0)
+            options.onProgress?.(
+              `${candidate.name}: ${row.modelCalls}/${spec.analysis.maxCallsPerCandidate} model operations`,
+            );
+          try {
             const result = await (options.classify ?? classifyOne)(
               projection,
               view,
@@ -574,6 +795,13 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
               action?.id,
               config,
             );
+            classificationAttempts.push({
+              candidateId: candidate.id,
+              sourceId: source.id,
+              issueId: issue.id,
+              span,
+              result,
+            });
             if (!result) continue;
             const quoteStart = text.indexOf(result.quote);
             if (
@@ -615,7 +843,7 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
               const { mirrorDistribution } = await import("./records.js");
               evidence.distribution = mirrorDistribution(evidence.distribution);
             }
-            rawEvidence.push(evidence);
+            pending.push(evidence);
             const approval = approved.find(
               (entry) =>
                 evidence.quoteSpan.start >= entry.start && evidence.quoteSpan.end <= entry.end,
@@ -639,6 +867,19 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
           }
         }
       }
+      // An unreviewed measure relevant to many axes is an omnibus: a vote on it
+      // isn't a position on every topic it touches (PLAN §6.4).
+      const pendingIssues = new Set(pending.map((item) => item.issueId));
+      if (action && !action.issueIds.length && pendingIssues.size > MAX_UNREVIEWED_ACTION_ISSUES) {
+        review.push({
+          candidateId: candidate.id,
+          sourceId: source.id,
+          reason: `Multi-issue/omnibus measure (${pendingIssues.size} issues); needs reviewed issue linkage`,
+        });
+        for (const item of pending) eventByEvidence.delete(item.id);
+        continue;
+      }
+      rawEvidence.push(...pending);
     }
     if (row.modelCalls >= spec.analysis.maxCallsPerCandidate)
       row.gaps.push("Model-call budget reached; analysis is bounded, not exhaustive");
@@ -651,6 +892,7 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
     `c-${hash(`${spec.releaseId}:${candidateId}`).slice(0, 24)}`;
   const sourceUrls = sources.map((source) => source.url);
   const blocklist = { candidateNames: names, partyLabels: fixedLabels, sourceUrls };
+  const candidateAnalysis: Record<string, unknown> = {};
   const profiles: CandidateProfile[] = targets.map(({ contest, candidate }) => {
     const evidence = rawEvidence.filter((item) => item.candidateId === candidate.id);
     const base = objectiveProfile(
@@ -659,8 +901,7 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
       candidate.incumbent,
       candidate.recordInOffice,
     );
-    if (contest.officeKind === "judicial" || contest.candidates.length <= contest.seats)
-      return base;
+    if (contest.officeKind === "judicial") return base;
     const aggregate = aggregateCandidate({
       candidateId: base.id,
       contestId: contest.id,
@@ -673,6 +914,17 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
       asOfDate: spec.asOfDate,
       eventIds: Object.fromEntries(eventByEvidence),
     });
+    // Private, ungated per-candidate view for reviewers (never published).
+    candidateAnalysis[candidate.id] = {
+      evidenceState: aggregate.evidenceState,
+      issueEvidenceState: aggregate.issueEvidenceState,
+      stances: aggregate.stances,
+      saysVsDoes: aggregate.saysVsDoes,
+      platformHighlights: platformHighlights(aggregate.evidence, options.policy.issues),
+      voiceEvidence: evidence.filter((item) => item.kind === "voice").length,
+      actionEvidence: evidence.filter((item) => item.kind === "action").length,
+    };
+    if (contest.candidates.length <= contest.seats) return base; // uncontested: objective info only
     if (aggregate.evidenceState !== "sufficient") return base;
     const independentIssues = Object.keys(aggregate.stances).filter(
       (issueId) =>
@@ -746,7 +998,15 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
         profile.evidence = profile.evidence.filter((evidence) =>
           commonIssues.includes(evidence.issueId),
         );
-        profile.saysVsDoes = []; // independent event/interpretation review needed for a consequential gap flag
+        // Says vs. Does is already gated on adequate independent events on both
+        // sides; restrict it to the issues every candidate is compared on.
+        profile.saysVsDoes = profile.saysVsDoes.filter((item) =>
+          commonIssues.includes(item.issueId),
+        );
+        profile.platformHighlights = platformHighlights(
+          profile.evidence,
+          options.policy.issues.filter((issue) => commonIssues.includes(issue.id)),
+        );
       }
     }
   }
@@ -801,7 +1061,20 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
     },
     contests,
     candidates: profiles,
-    cards: [],
+    // Explore deck: every issue relevant to an office on this ballot, asked even
+    // if no candidate addresses it, plus the judicial deck when needed.
+    cards: buildCardDeck(
+      options.policy.issues.filter((issue) =>
+        issue.levels.some((level) =>
+          spec.ballot.contests.some((contest) => contest.level === level),
+        ),
+      ),
+      {
+        includeJudicial: contests.some(
+          (contest) => contest.officeKind === "judicial" && !contest.unopposed,
+        ),
+      },
+    ),
     citations: [],
   };
   for (const [index, row] of coverage.entries()) row.mode = profiles[index]!.coverage;
@@ -814,11 +1087,37 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
     sources,
     actions: allActions,
     evidence: rawEvidence,
+    classificationAttempts,
     evidenceEvents: Object.fromEntries(eventByEvidence),
+    // Reviewer view: unmasked, ungated; includes uncontested/test candidates.
+    candidateAnalysis,
+    analysisEvaluated: !!spec.analysis?.evaluationHash,
     review,
     snapshots: client.snapshots(),
   };
   await writeFrozenJson(join(runDir, "research.json"), researchArtifact);
+  if (options.researchOnly) {
+    const summary = {
+      releaseId: spec.releaseId,
+      manifestHash: "",
+      demo: spec.demo,
+      researchOnly: true,
+      contests: contests.length,
+      candidates: profiles.length,
+      full: 0,
+      objectiveOnly: profiles.length,
+      cardsAvailable: false,
+      coverage,
+      contestCoverage: contests.map((contest) => ({
+        contestId: contest.id,
+        mode: "research_only",
+        gaps: ["Experimental research only; not a certified ballot or published comparison"],
+      })),
+      publication: "",
+    };
+    await writeFrozenJson(join(runDir, "coverage.json"), summary);
+    return summary;
+  }
   const result = publishRelease(payload, { outDir: runDir, blocklist });
   if (!result.success)
     throw new Error(
@@ -848,7 +1147,7 @@ async function executeBallotPipeline(input: BallotRunSpec, options: BallotRunOpt
     candidates: profiles.length,
     full: profiles.filter((profile) => profile.coverage === "full").length,
     objectiveOnly: profiles.filter((profile) => profile.coverage === "objective_only").length,
-    cardsAvailable: false,
+    cardsAvailable: payload.cards.length > 0,
     coverage,
     contestCoverage: contests.map((contest) => ({
       contestId: contest.id,

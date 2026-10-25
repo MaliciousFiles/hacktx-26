@@ -47,13 +47,7 @@ function options(client: FrozenWebClient): VoiceOptions {
     newsDomains: ["news.example"],
     questionnaireDomains: ["guide.example"],
     speechDomains: ["forum.example"],
-    verifiedDocuments: [
-      {
-        url: "https://forum.example/transcript",
-        type: "debate_speech",
-        verifiedVia: "https://forum.example/",
-      },
-    ],
+    verifiedDocuments: [],
     resultsPerQuery: 10,
     maxPagesPerChannel: 3,
     maxQuotesPerSource: 5,
@@ -209,8 +203,19 @@ describe("deterministic contemporary discovery", () => {
         '<meta property="article:published_time" content="2026-10-23T12:00:00Z">',
       );
     });
+    const withTranscript = (c: FrozenWebClient) => ({
+      ...options(c),
+      verifiedDocuments: [
+        {
+          url: "https://forum.example/transcript",
+          type: "debate_speech" as const,
+          verifiedVia: "https://forum.example/",
+          contestId: "contest-1",
+        },
+      ],
+    });
     const live = client(network);
-    const first = await collectVoice(target, options(live));
+    const first = await collectVoice(target, withTranscript(live));
     expect(first.sources).toHaveLength(4);
     const news = first.sources.find((s) => s.type === "news")!;
     expect(news.candidateId).toBeUndefined();
@@ -233,20 +238,50 @@ describe("deterministic contemporary discovery", () => {
     );
     expect(network.mock.calls.some(([url]) => String(url).includes("/issues/deeper"))).toBe(false);
     const count = network.mock.calls.length;
-    expect(await collectVoice(target, options(client(network, true)))).toEqual(first);
+    expect(await collectVoice(target, withTranscript(client(network, true)))).toEqual(first);
     expect(network).toHaveBeenCalledTimes(count);
   });
-  it("doesn't assign another candidate's campaign site or trust search matches as identity", async () => {
-    const network = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(
-        Response.json({
-          organic_results: [
-            { link: "https://campaign.example/", snippet: "Maybe someone else's campaign" },
-          ],
-          news_results: [],
-        }),
+  it("fetches reviewed questionnaires directly and treats a single-candidate one as their own words", async () => {
+    const network = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      if (url.hostname === "serpapi.com") return Response.json(emptySearch); // search finds nothing
+      if (url.pathname === "/robots.txt") return new Response(null, { status: 404 });
+      return html(
+        "<p>Q: What would you do about housing? A: Legalize more homes near transit.</p>",
       );
+    });
+    const config = {
+      ...options(client(network)),
+      campaignSites: [],
+      verifiedDocuments: [
+        {
+          url: "https://guide.example/alice",
+          type: "questionnaire" as const,
+          verifiedVia: "https://guide.example/",
+          candidateId: "candidate-a",
+        },
+        {
+          url: "https://guide.example/bob",
+          type: "questionnaire" as const,
+          verifiedVia: "https://guide.example/",
+          candidateId: "candidate-b",
+        },
+      ],
+    };
+    const result = await collectVoice(target, config);
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0]).toMatchObject({ type: "questionnaire", candidateId: "candidate-a" });
+    expect(network.mock.calls.some(([url]) => String(url).includes("/bob"))).toBe(false);
+  });
+  it("doesn't assign another candidate's campaign site or trust search matches as identity", async () => {
+    const network = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        organic_results: [
+          { link: "https://campaign.example/", snippet: "Maybe someone else's campaign" },
+        ],
+        news_results: [],
+      }),
+    );
     const config = options(client(network));
     config.campaignSites[0]!.candidateId = "another-candidate";
     const result = await collectVoice(target, config);
@@ -375,8 +410,11 @@ describe("deterministic contemporary discovery", () => {
     const config = options(client(network));
     delete config.serpApiKey;
     const result = await collectVoice(target, config);
-    expect(result.sources).toEqual([]);
-    expect(result.coverage.some((row) => row.status === "outside_window")).toBe(true);
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0]).toMatchObject({
+      publishedAt: "2020-01-01",
+      eventDate: { date: fetchedAt, basis: "page_observed" },
+    });
     expect(fromSearchDate("Feb 31, 2026", fetchedAt).date).toBeUndefined();
     expect(
       extractVoicePage(

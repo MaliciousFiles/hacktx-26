@@ -176,6 +176,13 @@ describe("buildCardDeck", () => {
         negativePole: "Restrict zoning",
         positivePole: "Allow apartments",
       },
+      {
+        id: "housing.affordability",
+        label: "Affordability",
+        levels: ["state", "local"],
+        negativePole: "Public subsidy",
+        positivePole: "Market-rate construction",
+      },
     ];
 
     const deck = buildCardDeck(issues);
@@ -183,5 +190,34 @@ describe("buildCardDeck", () => {
     expect(deck.some((c) => c.kind === "pole")).toBe(true);
     expect(deck.some((c) => c.kind === "tradeoff")).toBe(true);
     expect(deck.some((c) => c.kind === "judicial_pole")).toBe(true);
+  });
+
+  it("uses child axes only, one anchor per topic, and doesn't always put the same pole first", () => {
+    const issue = (id: string, parentId?: string): Issue => ({
+      id,
+      ...(parentId ? { parentId } : {}),
+      label: id,
+      levels: ["state"],
+      negativePole: `neg ${id}`,
+      positivePole: `pos ${id}`,
+    });
+    const children = ["a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8"].map((id) =>
+      issue(`a.${id}`, "a"),
+    );
+    const poles = buildCardDeck([issue("a"), ...children, issue("b"), issue("b.x", "b")], {
+      includeJudicial: false,
+    }).filter((card) => card.kind === "pole");
+    expect(poles.map((card) => card.kind === "pole" && card.issueId)).not.toContain("a");
+    expect(poles.filter((card) => card.anchor)).toHaveLength(2);
+    const positiveFirst = poles.filter(
+      (card) => card.kind === "pole" && card.poleA.startsWith("pos"),
+    );
+    expect(positiveFirst.length).toBeGreaterThan(0);
+    expect(positiveFirst.length).toBeLessThan(poles.length);
+    // The stored vector always matches the displayed text.
+    for (const card of poles) {
+      if (card.kind !== "pole") continue;
+      expect(card.vector[card.issueId]!.a).toBe(card.poleA.startsWith("pos") ? 1 : -1);
+    }
   });
 });

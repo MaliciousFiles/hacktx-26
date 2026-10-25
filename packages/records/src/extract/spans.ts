@@ -18,8 +18,9 @@ export function assertGroundedSpan(text: string, span: GroundedSpan, label: stri
 
 export function normalizeVoteToken(raw: string): "yes" | "no" | "abstain" | "present" | "not_voting" | "recused" | "other" {
   const value = raw.trim().toLowerCase().replace(/\./g, "");
-  if (["yea", "aye", "yes", "y", "in favor", "for"].includes(value)) return "yes";
-  if (["nay", "no", "n", "against"].includes(value)) return "no";
+  // Plural forms are list headers ("Ayes: A, B" / "Nays: C").
+  if (["yea", "yeas", "aye", "ayes", "yes", "y", "in favor", "for"].includes(value)) return "yes";
+  if (["nay", "nays", "no", "noes", "n", "against"].includes(value)) return "no";
   if (["abstain", "abstained", "abstention"].includes(value)) return "abstain";
   if (["present"].includes(value)) return "present";
   if (["absent", "not voting", "nv"].includes(value)) return "not_voting";

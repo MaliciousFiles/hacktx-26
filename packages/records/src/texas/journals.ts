@@ -97,13 +97,19 @@ export function parseHouseJournalVotes(plain: string, date: string): JournalVote
   const votes: JournalVote[] = [];
   const header = /\((?:Record|RECORD)\s+(\d+)\):\s*(\d+)\s+Yeas?,\s*(\d+)\s+Nays?(?:,\s*(\d+)\s+Present,\s*not voting)?\./gi;
   let match: RegExpExecArray | null;
+  let previousEnd = 0;
   while ((match = header.exec(plain))) {
     const record = Number(match[1]);
     const yesCount = Number(match[2]);
     const noCount = Number(match[3]);
     const presentCount = match[4] !== undefined ? Number(match[4]) : undefined;
     const after = plain.slice(match.index + match[0].length);
-    const blockEnd = after.search(/\n(?:[A-Z0-9].{0,120}?by \(Record|\n[A-Z][A-Z0-9 ,.'-]{8,}\n)/);
+    // The block can never extend into the next record, however long its line is.
+    const ends = [
+      after.search(/\n(?:[A-Z0-9].{0,120}?by \(Record|\n[A-Z][A-Z0-9 ,.'-]{8,}\n)/),
+      after.search(/\((?:Record|RECORD)\s+\d+\)/),
+    ].filter((index) => index >= 0);
+    const blockEnd = ends.length ? Math.min(...ends) : -1;
     const block = blockEnd >= 0 ? after.slice(0, blockEnd) : after.slice(0, 4000);
 
     const blockOrigin = match.index + match[0].length;
@@ -115,7 +121,8 @@ export function parseHouseJournalVotes(plain: string, date: string): JournalVote
 
     const yes = yeas ? splitNames(yeas[1]) : [];
     const no = nays ? splitNames(nays[1]) : [];
-    const presentNames = present ? splitNames(present[1]) : [];
+    // An uncounted Present list can't be reconciled, so it isn't attributed.
+    const presentNames = present && presentCount !== undefined ? splitNames(present[1]) : [];
     countMatch(yes, yesCount, `Record ${record} Yeas`);
     countMatch(no, noCount, `Record ${record} Nays`);
     if (presentCount !== undefined) countMatch(presentNames, presentCount, `Record ${record} Present`);
@@ -126,8 +133,10 @@ export function parseHouseJournalVotes(plain: string, date: string): JournalVote
       return { start, end: start + side[1].length };
     };
 
-    const questionStart = Math.max(0, match.index - 240);
+    // Question text stays after the previous record's lists.
+    const questionStart = Math.max(previousEnd, match.index - 240);
     const question = plain.slice(questionStart, match.index + match[0].length).replace(/\s+/g, " ").trim();
+    previousEnd = match.index + match[0].length + (blockEnd >= 0 ? blockEnd : block.length);
     votes.push({
       record,
       question,
@@ -137,7 +146,7 @@ export function parseHouseJournalVotes(plain: string, date: string): JournalVote
       present: presentNames,
       yesSpan: listSpan(yeas),
       noSpan: listSpan(nays),
-      presentSpan: listSpan(present),
+      presentSpan: presentNames.length ? listSpan(present) : undefined,
       margin: { yes: yesCount, no: noCount, ...(presentCount !== undefined ? { present: presentCount } : {}) },
       sameAsPrevious: false,
       deemedYeaExcept: false,
@@ -236,28 +245,10 @@ export function parseSenateJournalVotes(plain: string, date: string): JournalVot
     });
   }
 
-  // "Senator X asked to be recorded as voting Nay/Yea"
-  const asked = /Senators?\s+(.+?)\s+asked to be recorded as voting "(Yea|Nay)"/gi;
-  while ((match = asked.exec(joined))) {
-    const names = match[1].split(/\s+and\s+|,\s*/).map((n) => n.trim()).filter(Boolean);
-    const side = match[2].toLowerCase() === "yea" ? "yes" : "no";
-    const nameStart = match.index + match[0].indexOf(match[1]);
-    const span = { start: nameStart, end: nameStart + match[1].length };
-    votes.push({
-      question: match[0],
-      date,
-      yes: side === "yes" ? names : [],
-      no: side === "no" ? names : [],
-      present: [],
-      yesSpan: side === "yes" ? span : undefined,
-      noSpan: side === "no" ? span : undefined,
-      margin: { yes: side === "yes" ? names.length : 0, no: side === "no" ? names.length : 0 },
-      sameAsPrevious: false,
-      deemedYeaExcept: true,
-      locator: textSpanLocator(match.index, match.index + match[0].length),
-      questionLocator: textSpanLocator(match.index, match.index + match[0].length),
-    });
-  }
+  // "Senator X asked to be recorded as voting Nay" is a statement of preference
+  // that doesn't change the recorded tally and isn't tied to an identifiable
+  // roll call here. It is NOT emitted as a vote (it could contradict the
+  // member's actual roll-call entry). Reviewers can still read it in the journal.
 
   void lines;
   return votes;

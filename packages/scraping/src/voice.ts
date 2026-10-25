@@ -33,6 +33,16 @@ export interface VerifiedVoiceDocument {
   url: string;
   type: "questionnaire" | "debate_speech";
   verifiedVia: string; // reviewed document kind, not just query intent
+  /** Reviewed: this questionnaire page contains only this candidate's answers. */
+  candidateId?: string;
+  /** Reviewed: a multi-candidate guide/forum for this contest (needs speaker spans). */
+  contestId?: string;
+}
+
+function documentApplies(doc: VerifiedVoiceDocument, target: ResearchTarget): boolean {
+  return doc.candidateId
+    ? doc.candidateId === target.request.candidate.id
+    : doc.contestId === target.contestId;
 }
 export interface SearchLead {
   channel: VoiceChannel;
@@ -245,10 +255,17 @@ export async function collectVoice(
     debate_video: [],
     news: options.newsDomains,
   };
+  // Reviewed questionnaires and debate transcripts are fetched directly, ahead
+  // of search results, so they don't depend on a search engine surfacing them.
+  const seeded = (type: VerifiedVoiceDocument["type"]) =>
+    (options.verifiedDocuments ?? [])
+      .filter((doc) => doc.type === type && doc.verifiedVia && documentApplies(doc, target))
+      .map((doc) => publicWebUrl(doc.url))
+      .sort();
   const queues: Record<VoiceChannel, string[]> = {
     campaign: approvedSites.map((site) => site.url),
-    questionnaire: [],
-    debate: [],
+    questionnaire: seeded("questionnaire"),
+    debate: seeded("debate_speech"),
     contest_debate: [],
     forum: [],
     debate_video: [],
@@ -408,7 +425,9 @@ export async function collectVoice(
         const page = extractVoicePage(
           new TextDecoder("utf-8", { fatal: true }).decode(await response.arrayBuffer()),
         );
-        if (!inWindow(page.date, options.window)) {
+        // A currently served campaign platform remains relevant even if the CMS
+        // says it was first published years ago. Observation is NOT a speech date.
+        if (channel !== "campaign" && !inWindow(page.date, options.window)) {
           coverage.push({
             channel: "page",
             url,
@@ -418,8 +437,12 @@ export async function collectVoice(
           continue;
         }
         const verifiedDocument = options.verifiedDocuments?.find(
-          (item) => publicWebUrl(item.url) === url && item.verifiedVia,
+          (item) =>
+            publicWebUrl(item.url) === url && item.verifiedVia && documentApplies(item, target),
         );
+        const ownQuestionnaire =
+          verifiedDocument?.type === "questionnaire" &&
+          verifiedDocument.candidateId === target.request.candidate.id;
         // A query mentioning "questionnaire" or "speech" doesn't prove the
         // result is one. General reporting remains news, not candidate speech.
         const type: SourceType | undefined =
@@ -437,17 +460,20 @@ export async function collectVoice(
           });
           continue;
         }
-        const eventDate: EventDate = page.date.date
-          ? page.date
-          : channel === "campaign"
+        const eventDate: EventDate =
+          channel === "campaign"
             ? { date: options.fetchedAt, basis: "page_observed", precision: "day" }
-            : { basis: "unknown", precision: "day" };
+            : page.date.date
+              ? page.date
+              : { basis: "unknown", precision: "day" };
         const contentHash = hash(page.text);
         const source: Source = {
           id: `src-voice-${hash(JSON.stringify([target.contestId, target.request.candidate.id, url, contentHash, VOICE_VERSION]))}`,
           contestId: target.contestId,
-          // Multi-speaker news/forums/questionnaires require reviewed attribution spans upstream.
-          ...(channel === "campaign" ? { candidateId: target.request.candidate.id } : {}),
+          // Multi-speaker news/forums/guides require reviewed attribution spans upstream.
+          ...(channel === "campaign" || ownQuestionnaire
+            ? { candidateId: target.request.candidate.id }
+            : {}),
           type,
           url,
           outlet: new URL(url).hostname,
@@ -483,7 +509,9 @@ export async function collectVoice(
               const link = publicWebUrl(new URL(href, url).href);
               if (
                 new URL(link).origin === new URL(url).origin &&
-                /issues|platform|priorities|policies|vision/i.test(new URL(link).pathname) &&
+                /issues|platform|priorit(?:y|ies)|polic(?:y|ies)|vision/i.test(
+                  new URL(link).pathname,
+                ) &&
                 !queues.campaign.includes(link)
               )
                 queues.campaign.push(link);

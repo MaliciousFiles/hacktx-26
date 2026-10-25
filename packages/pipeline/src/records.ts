@@ -14,6 +14,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { researchCandidateHistory } from "@ftb/records";
+import { createRecordsCollector } from "@ftb/records";
+import type { RecordsPlan, SnapshotClient } from "@ftb/records";
 import type { HistoryResearchInput, HistoryResearchResult, RecordCoverage } from "@ftb/records";
 import type {
   CandidateResearchRequest,
@@ -80,6 +82,9 @@ export function buildResearchInput(
     candidateId: target.candidate.id,
     ...(target.candidate.aliases?.length ? { aliases: target.candidate.aliases } : {}),
     ...(bioguide ? { bioguide } : {}),
+    ...(target.candidate.identifiers && Object.keys(target.candidate.identifiers).length
+      ? { identifiers: target.candidate.identifiers }
+      : {}),
     ...(options.since ? { since: options.since } : {}),
     ...(options.houseRollCap !== undefined ? { houseRollCap: options.houseRollCap } : {}),
     ...(options.documentCap !== undefined ? { documentCap: options.documentCap } : {}),
@@ -88,6 +93,7 @@ export function buildResearchInput(
     ...(options.cacheMode ? { cacheMode: options.cacheMode } : {}),
     ...(options.congressApiKey ? { congressApiKey: options.congressApiKey } : {}),
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+    ...(options.client ? { client: options.client } : {}),
   };
 }
 
@@ -139,11 +145,20 @@ const NON_SCORING_TYPES = new Set<OfficialAction["type"]>([
   "vetoed",
 ]);
 
+const PROCEDURAL =
+  // Not "suspend the rules and pass": in the U.S. House that IS a passage vote.
+  /\b(cloture|to table|motion to table|recommit|previous question|ordering the previous|adjourn|quorum|reconsider|motion to proceed|waive|point of order|instruct conferees|providing for consideration|approving the journal|call of the house)\b/i;
+
 export function scoreDecision(action: OfficialAction): ScoreDecision {
   if (NON_SCORING_TYPES.has(action.type)) {
     return { scorable: false, reason: `type:${action.type}` };
   }
   if (action.consent) return { scorable: false, reason: "consent_vote" };
+  // A vote on procedure (cloture, tabling, recommittal, the rule, quorum…) is
+  // not a vote on the measure's substance; never read it as one.
+  if (action.vote?.question && PROCEDURAL.test(action.vote.question)) {
+    return { scorable: false, reason: "procedural_vote" };
+  }
   if (action.stance === "yes" || action.stance === "author")
     return { scorable: true, direction: 1 };
   if (action.stance === "no") return { scorable: true, direction: -1 };
@@ -245,6 +260,9 @@ export async function classifyActions(input: ClassifyActionsInput): Promise<Clas
 // ── Collection ─────────────────────────────────────────────────────────────────
 
 export interface RecordsStageOptions {
+  client?: SnapshotClient;
+  /** Explicit source inventory for debugging or a configured prior office. */
+  plan?: RecordsPlan;
   since?: string;
   houseRollCap?: number;
   documentCap?: number;
@@ -282,6 +300,38 @@ export async function collectCandidateRecords(
 ): Promise<CandidateRecords> {
   const research = options.research ?? researchCandidateHistory;
   try {
+    if (options.plan) {
+      const input = buildResearchInput(target, election, options);
+      const request: CandidateResearchRequest = {
+        candidate: target.candidate,
+        position: {
+          office: target.office,
+          jurisdiction: target.jurisdiction,
+          ...(target.district ? { district: target.district } : {}),
+        },
+        month: election.month,
+        year: election.year,
+      };
+      const result = await createRecordsCollector({
+        client: options.client,
+        cacheDirectory: input.cacheDirectory,
+        cacheMode: input.cacheMode,
+        congressApiKey: input.congressApiKey,
+      }).collect(request, options.plan, {
+        onSource: (source, phase) => options.onProgress?.(`${phase}: ${source}`),
+      });
+      const actions = result.actions.filter((action) => action.actorId === target.candidate.id);
+      return {
+        target,
+        request: result.request,
+        actions,
+        sources: actions.map((action) => actionToSource(action, target.contestId)),
+        coverage: result.coverage,
+        identityNotes: [],
+        incomplete: true,
+        gaps: ["Explicit source inventory only; not a complete career record"],
+      };
+    }
     const result = await research(buildResearchInput(target, election, options));
     // Defense in depth: keep only this candidate's actions (records also enforces this).
     const actions = result.actions.filter((a) => a.actorId === target.candidate.id);

@@ -28,14 +28,10 @@ function sha256(text: string): string {
   return createHash("sha256").update(text, "utf-8").digest("hex");
 }
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 /**
  * Ingest raw sources and actions:
  * - Set contentHash = sha256(originalText) on each source.
- * - Set fetchedAt to today's date if missing.
+ * - Reject sources without a fetchedAt (never stamp the wall clock).
  * - Deduplicate sources by (url, contentHash) — identical wire reposts count once.
  * - Deduplicate actions by id.
  * - Write a stage manifest to dist/manifests/snapshot-<timestamp>.json.
@@ -47,14 +43,12 @@ export function snapshotSources(
   gitSha: string,
   outDir: string,
 ): SnapshotResult {
-  const today_ = today();
-
-  // Stamp + hash sources
-  const stamped: Source[] = rawSources.map((s) => ({
-    ...s,
-    fetchedAt: s.fetchedAt ?? today_,
-    contentHash: sha256(s.originalText),
-  }));
+  // Hash sources. fetchedAt must come from the fetch itself: stamping today's
+  // date would make rebuilds differ and could be mistaken for when it was said.
+  const stamped: Source[] = rawSources.map((s) => {
+    if (!s.fetchedAt) throw new Error(`Source ${s.id} has no fetchedAt`);
+    return { ...s, contentHash: sha256(s.originalText) };
+  });
 
   // Deduplicate: keep the first occurrence of each (url, contentHash) pair
   const seen = new Set<string>();

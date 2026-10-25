@@ -13,6 +13,12 @@ describe("deterministic judicial extractors", () => {
     expect(findJusticeAttribution(plain, ["Hecht"])).toBeUndefined();
   });
 
+  it("uses the delivered/issued date, never the argument date or an unlabeled date", () => {
+    expect(opinionDateFromText("Argued January 10, 2025\nOpinion delivered: June 14, 2025")).toBe("2025-06-14");
+    expect(opinionDateFromText("Argued January 10, 2025\nSee State v. Doe, decided by others")).toBeUndefined();
+    expect(opinionDateFromText("January 10, 2025")).toBeUndefined();
+  });
+
   it("parses dissent/concurrence short forms", () => {
     const plain = "Boyd, J., dissenting.\nLehrmann, J., concurring.";
     expect(findJusticeAttribution(plain, ["Boyd"])?.kind).toBe("dissented");

@@ -11,10 +11,12 @@
   "dependencies": {
     "@ftb/types": "workspace:*",
     "@hono/node-server": "^2.1.5",
-    "hono": "^4.13.13"
+    "hono": "^4.13.13",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
     "tsx": "^4.23.15"
   }
 }

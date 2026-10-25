@@ -63,7 +63,9 @@ export function validateQuote(evidence: Evidence, sources: Source[]): QuoteValid
 
   // Multi-speaker check: if source has attributions, verify span falls inside candidate's attribution
   if (source.attributions && source.attributions.length > 0) {
-    const candidateSpans = source.attributions.filter((a) => a.candidateId === evidence.candidateId);
+    const candidateSpans = source.attributions.filter(
+      (a) => a.candidateId === evidence.candidateId,
+    );
     const inSpan = candidateSpans.some((a) => start >= a.start && end <= a.end);
     if (!inSpan) {
       return {
@@ -99,26 +101,56 @@ export function validatePublication(
   // Check each contest
   for (const contest of contests) {
     for (const sentence of contest.officeDescription) {
-      checkCitedSentence(sentence, `contest ${contest.id} officeDescription`, citationMap, undefined, errors);
+      checkCitedSentence(
+        sentence,
+        `contest ${contest.id} officeDescription`,
+        citationMap,
+        undefined,
+        errors,
+      );
     }
     for (const claim of contest.context.confirmed) {
       for (const sentence of claim.sentences) {
-        checkCitedSentence(sentence, `contest ${contest.id} context.confirmed`, citationMap, undefined, errors);
+        checkCitedSentence(
+          sentence,
+          `contest ${contest.id} context.confirmed`,
+          citationMap,
+          undefined,
+          errors,
+        );
       }
     }
     for (const claim of contest.context.supporters) {
       for (const sentence of claim.sentences) {
-        checkCitedSentence(sentence, `contest ${contest.id} context.supporters`, citationMap, undefined, errors);
+        checkCitedSentence(
+          sentence,
+          `contest ${contest.id} context.supporters`,
+          citationMap,
+          undefined,
+          errors,
+        );
       }
     }
     for (const claim of contest.context.opponents) {
       for (const sentence of claim.sentences) {
-        checkCitedSentence(sentence, `contest ${contest.id} context.opponents`, citationMap, undefined, errors);
+        checkCitedSentence(
+          sentence,
+          `contest ${contest.id} context.opponents`,
+          citationMap,
+          undefined,
+          errors,
+        );
       }
     }
     for (const claim of contest.context.disputed) {
       for (const sentence of claim.sentences) {
-        checkCitedSentence(sentence, `contest ${contest.id} context.disputed`, citationMap, undefined, errors);
+        checkCitedSentence(
+          sentence,
+          `contest ${contest.id} context.disputed`,
+          citationMap,
+          undefined,
+          errors,
+        );
       }
     }
 
@@ -144,16 +176,35 @@ export function validatePublication(
 
     // Platform highlights
     for (const sentence of cand.platformHighlights) {
-      checkCitedSentence(sentence, `candidate ${cand.id} highlight`, citationMap, evidenceMap, errors);
+      checkCitedSentence(
+        sentence,
+        `candidate ${cand.id} highlight`,
+        citationMap,
+        evidenceMap,
+        errors,
+      );
     }
 
     // Plans
     for (const plan of cand.plans) {
-      const slots = [plan.goal, plan.mechanism, plan.cost, plan.funding, plan.timeline, plan.whoActs];
+      const slots = [
+        plan.goal,
+        plan.mechanism,
+        plan.cost,
+        plan.funding,
+        plan.timeline,
+        plan.whoActs,
+      ];
       for (const slot of slots) {
         if (slot.state === "documented") {
           for (const s of slot.sentences) {
-            checkCitedSentence(s, `candidate ${cand.id} plan ${plan.id}`, citationMap, evidenceMap, errors);
+            checkCitedSentence(
+              s,
+              `candidate ${cand.id} plan ${plan.id}`,
+              citationMap,
+              evidenceMap,
+              errors,
+            );
           }
         }
       }
@@ -242,12 +293,24 @@ export function identityLeakGate(
     }
   }
 
-  // Scan case-insensitively or whole-word for names/parties
+  // Case-insensitive; names/labels match whole words (any whitespace between
+  // parts) so "Ana" doesn't flag "banana". URLs match as plain substrings.
   const lowerPayload = serializedBallotResponse.toLowerCase();
 
   for (const target of targets) {
     const val = target.value.toLowerCase();
-    if (lowerPayload.includes(val)) {
+    const isUrl = target.category === "source_url" || target.category === "photo_url";
+    const found = isUrl
+      ? lowerPayload.includes(val) || lowerPayload.includes(JSON.stringify(val).slice(1, -1))
+      : new RegExp(
+          `(?<![\\p{L}\\p{N}])${val
+            .trim()
+            .split(/\s+/)
+            .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+            .join("\\s+")}(?![\\p{L}\\p{N}])`,
+          "iu",
+        ).test(serializedBallotResponse);
+    if (found) {
       leaks.push(`Found leaked ${target.category}: "${target.value}"`);
     }
   }

@@ -3,6 +3,38 @@ import { normalizeVoteToken } from "./spans";
 import type { ExtractRequest, ExtractionBatch, ExtractedVote } from "./types";
 
 /**
+ * Consent is only claimed from this item's own text: the part of the preceding
+ * window after the last blank line or numbered item marker. A neighboring
+ * item's "Consent Agenda" heading must not mark this vote as consent.
+ */
+function isConsent(motionWindow: string): boolean {
+  const boundary = Math.max(
+    motionWindow.lastIndexOf("\n\n"),
+    ...[...motionWindow.matchAll(/\n\s*(?:\d+[.)]|[A-Z][.)]|Item\s+\d+)/g)].map((m) => m.index),
+  );
+  return /\bconsent\b/i.test(motionWindow.slice(Math.max(0, boundary)));
+}
+
+/**
+ * Split a printed member list into names with exact offsets. If semicolons are
+ * present they separate members ("Bell, C.; Bell, K."), so commas stay inside
+ * names; otherwise commas separate. Offsets advance, so a repeated name maps to
+ * its own occurrence rather than the first one.
+ */
+function splitNames(list: string): { name: string; start: number }[] {
+  const separator = list.includes(";") ? ";" : ",";
+  const out: { name: string; start: number }[] = [];
+  let offset = 0;
+  for (const part of list.split(separator)) {
+    const lead = part.length - part.trimStart().length;
+    const name = part.trim();
+    if (name) out.push({ name, start: offset + lead });
+    offset += part.length + 1;
+  }
+  return out;
+}
+
+/**
  * Deterministic minutes/roll-call patterns common across BoardDocs/BoardBook/
  * Diligent/CivicPlus/PDF minutes. Prefer explicit "Name - Yes" rows and
  * Yeas/Nays blocks. Never invent participation from "motion carried unanimously"
@@ -27,7 +59,7 @@ export function rulesExtractVotes(request: ExtractRequest): ExtractionBatch {
       member: { value: memberName, start: match.index, end: match.index + memberName.length },
       vote: { value: voteRaw, start: voteAt, end: voteAt + voteRaw.length },
       motion: { value: motionValue, start: motionStart, end: match.index },
-      consent: /consent/i.test(motionValue) || undefined,
+      consent: isConsent(motionValue) || undefined,
     });
   }
 
@@ -39,29 +71,22 @@ export function rulesExtractVotes(request: ExtractRequest): ExtractionBatch {
     const motionValue = text.slice(motionStart, match.index);
     const yesHeader = /Yeas?|Ayes?/i.exec(match[0])!;
     const noHeader = /Nays?|Noes?/i.exec(match[0])!;
-    for (const part of match[1].split(/[;,]/)) {
-      const name = part.trim();
-      if (!name || (labels.size && !labels.has(normalizeName(name)))) continue;
-      const local = match[1].indexOf(name);
-      const abs = yesStart + local;
-      const voteAbs = match.index + yesHeader.index!;
-      votes.push({
-        member: { value: name, start: abs, end: abs + name.length },
-        vote: { value: yesHeader[0], start: voteAbs, end: voteAbs + yesHeader[0].length },
-        motion: { value: motionValue, start: motionStart, end: match.index },
-      });
-    }
-    for (const part of match[2].split(/[;,]/)) {
-      const name = part.trim();
-      if (!name || (labels.size && !labels.has(normalizeName(name)))) continue;
-      const local = match[2].indexOf(name);
-      const abs = noStart + local;
-      const voteAbs = match.index + noHeader.index!;
-      votes.push({
-        member: { value: name, start: abs, end: abs + name.length },
-        vote: { value: noHeader[0], start: voteAbs, end: voteAbs + noHeader[0].length },
-        motion: { value: motionValue, start: motionStart, end: match.index },
-      });
+    const consent = isConsent(motionValue) || undefined;
+    for (const [list, listStart, header] of [
+      [match[1], yesStart, yesHeader],
+      [match[2], noStart, noHeader],
+    ] as const) {
+      const voteAbs = match.index + header.index!;
+      for (const { name, start } of splitNames(list)) {
+        if (labels.size && !labels.has(normalizeName(name))) continue;
+        const abs = listStart + start;
+        votes.push({
+          member: { value: name, start: abs, end: abs + name.length },
+          vote: { value: header[0], start: voteAbs, end: voteAbs + header[0].length },
+          motion: { value: motionValue, start: motionStart, end: match.index },
+          consent,
+        });
+      }
     }
   }
 

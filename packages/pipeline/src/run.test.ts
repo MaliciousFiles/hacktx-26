@@ -94,9 +94,11 @@ function options(): BallotRunOptions {
       versions: { sources: "test-v1" },
       issues: ["housing.zoning", "economy.taxation", "infrastructure.transit"].map((id) => ({
         id,
-        negativePole: "Retain",
-        positivePole: "Change",
-        levels: ["state"],
+        parentId: id.split(".")[0],
+        label: id.split(".")[1]!,
+        negativePole: `Retain ${id}`,
+        positivePole: `Change ${id}`,
+        levels: ["state" as const],
       })),
     },
     client: new FrozenWebClient({
@@ -132,6 +134,71 @@ function options(): BallotRunOptions {
   };
 }
 describe("one ballot-wide research/classification/publication job", () => {
+  it("collects candidates concurrently, keeps roster order, and saves candidate acquisition checkpoints", async () => {
+    const spec = input();
+    const deps = options();
+    let active = 0,
+      peak = 0;
+    const collect = deps.collectRecords!;
+    const messages: string[] = [];
+    await runBallotPipeline(spec, {
+      ...deps,
+      researchOnly: true,
+      acquisitionConcurrency: 3,
+      onProgress: (message) => messages.push(message),
+      collectRecords: async (...args) => {
+        active++;
+        peak = Math.max(peak, active);
+        const result = await collect(...args);
+        active--;
+        return result;
+      },
+    });
+    expect(peak).toBe(3);
+    const research = JSON.parse(
+      await readFile(join(directory, spec.releaseId, "research.json"), "utf8"),
+    );
+    expect(research.research.map((row: { candidateId: string }) => row.candidateId)).toEqual([
+      "alpha",
+      "beta",
+      "gamma",
+      "delta",
+    ]);
+    const checkpoint = JSON.parse(
+      await readFile(join(directory, spec.releaseId, "candidate-checkpoints/alpha.json"), "utf8"),
+    );
+    expect(checkpoint.candidateId).toBe("alpha");
+    expect(checkpoint.configHash).toBe(research.configHash);
+    expect(messages.some((message) => message.includes("[4/4]") && message.includes("saved"))).toBe(
+      true,
+    );
+  });
+  it("writes private research without creating a release and rejects publishing unevaluated demo analysis", async () => {
+    const spec = input();
+    const deps = options();
+    const result = await runBallotPipeline(spec, { ...deps, researchOnly: true });
+    expect(result.publication).toBe("");
+    const { readdir } = await import("node:fs/promises");
+    expect(await readdir(join(directory, spec.releaseId))).not.toContain("releases");
+    expect(await readFile(join(directory, spec.releaseId, "research.json"), "utf8")).toContain(
+      "classificationAttempts",
+    );
+    const unreviewed = {
+      ...spec,
+      releaseId: "unreviewed-demo",
+      analysis: {
+        mode: "names_and_party" as const,
+        projectionVersion: "experimental",
+        approvedBy: "experimental-only",
+        rubricVersion: "test",
+        jevModelVersion: "jev-1.14.0",
+        maxCallsPerCandidate: 10,
+        lowConfidenceThreshold: 0.8,
+        fallbackEvaluated: false,
+      },
+    };
+    await expect(runBallotPipeline(unreviewed, deps)).rejects.toThrow("research-only");
+  });
   it("keeps model confidence separate from strength and counts reviewed events rather than duplicate mentions", () => {
     const evidence: Evidence = {
       id: "e1",
@@ -224,6 +291,167 @@ describe("one ballot-wide research/classification/publication job", () => {
       "different inputs",
     );
   });
+  it("core loop: own words + contested votes → cited platform, Says vs. Does, and a usable card deck", async () => {
+    const config = input(),
+      deps = options();
+    config.analysis = {
+      mode: "names_and_party",
+      projectionVersion: "evaluated-v1",
+      approvedBy: "reviewer",
+      evaluationHash: "c".repeat(64),
+      rubricVersion: "rubric-v1",
+      jevModelVersion: "jev-1.14.0",
+      maxCallsPerCandidate: 40,
+      lowConfidenceThreshold: 0.8,
+      fallbackEvaluated: false,
+    };
+    const issueIds = ["housing.zoning", "economy.taxation", "infrastructure.transit"];
+    // Speech: two reviewed, distinct events covering all three issues.
+    const speech = (candidateId: string, ordinal: number): Source => {
+      const originalText = `Person ${candidateId} said at event ${ordinal}: on ${issueIds.join(", ")} I will change course.`;
+      return {
+        id: `src-${candidateId}-speech-${ordinal}`,
+        contestId: "leg",
+        candidateId,
+        type: "campaign_site",
+        url: `https://${candidateId}.example/${ordinal}`,
+        originalText,
+        text: originalText,
+        contentHash: hash(originalText),
+        fetchedAt: config.asOfDate,
+        eventDate: { basis: "published", date: "2026-06-0" + ordinal, precision: "day" },
+      };
+    };
+    for (const candidateId of ["alpha", "beta"])
+      for (const ordinal of [1, 2]) {
+        const item = speech(candidateId, ordinal);
+        config.attributions.push({
+          sourceId: item.id,
+          candidateId,
+          contentHash: item.contentHash,
+          start: 0,
+          end: item.originalText.length,
+          approvedBy: "reviewer",
+          eventId: `${candidateId}-event-${ordinal}`,
+        });
+      }
+    deps.collectVoice = vi.fn(async (target) => ({
+      sources:
+        target.contestId === "leg"
+          ? [speech(target.request.candidate.id, 1), speech(target.request.candidate.id, 2)]
+          : [],
+      leads: [],
+      quotes: [],
+      coverage: [],
+      provenance: [],
+      duplicateSources: [],
+    }));
+    // Record: alpha votes YES twice on contested zoning bills, beta votes NO twice.
+    // Plus a procedural cloture vote and an omnibus bill — neither may be scored.
+    const { actionToSource } = await import("./records.js");
+    deps.collectRecords = vi.fn(async (target) => {
+      const id = target.candidate.id;
+      const stance = id === "alpha" ? ("yes" as const) : ("no" as const);
+      const vote = (n: number, text: string, question: string) => ({
+        id: `${id}-vote-${n}`,
+        actorId: id,
+        issueIds: [],
+        role: "State House",
+        type: "floor_vote" as const,
+        stance,
+        date: `2025-0${n}-01`,
+        title: `H.R. 7${n}`,
+        officialText: text,
+        sourceUrl: `https://house.example/${id}/${n}`,
+        margin: { yes: 80, no: 60 },
+        vote: { value: stance, raw: stance, question, method: "roll_call" as const },
+      });
+      const actions =
+        target.contestId === "leg"
+          ? [
+              vote(1, "A bill on housing.zoning that allows more homes.", "On Passage"),
+              vote(2, "A second bill on housing.zoning that allows more homes.", "On Passage"),
+              vote(3, "Housing.zoning bill.", "On the Cloture Motion"),
+              vote(4, `Omnibus: ${issueIds.join(", ")}.`, "On Passage"),
+            ]
+          : [];
+      return {
+        target,
+        request: {
+          candidate: target.candidate,
+          position: { office: target.office, jurisdiction: target.jurisdiction },
+          month: 11,
+          year: 2026,
+        },
+        actions,
+        sources: actions.map((action) => actionToSource(action, target.contestId)),
+        coverage: [],
+        gaps: [],
+        identityNotes: [],
+        incomplete: false,
+      };
+    });
+    const classified: string[] = [];
+    deps.classify = vi.fn<NonNullable<BallotRunOptions["classify"]>>(
+      async (projection, view, candidateId, contestId, issue, actionId) => {
+        if (!view.originalText.toLowerCase().includes(issue.id)) return null; // relevance gate
+        classified.push(view.id);
+        return {
+          sourceId: view.id,
+          candidateId,
+          contestId,
+          issueId: issue.id,
+          ...(actionId ? { actionId } : {}),
+          kind: actionId ? ("action" as const) : ("voice" as const),
+          sourceType: view.type,
+          quote: view.originalText,
+          position: 0.8,
+          distribution: { probs: { strong_positive: 1 }, confidence: 1 },
+          relevance: 1,
+          isOwnSpeech: 1,
+          claimType: "advocacy" as const,
+          claimTypeDist: { probs: { advocacy: 1 }, confidence: 1 },
+          specificity: 0.5,
+          withinAuthority: "influence" as const,
+        };
+      },
+    );
+
+    const result = await runBallotPipeline(config, deps);
+    expect(result.full).toBe(2);
+    expect(result.cardsAvailable).toBe(true);
+    // Procedural vote never classified; omnibus classified but withheld.
+    expect(classified.some((id) => id.includes("vote-3"))).toBe(false);
+    const research = JSON.parse(
+      await readFile(join(directory, config.releaseId, "research.json"), "utf8"),
+    );
+    expect(research.review.some((row: { reason: string }) => row.reason.includes("omnibus"))).toBe(
+      true,
+    );
+    expect(research.evidence.some((e: Evidence) => e.actionId?.includes("vote-4"))).toBe(false);
+
+    const payload = JSON.parse(await readFile(result.publication, "utf8")) as PublishPayload;
+    const [alpha, beta] = payload.candidates.filter((candidate) => candidate.contestId === "leg");
+    // Says vs. Does: alpha says change and votes for it; beta says change but votes against.
+    const gap = (profile: typeof alpha) =>
+      profile!.saysVsDoes.find((item) => item.issueId === "housing.zoning")?.gap;
+    expect(gap(alpha)).toBeCloseTo(0);
+    expect(gap(beta)).toBeCloseTo(1.6);
+    // Platform: one neutral, cited sentence per compared issue, from their OWN words only.
+    expect(alpha!.platformHighlights).toHaveLength(3);
+    const evidenceIds = new Set(alpha!.evidence.map((item) => item.id));
+    for (const sentence of alpha!.platformHighlights) {
+      expect(sentence.text).toMatch(/their own statements favor: Change/);
+      for (const ref of sentence.citations) {
+        expect(evidenceIds.has(ref.id)).toBe(true);
+        expect(alpha!.evidence.find((item) => item.id === ref.id)!.kind).toBe("voice");
+      }
+    }
+    // Masking: names and bill numbers are not in the masked payload.
+    expect(JSON.stringify(payload)).not.toMatch(/Person alpha|H\.R\. 7/);
+    expect(payload.cards.some((card) => card.kind === "pole")).toBe(true);
+  });
+
   it("connects approved exact spans through masked classification, aggregation, validation and publication", async () => {
     const config = input(),
       deps = options();

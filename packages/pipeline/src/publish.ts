@@ -12,6 +12,7 @@ import type {
   CandidateIdentity,
 } from "@ftb/types";
 import { validatePublication, identityLeakGate, type LeakGateBlocklist } from "./validate.js";
+import { releaseManifestInput } from "@ftb/types/releases";
 
 export interface PublishPayload {
   release: Release;
@@ -33,15 +34,6 @@ export interface PublishResult {
   releaseFilePath: string;
   errors: string[];
   leaks: string[];
-}
-
-function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  const sorted = Object.keys(value as object)
-    .sort()
-    .map((k) => `${JSON.stringify(k)}:${canonicalJson((value as Record<string, unknown>)[k])}`);
-  return `{${sorted.join(",")}}`;
 }
 
 /**
@@ -83,10 +75,7 @@ export function publishRelease(payload: PublishPayload, options: PublishOptions)
   // 3. Compute manifestHash over canonical JSON
   // Hash the JSON representation actually written to disk (optional undefined
   // properties must not produce a different hash after reading that JSON back).
-  const canonicalPayload = JSON.parse(
-    JSON.stringify({ ...payload, release: { ...payload.release, manifestHash: "" } }),
-  );
-  const manifestHash = createHash("sha256").update(canonicalJson(canonicalPayload)).digest("hex");
+  const manifestHash = createHash("sha256").update(releaseManifestInput(payload)).digest("hex");
   const published = { ...payload, release: { ...payload.release, manifestHash } };
 
   // 4. Write release to disk

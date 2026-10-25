@@ -17,6 +17,8 @@ export interface TloBillHistoryConfig {
   memberCandidateId?: string;
   /** Upstream-verified, session-specific crosswalk; this adapter does not parse it. */
   memberIdentitySourceUrl?: string;
+  /** Sessions (e.g. "89R") the memberName crosswalk was verified for. */
+  memberSessions?: string[];
   /** Verified Governor tenure, explicitly bound to this request's candidate ID.
    * End date is inclusive. candidateId is local metadata, not shared tenure data. */
   governorTenure?: { candidateId: string; start: string; end?: string; sourceUrl: string };
@@ -80,6 +82,9 @@ const configSchema = z
     memberName: z.string().trim().min(1).optional(),
     memberCandidateId: z.string().trim().min(1).optional(),
     memberIdentitySourceUrl: officialUrl.optional(),
+    /** Sessions (e.g. "89R") the name crosswalk was verified for. A short name
+     * like "Lopez" can identify a different member in another session. */
+    memberSessions: z.array(z.string().regex(/^\d{2,3}(?:R|\d)$/)).min(1).optional(),
     governorTenure: z
       .object({
         candidateId: z.string().trim().min(1),
@@ -233,10 +238,12 @@ async function collect(context: AdapterContext, value: unknown): Promise<TloBill
 
   const names = fullNames(context);
   const mappedName =
-    config.memberName && config.memberIdentitySourceUrl &&
+    config.memberName && config.memberIdentitySourceUrl && config.memberSessions &&
       config.memberCandidateId === context.request.candidate.id
       ? normalizeName(config.memberName)
       : undefined;
+  const mappedSessions = new Set(config.memberSessions ?? []);
+  let outsideSession = 0;
   const unverifiedMapping =
     !!config.memberName && !mappedName && !names.has(normalizeName(config.memberName));
   const memberIdentity = mappedName
@@ -290,9 +297,11 @@ async function collect(context: AdapterContext, value: unknown): Promise<TloBill
         }
       } else if (/^filed$/i.test(event.description) && event.chamber === bill.chamber) {
         const primary = bill.affiliations.find((item) => item.kind === "primary_author");
+        const viaMapping = !!primary && mappedName === normalizeName(primary.name);
+        if (viaMapping && !mappedSessions.has(bill.session)) outsideSession++;
         if (
           primary &&
-          (names.has(normalizeName(primary.name)) || mappedName === normalizeName(primary.name))
+          (names.has(normalizeName(primary.name)) || (viaMapping && mappedSessions.has(bill.session)))
         ) {
           action = makeAction(context, config, snapshot, bill, event, "authored", primary.name);
         }
@@ -310,8 +319,11 @@ async function collect(context: AdapterContext, value: unknown): Promise<TloBill
     "Bill history has no individual votes: committee totals and journal vote references remain unattributed context. Latest captions are not backdated.",
     ...(unverifiedMapping
       ? [
-          "memberName was not used: surname/abbreviated mappings require an official memberIdentitySourceUrl and a memberCandidateId matching the request candidate ID.",
+          "memberName was not used: surname/abbreviated mappings require an official memberIdentitySourceUrl, memberSessions, and a memberCandidateId matching the request candidate ID.",
         ]
+      : []),
+    ...(outsideSession
+      ? [`${outsideSession} filing(s) matched memberName outside the verified memberSessions and were not attributed.`]
       : []),
     ...(failures
       ? [`${failures} configured XML source(s) could not be read or failed validation.`]
