@@ -1,30 +1,27 @@
 import type { PolicyCard, Swipe } from "@ftb/types";
-import { Redirect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { Icon, PageScene, PaperDots, type IconName } from "@/components/art";
+import { Icon, PageScene, PaperDots } from "@/components/art";
 import { Enter, Flourish, PressableScale, StampIn } from "@/components/motion";
 import {
-  Body,
+  Banner,
   GuideBubble,
   GuideTile,
   IconBox,
   Kicker,
-  Ornament,
   PrimaryButton,
   Progress,
   Ribbon,
   Rule,
   SampleMark,
   Screen,
-  TextButton,
   Tile,
-  Title,
-  TopBar,
 } from "@/components/ui";
-import { demoBallot, issueById } from "@/fixtures/travisDemo";
-import { JUDICIAL_LABEL } from "@/labels";
-import { choiceText } from "@/matching";
+import { cards as releaseCards, demo } from "@/data/release";
+import { usePhaseGate } from "@/gate";
+import { cardIcon, cardTitle } from "@/deckCopy";
+import { choiceLabel, displayChoices, orderDeck, swipeFor } from "@/lib/deck";
 import { useSession } from "@/session";
 import { colors, fonts, shadows } from "@/theme";
 
@@ -34,16 +31,16 @@ export default function Explore() {
   const session = useSession();
   const router = useRouter();
   const [guide, setGuide] = useState(true);
-  if (!session.started) return <Redirect href="/" />;
+  const gate = usePhaseGate(["explore", "walkthrough"]);
+  if (gate) return gate;
 
-  const cards = demoBallot.cards;
-  const card = cards[session.deckIndex];
-  if (!card) {
-    return <DeckDone />;
-  }
+  const cards = DECK;
+  const deckIndex = Math.min(session.state.deckIndex, cards.length - 1);
+  const card = cards[deckIndex];
+  if (!card) return null;
 
-  const swipe = session.swipes.find((item) => item.cardId === card.id);
-  const flipped = session.flips[card.id] === true;
+  const swipe = session.state.swipes.find((item) => item.cardId === card.id);
+  const flipped = session.state.flips[card.id] === true;
   const starred = session.starred(card.id);
   const options = optionsFor(card, swipe, starred, flipped);
   const answered = swipe != null && swipe.chosen !== "skip";
@@ -51,20 +48,15 @@ export default function Explore() {
   // The guide greets you on arrival, then steps aside so later pages have room.
   const next = () => {
     setGuide(false);
-    session.setDeckIndex(session.deckIndex + 1);
+    if (deckIndex >= cards.length - 1) router.push("/priorities");
+    else session.setDeckIndex(deckIndex + 1);
   };
   const back = () => {
-    if (session.deckIndex === 0) router.back();
-    else session.setDeckIndex(session.deckIndex - 1);
+    if (deckIndex > 0) session.setDeckIndex(deckIndex - 1);
   };
   const skip = () => {
-    if (card.kind === "tradeoff") {
-      session.answer({ kind: "tradeoff", cardId: card.id, chosen: "skip", starred });
-    } else if (card.kind === "judicial_pole") {
-      session.answer({ kind: "judicial_pole", cardId: card.id, chosen: "skip", starred });
-    } else {
-      session.answer({ kind: "pole", cardId: card.id, chosen: "skip", starred });
-    }
+    // A skip is recorded as missing, never as neutral.
+    session.answer(swipeFor(card, "skip", starred));
     next();
   };
 
@@ -72,8 +64,8 @@ export default function Explore() {
     <Screen
       header={
         <View pointerEvents="box-none" style={styles.header}>
-          <Ribbon label="Open the ballot" onPress={() => router.navigate("/ballot")} />
-          <Progress index={session.deckIndex} total={cards.length} />
+          <Ribbon label="What matters to you" onPress={() => router.push("/priorities")} />
+          <Progress index={deckIndex} total={cards.length} />
         </View>
       }
       footer={
@@ -88,7 +80,12 @@ export default function Explore() {
               <Icon name="swap" size={18} />
               <Text style={styles.swapText}>Pages swap sides{"\n"}at random.</Text>
             </View>
-            <PrimaryButton label="Turn the page" arrow disabled={!answered} onPress={next} />
+            <PrimaryButton
+              label={deckIndex >= cards.length - 1 ? "Finish" : "Turn the page"}
+              arrow
+              disabled={!answered}
+              onPress={next}
+            />
           </View>
         </>
       }
@@ -108,7 +105,13 @@ export default function Explore() {
       }
     >
       <View key={card.id}>
-        <SampleMark />
+        {demo ? <SampleMark /> : null}
+        {card.deck === "judicial" && cards[deckIndex - 1]?.deck !== "judicial" ? (
+          <Banner
+            title="Judicial cards"
+            body="Judges aren't scored on policy. These cards are about how a judge reads the law."
+          />
+        ) : null}
         <Enter style={styles.heading}>
           <View style={styles.headingRow}>
             <IconBox icon={copy.icon} />
@@ -214,55 +217,16 @@ function optionsFor(
   starred: boolean,
   flipped: boolean,
 ): Option[] {
-  let options: Option[];
-  if (card.kind === "tradeoff") {
-    const chosen = swipe?.kind === "tradeoff" ? swipe.chosen : undefined;
-    options = [
-      {
-        key: "accept",
-        label: "Worth this cost",
-        swipe: { kind: "tradeoff", cardId: card.id, chosen: "accept", starred },
-        selected: chosen === "accept",
-      },
-      {
-        key: "decline",
-        label: "Not worth this cost",
-        swipe: { kind: "tradeoff", cardId: card.id, chosen: "decline", starred },
-        selected: chosen === "decline",
-      },
-    ];
-  } else {
-    const chosen = swipe?.kind !== "tradeoff" ? swipe?.chosen : undefined;
-    options = (["a", "b"] as const).map((side) => ({
-      key: side,
-      label: side === "a" ? card.poleA : card.poleB,
-      swipe:
-        card.kind === "judicial_pole"
-          ? { kind: "judicial_pole", cardId: card.id, chosen: side, starred }
-          : { kind: "pole", cardId: card.id, chosen: side, starred },
-      selected: chosen === side,
-    }));
-  }
-  return flipped ? options.reverse() : options;
+  // Screen order comes from the persisted flip; the recorded choice always names the data pole.
+  return displayChoices(card, flipped).map((choice) => ({
+    key: choice,
+    label: choiceLabel(card, choice),
+    swipe: swipeFor(card, choice, starred),
+    selected: swipe?.chosen === choice,
+  }));
 }
 
-const ISSUE_ICONS: Record<string, IconName> = {
-  housing: "house",
-  mobility: "bus",
-  fiscal: "coins",
-};
-
-function cardIcon(card: PolicyCard): IconName {
-  if (card.kind === "tradeoff") return "scale";
-  if (card.kind === "judicial_pole") return "gavel";
-  return ISSUE_ICONS[card.issueId.split(".")[0] ?? ""] ?? "sparkle";
-}
-
-function cardTitle(card: PolicyCard): string {
-  if (card.kind === "tradeoff") return "Is this worth the cost?";
-  if (card.kind === "judicial_pole") return JUDICIAL_LABEL[card.dimension];
-  return issueById(card.issueId)?.label ?? "A choice";
-}
+const DECK = orderDeck(releaseCards);
 
 function cardCopy(card: PolicyCard) {
   const base = { icon: cardIcon(card), title: cardTitle(card) };
@@ -270,7 +234,7 @@ function cardCopy(card: PolicyCard) {
     return {
       ...base,
       kicker: "A tradeoff",
-      prompt: "Pick the page you can live with.",
+      prompt: "Is this worth it to you?",
       guide: "Declining does not mean you oppose the goal. It means this cost is too high.",
     };
   }
@@ -289,54 +253,6 @@ function cardCopy(card: PolicyCard) {
     prompt: "Tap the page that sounds more like you.",
     guide: "Any pick is fine here. Skipping counts as no answer, never as neutral.",
   };
-}
-
-function DeckDone() {
-  const session = useSession();
-  const router = useRouter();
-  const lastCard = () => session.setDeckIndex(Math.max(demoBallot.cards.length - 1, 0));
-  return (
-    <Screen
-      header={<TopBar onBack={lastCard} backLabel="Last card" />}
-      footer={
-        <>
-          <PrimaryButton label="Walk the ballot" arrow onPress={() => router.navigate("/ballot")} />
-          <TextButton label="Review the last card" icon="back" onPress={lastCard} />
-        </>
-      }
-    >
-      <SampleMark />
-      <Kicker>The deck is finished</Kicker>
-      <Title>The names can wait.</Title>
-      <Body>
-        Every contest on this sample is still ahead. The evidence comes first. A summary does not
-        choose for you.
-      </Body>
-      <Ornament />
-      <View style={styles.summary}>
-        {demoBallot.cards.map((card, index) => {
-          const swipe = session.swipes.find((item) => item.cardId === card.id);
-          const skipped = swipe == null || swipe.chosen === "skip";
-          return (
-            <Enter key={card.id} delay={120 + index * 80}>
-              <View style={[styles.summaryRow, index > 0 && styles.summaryDivider]}>
-                <IconBox icon={cardIcon(card)} />
-                <View style={styles.summaryText}>
-                  <Text style={styles.summaryTitle}>{cardTitle(card)}</Text>
-                  <Text style={[styles.summaryChoice, skipped && styles.summarySkipped]}>
-                    {choiceText(card, swipe)}
-                  </Text>
-                </View>
-                {swipe?.starred ? (
-                  <Icon name="star" size={20} strokeWidth={1.7} fill={colors.goldDeep} />
-                ) : null}
-              </View>
-            </Enter>
-          );
-        })}
-      </View>
-    </Screen>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -436,18 +352,4 @@ const styles = StyleSheet.create({
   },
   swapNote: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
   swapText: { fontFamily: fonts.body, color: colors.ink, fontSize: 14, lineHeight: 18 },
-  summary: {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderWidth: 2,
-    borderRadius: 10,
-    boxShadow: shadows.paper,
-    paddingHorizontal: 14,
-  },
-  summaryRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
-  summaryDivider: { borderTopWidth: 1.5, borderTopColor: colors.lineSoft, borderStyle: "dashed" },
-  summaryText: { flex: 1, gap: 2 },
-  summaryTitle: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 18 },
-  summaryChoice: { fontFamily: fonts.body, color: colors.ink, fontSize: 15, lineHeight: 20 },
-  summarySkipped: { color: colors.inkSoft, fontFamily: fonts.displayItalic },
 });

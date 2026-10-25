@@ -1,0 +1,15 @@
+{
+  "_comment": "Synthetic reveal-only identities for fixtures/release-fixture.json. Obviously fake names and parties. Never read by any /ballot code path (APP_BUILD.md §3.2).",
+  "releaseId": "fixture-v1",
+  "contests": {
+    "contest-candidate-1": [
+      { "id": "cand-a", "name": "Fixture Person Alder", "party": "Sample Party One" },
+      { "id": "cand-b", "name": "Fixture Person Birch", "party": "Sample Party Two" }
+    ],
+    "contest-measure-1": [],
+    "contest-judicial-1": [
+      { "id": "judge-a", "name": "Fixture Judge Cedar", "party": "Sample Party Two" },
+      { "id": "judge-b", "name": "Fixture Judge Dogwood", "party": "Sample Party One" }
+    ]
+  }
+}

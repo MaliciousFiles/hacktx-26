@@ -61,3 +61,37 @@ export function contestTone(kind: OfficeKind, objective: boolean): string {
   if (kind === "judicial" || objective) return "Objective information";
   return "Evidence to compare";
 }
+
+export type BallotSection = "races" | "judicial" | "propositions";
+
+export const SECTION_LABEL: Record<BallotSection, string> = {
+  races: "Races",
+  judicial: "Judicial",
+  propositions: "Propositions",
+};
+
+/** Grouping on My Ballot. Order within the ballot is always the official order (Inv. 20). */
+export function sectionOf(contest: { officeKind: OfficeKind }): BallotSection {
+  if (contest.officeKind === "measure") return "propositions";
+  if (contest.officeKind === "judicial") return "judicial";
+  return "races";
+}
+
+export const SLOT_LABEL = {
+  goal: "Goal",
+  mechanism: "Mechanism",
+  cost: "Cost",
+  funding: "Funding",
+  timeline: "Timeline",
+  whoActs: "Who acts",
+} as const;
+
+export const TIER_LABEL = ["Limited detail", "Some detail", "Detailed"] as const;
+
+export const BUCKET_COPY = {
+  happily_ever_after: { emoji: "✨", label: "Happily Ever After" },
+  good_company: { emoji: "🤝", label: "Good Company" },
+  different_paths: { emoji: "🧭", label: "Different Paths" },
+  worlds_apart: { emoji: "🌙", label: "Worlds Apart" },
+  clouded: { emoji: "🪞", label: "Clouded Mirror" },
+} as const;

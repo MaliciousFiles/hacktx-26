@@ -1,105 +1,190 @@
-import { Redirect, useRouter } from "expo-router";
-import type { OfficeKind } from "@ftb/types";
+// B1 · My Ballot: every contest in official order, grouped by section (UX.md §3.3, Inv. 20).
+import type { Contest, OfficeKind } from "@ftb/types";
+import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { Icon, type IconName } from "@/components/art";
+import { Chip, ChipRow, type ChipTone } from "@/components/kit";
 import { Enter, PressableScale } from "@/components/motion";
 import {
-  Body,
+  Banner,
   IconBox,
   Kicker,
   Note,
+  PrimaryButton,
   SampleMark,
   Screen,
   TextButton,
   Title,
   TopBar,
 } from "@/components/ui";
-import { contestById, demoBallot, identityFor, orderedProfiles } from "@/fixtures/travisDemo";
-import { contestTone, officeKindLabel } from "@/labels";
+import { contests, demo, isObjectiveOnly, orderedProfiles, release } from "@/data/release";
+import { usePhaseGate, WALKING } from "@/gate";
+import { officeKindLabel, sectionOf, SECTION_LABEL, type BallotSection } from "@/labels";
+import { isDecided, pickLabel } from "@/lib/picks";
 import { useSession } from "@/session";
 import { colors, fonts, shadows } from "@/theme";
 
 export default function Ballot() {
   const session = useSession();
   const router = useRouter();
-  if (!session.started) return <Redirect href="/" />;
+  const gate = usePhaseGate(WALKING);
+  if (gate) return gate;
 
-  const contests = demoBallot.ballot.contestIds.flatMap((id) => {
-    const contest = contestById(id);
-    return contest ? [contest] : [];
-  });
+  const { state } = session;
+  const revealed = state.phase === "revealed";
+  const looked = contests.filter((contest) => state.visited[contest.id]).length;
+  const picked = contests.filter((contest) => isDecided(state.picks[contest.id])).length;
+
+  const sections: { section: BallotSection; items: Contest[] }[] = [];
+  for (const contest of contests) {
+    const section = sectionOf(contest);
+    const last = sections[sections.length - 1];
+    if (last && last.section === section) last.items.push(contest);
+    else sections.push({ section, items: [contest] });
+  }
 
   return (
     <Screen
       header={
         <TopBar
-          onBack={() => router.navigate("/explore")}
+          onBack={
+            revealed
+              ? undefined
+              : () => {
+                  session.backToExplore();
+                  router.navigate("/explore");
+                }
+          }
           backLabel="Deck"
           action={
-            <TextButton
-              label="Start over"
-              icon="back"
-              onPress={() => {
-                session.reset();
-                router.navigate("/");
-              }}
-            />
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="Menu"
+              hitSlop={10}
+              onPress={() => router.push("/menu")}
+              style={styles.menu}
+            >
+              <View style={styles.menuBar} />
+              <View style={styles.menuBar} />
+              <View style={styles.menuBar} />
+            </PressableScale>
           }
         />
       }
+      footer={
+        revealed ? (
+          <>
+            <PrimaryButton
+              label="Surprised?"
+              arrow
+              onPress={() => router.push("/unmask/surprised")}
+            />
+            <TextButton
+              label="My ballot notes"
+              icon="scroll"
+              onPress={() => router.push("/notes")}
+            />
+          </>
+        ) : (
+          <PrimaryButton
+            label="Ready for the Unmasking?"
+            disabled={looked === 0}
+            onPress={() => router.push("/unmask")}
+          />
+        )
+      }
     >
-      <SampleMark />
-      <Kicker>Your ballot</Kicker>
-      <Title>Every contest is here.</Title>
-      <Body>
-        {contests.length} contests on sample style A. Open any of them. Nothing is dropped because
-        the evidence is thin.
-      </Body>
-      {session.deckIndex < demoBallot.cards.length ? (
-        <Note>You still have unanswered cards in the deck.</Note>
+      {demo ? <SampleMark /> : null}
+      <Kicker>{revealed ? "Masks off" : "Your ballot"}</Kicker>
+      <Title>My Ballot</Title>
+      <Text style={styles.stamp}>
+        {release.id} · {looked} of {contests.length} looked at · {picked} picked
+      </Text>
+      <Note>
+        Every contest is here, in ballot order. Nothing is dropped because the evidence is thin.
+      </Note>
+      {session.masksRefreshed && !revealed ? (
+        <Banner
+          title="Your masks were refreshed for privacy"
+          body="Masks last 24 hours. New ones were dealt, and your picks are kept."
+        />
       ) : null}
-      {contests.map((contest, index) => {
-        const profiles = orderedProfiles(contest, session.order[contest.id]);
-        const objective = profiles.every(
-          (profile) => profile.coverage === "objective_only" || profile.evidenceState === "none",
-        );
-        const names = profiles.map((profile) => {
-          if (session.revealed[contest.id]) return identityFor(profile.id)?.name ?? "Named";
-          return session.masks?.map[profile.id]?.character ?? "Masked candidate";
-        });
-        return (
-          <Enter key={contest.id} kind="deal" delay={120 + index * 110}>
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${contest.title}`}
-              onPress={() => router.push({ pathname: "/contest/[id]", params: { id: contest.id } })}
-              depth={0.98}
-              style={styles.row}
-            >
-              <View style={styles.rowHead}>
-                <IconBox icon={OFFICE_ICONS[contest.officeKind]} />
-                <Text style={styles.kind}>{officeKindLabel(contest.officeKind)}</Text>
-                {session.revealed[contest.id] ? (
-                  <View style={styles.unmasked}>
-                    <Icon name="mask" size={14} strokeWidth={2} />
-                    <Text style={styles.unmaskedText}>unmasked</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text style={styles.rowTitle}>{contest.title}</Text>
-              <Text style={styles.tone}>{contestTone(contest.officeKind, objective)}</Text>
-              <View style={styles.namesRow}>
-                <Text style={styles.names}>
-                  {names.length > 0 ? names.join("  ·  ") : "No candidates"}
-                </Text>
-                <Icon name="chevron" size={18} strokeWidth={2.4} />
-              </View>
-            </PressableScale>
-          </Enter>
-        );
-      })}
-      <Note>Names stay behind characters until you lift the mask on a contest.</Note>
+
+      {sections.map(({ section, items }) => (
+        <View key={section}>
+          <Text style={styles.section}>{SECTION_LABEL[section]}</Text>
+          {items.map((contest, index) => (
+            <Enter key={contest.id} kind="deal" delay={80 + index * 90}>
+              <ContestRow contest={contest} />
+            </Enter>
+          ))}
+        </View>
+      ))}
+      {!revealed && looked === 0 ? (
+        <Note>Open at least one contest before the Unmasking.</Note>
+      ) : null}
     </Screen>
+  );
+}
+
+function coverage(contest: Contest): { label: string; tone: ChipTone; icon: IconName } {
+  if (contest.officeKind === "measure")
+    return { label: "Yes/No measure", tone: "gold", icon: "scroll" };
+  if (contest.unopposed) return { label: "Unopposed", tone: "plain", icon: "info" };
+  if (contest.officeKind === "judicial") return { label: "Judicial", tone: "gold", icon: "gavel" };
+  if (isObjectiveOnly(contest))
+    return { label: "Objective info only", tone: "plain", icon: "info" };
+  return { label: "Full analysis", tone: "sage", icon: "check" };
+}
+
+function ContestRow({ contest }: { contest: Contest }) {
+  const router = useRouter();
+  const session = useSession();
+  const { state } = session;
+  const pick = state.picks[contest.id];
+  const status = pick
+    ? pick.kind === "undecided"
+      ? "Undecided"
+      : "Picked"
+    : state.visited[contest.id]
+      ? "Looked at"
+      : "Not started";
+  const chip = coverage(contest);
+  const profiles = orderedProfiles(contest, state.order[contest.id]);
+  const detail =
+    contest.officeKind === "measure"
+      ? "Yes/No · ballot text first"
+      : `${officeKindLabel(contest.officeKind)} · ${profiles.length} candidate${profiles.length === 1 ? "" : "s"}`;
+
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={`${contest.title}. ${chip.label}. ${status}`}
+      onPress={() => router.push({ pathname: "/contest/[id]", params: { id: contest.id } })}
+      depth={0.98}
+      style={styles.row}
+    >
+      <View style={styles.rowHead}>
+        <IconBox icon={OFFICE_ICONS[contest.officeKind]} />
+        <Text style={styles.rowTitle}>{contest.title}</Text>
+        <Icon name="chevron" size={18} strokeWidth={2.4} />
+      </View>
+      <Text style={styles.detail}>{detail}</Text>
+      <ChipRow>
+        <Chip label={chip.label} tone={chip.tone} icon={chip.icon} />
+        <Chip
+          label={status}
+          tone={status === "Not started" ? "dashed" : "plain"}
+          icon={status === "Picked" ? "check" : undefined}
+        />
+      </ChipRow>
+      {state.phase === "revealed" && profiles.length > 0 ? (
+        <Text style={styles.names}>
+          {profiles.map((profile) => session.nameFor(profile.id)).join("  ·  ")}
+          {pick ? `\nYour pick: ${pickLabel(pick, session.nameFor)}` : ""}
+        </Text>
+      ) : null}
+    </PressableScale>
   );
 }
 
@@ -113,50 +198,45 @@ const OFFICE_ICONS: Record<OfficeKind, IconName> = {
 };
 
 const styles = StyleSheet.create({
+  stamp: { fontFamily: fonts.bold, color: colors.line, fontSize: 14 },
+  section: {
+    fontFamily: fonts.bold,
+    color: colors.line,
+    fontSize: 13,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginTop: 22,
+  },
+  menu: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: colors.line,
+    backgroundColor: colors.cream,
+    boxShadow: `0 2px 0 ${colors.bevel}`,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  menuBar: { width: 18, height: 2.5, borderRadius: 2, backgroundColor: colors.line },
   row: {
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 2,
     borderRadius: 10,
     boxShadow: `inset 0 0 0 3px ${colors.card}, inset 0 0 0 4px ${colors.lineSoft}, ${shadows.paper}`,
-    padding: 16,
-    marginTop: 16,
+    padding: 14,
+    marginTop: 10,
   },
   rowHead: { flexDirection: "row", alignItems: "center", gap: 10 },
-  unmasked: {
-    marginLeft: "auto",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: colors.gold,
-    borderWidth: 1.5,
-    borderColor: colors.line,
-  },
-  unmaskedText: { fontFamily: fonts.bold, color: colors.line, fontSize: 12 },
-  namesRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
-  kind: {
-    fontFamily: fonts.bold,
-    color: colors.line,
-    fontSize: 12,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
   rowTitle: {
+    flex: 1,
     fontFamily: fonts.display,
     color: colors.heading,
-    fontSize: 25,
-    lineHeight: 30,
-    marginTop: 4,
+    fontSize: 21,
+    lineHeight: 25,
   },
-  tone: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 16, marginTop: 6 },
-  names: {
-    fontFamily: fonts.body,
-    color: colors.inkSoft,
-    fontSize: 14,
-    lineHeight: 20,
-    flex: 1,
-  },
+  detail: { fontFamily: fonts.body, color: colors.inkSoft, fontSize: 14, marginTop: 6 },
+  names: { fontFamily: fonts.body, color: colors.ink, fontSize: 14, lineHeight: 20, marginTop: 8 },
 });

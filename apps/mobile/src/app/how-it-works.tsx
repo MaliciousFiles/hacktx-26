@@ -12,7 +12,7 @@ import {
   TopBar,
 } from "@/components/ui";
 import { formatIsoDate } from "@/format";
-import { demoBallot } from "@/fixtures/travisDemo";
+import { demo, release } from "@/data/release";
 import { colors, fonts } from "@/theme";
 
 const SOURCES: Array<[string, string]> = [
@@ -33,10 +33,9 @@ const PROMISES = [
 
 export default function HowItWorks() {
   const router = useRouter();
-  const { release } = demoBallot;
   return (
-    <Screen header={<TopBar onBack={() => router.navigate("/")} backLabel="Home" />}>
-      <SampleMark />
+    <Screen header={<TopBar onBack={() => router.back()} />}>
+      {demo ? <SampleMark /> : null}
       <Kicker>How this book works</Kicker>
       <Title>Evidence first, names last.</Title>
       <Body>
@@ -78,7 +77,7 @@ export default function HowItWorks() {
           Candidates and voters will be able to report errors. Every correction is reviewed the same
           way for every candidate, and the changes are published with the next release.
         </Body>
-        <Note>The report form arrives with the first live release.</Note>
+        <Note>Report an error from the menu on My Ballot.</Note>
       </Section>
     </Screen>
   );

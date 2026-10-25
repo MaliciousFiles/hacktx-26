@@ -12,6 +12,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SessionProvider } from "@/session";
 import { colors } from "@/theme";
 
+// Sheets open over the current screen (UX.md §2.2): the pick sheet, citations and the ☰ menu.
+const SHEET = { presentation: "modal", animation: "slide_from_bottom" } as const;
+
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     AlegreyaSans_500Medium,
@@ -34,7 +37,16 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: colors.bg },
             animation: "slide_from_right",
           }}
-        />
+        >
+          <Stack.Screen name="pick/[id]" options={SHEET} />
+          <Stack.Screen name="citation/[id]" options={SHEET} />
+          <Stack.Screen name="menu" options={SHEET} />
+          {/* The ceremony can't be swiped away halfway through. */}
+          <Stack.Screen
+            name="unmask/reveal"
+            options={{ gestureEnabled: false, animation: "fade" }}
+          />
+        </Stack>
       </SessionProvider>
     </SafeAreaProvider>
   );

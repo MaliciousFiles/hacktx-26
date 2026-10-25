@@ -44,3 +44,25 @@ export function dealMasks(
   }
   return map;
 }
+
+/** SecureStore keeps values small, so masks are stored as candidateId → cast index. */
+export function packMasks(map: Readonly<Record<ID, Mask>>, cast: readonly Mask[] = CAST) {
+  const packed: Record<ID, number> = {};
+  for (const [candidateId, mask] of Object.entries(map)) {
+    const index = cast.findIndex((item) => item.character === mask.character);
+    if (index >= 0) packed[candidateId] = index;
+  }
+  return packed;
+}
+
+export function unpackMasks(
+  packed: Readonly<Record<ID, number>>,
+  cast: readonly Mask[] = CAST,
+): Record<ID, Mask> {
+  const map: Record<ID, Mask> = {};
+  for (const [candidateId, index] of Object.entries(packed)) {
+    const mask = cast[index];
+    if (mask) map[candidateId] = mask;
+  }
+  return map;
+}

@@ -1,5 +1,50 @@
-import type { IssueId, PolicyCard, Position, Prob, Swipe } from "@ftb/types";
-import { issueAlignment, userIssuePosition, type WeightedPoleChoice } from "@ftb/types/scoring";
+import type {
+  Bucket,
+  IssueId,
+  MatchResult,
+  PolicyCard,
+  Position,
+  Prob,
+  Swipe,
+  UserVector,
+} from "@ftb/types";
+import {
+  computeUserVector,
+  issueAlignment,
+  userIssuePosition,
+  type WeightedPoleChoice,
+} from "@ftb/types/scoring";
+
+/** ⭐ doubles an issue's weight; it never changes the sign (APP_BUILD.md §1.4). */
+export function salienceFrom(
+  cards: readonly PolicyCard[],
+  swipes: readonly Swipe[],
+): Record<IssueId, number> {
+  const byId = new Map(cards.map((card) => [card.id, card]));
+  const salience: Record<IssueId, number> = {};
+  for (const swipe of swipes) {
+    if (!swipe.starred) continue;
+    const card = byId.get(swipe.cardId);
+    if (!card) continue;
+    const issues =
+      card.kind === "pole"
+        ? Object.keys(card.vector)
+        : card.kind === "judicial_pole"
+          ? [`judicial.${card.dimension}`]
+          : [...card.policyIssues, ...card.costIssues];
+    for (const issueId of issues) salience[issueId] = 2;
+  }
+  return salience;
+}
+
+export function userVectorFor(cards: readonly PolicyCard[], swipes: readonly Swipe[]): UserVector {
+  return computeUserVector([...swipes], [...cards], salienceFrom(cards, swipes));
+}
+
+/** UI rule over scoring output: no clarity means Clouded, whatever the bucket (§1.6). */
+export function displayBucket(result: Pick<MatchResult, "bucket" | "matchClarity">): Bucket {
+  return result.matchClarity === 0 ? "clouded" : result.bucket;
+}
 
 /** Pole choices only. A skip is left out, so it stays missing instead of becoming zero. */
 export function polePositions(
