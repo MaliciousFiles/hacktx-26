@@ -32,13 +32,16 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --go",
+    "dev": "expo start --go",
     "go": "expo start --go",
+    "go:tunnel": "expo start --go --tunnel",
+    "go:clear": "expo start --go --clear",
+    "dev-client": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit",
-    "dev": "expo start"
+    "typecheck": "tsc --noEmit"
   },
   "private": true
 }

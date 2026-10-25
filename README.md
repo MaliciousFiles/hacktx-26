@@ -35,13 +35,14 @@ Packages ship TypeScript source directly (`exports` → `src/*.ts`), so there's 
 pnpm install
 cp .env.example .env          # fill in keys; never commit
 
-pnpm dev                      # all apps in parallel
-pnpm -F @ftb/mobile dev       # one app (Expo)
+pnpm mobile                   # Expo Go QR code for your phone (see apps/mobile/README.md)
+pnpm mobile:tunnel            # same, when the phone can't reach the laptop over Wi-Fi
+pnpm dev                      # all apps in parallel (no QR code; use `pnpm mobile` for the phone)
 pnpm -F @ftb/api dev          # API on :8787
 pnpm -F @ftb/pipeline start   # run the pipeline
 
 pnpm typecheck                # every workspace
-pnpm test                     # vitest (packages + api)
+pnpm test                     # vitest (packages + api + mobile)
 pnpm format
 ```
 

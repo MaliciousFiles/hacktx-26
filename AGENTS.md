@@ -7,3 +7,4 @@
 - No model calls in `apps/api` or `apps/mobile`. Model output only comes from frozen pipeline releases.
 - Before finishing: `pnpm typecheck && pnpm test`.
 - `apps/mobile` has its own `AGENTS.md` with Expo-specific rules.
+- `pnpm mobile` (Expo Go via QR) must keep working. Don't drop `--go` from the mobile start scripts or add native deps Expo Go lacks. `apps/mobile/src/expoGo.test.ts` enforces both; see `apps/mobile/README.md`.
