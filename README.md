@@ -28,6 +28,8 @@ pnpm dev                      # all apps in parallel
 pnpm -F @ftb/mobile dev       # one app (Expo)
 pnpm -F @ftb/api dev          # API on :8787
 pnpm -F @ftb/pipeline start   # run the pipeline
+pnpm -F @ftb/scraping scrape:social -- --accounts ../../config/social_accounts.json
+                              # social scrapers → packages/scraping/dist/social/<date>/
 
 pnpm typecheck                # every workspace
 pnpm test                     # vitest (packages + api)

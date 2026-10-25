@@ -1,0 +1,21 @@
+{
+  "_comment": "Copy to social_accounts.json and fill in real candidates. Only add an account the campaign itself links (campaign site, filing, platform verification); put that link in verifiedVia. Handles have no leading @. Platforms: x, facebook, instagram, tiktok, youtube, threads, bluesky.",
+  "candidates": [
+    {
+      "contestId": "contest-example",
+      "candidateId": "cand-example",
+      "accounts": [
+        {
+          "platform": "bluesky",
+          "handle": "example.bsky.social",
+          "verifiedVia": "https://example-campaign.org/"
+        },
+        {
+          "platform": "x",
+          "handle": "examplecandidate",
+          "verifiedVia": "https://example-campaign.org/"
+        }
+      ]
+    }
+  ]
+}
