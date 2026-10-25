@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC legacy identifiers/actions/summaries shape. No actual official acts. -->
+<billStatus>
+  <bill>
+    <congress>118</congress><type>S</type><number>17</number>
+    <introducedDate>2023-02-01</introducedDate><title>Synthetic Legacy Water Measure</title>
+    <sponsors><item><identifiers><bioguideId>C001098</bioguideId></identifiers><isByRequest>Y</isByRequest></item></sponsors>
+    <cosponsors><item><identifiers><bioguideId>C001099</bioguideId></identifiers><sponsorshipDate>2023-05-01</sponsorshipDate><sponsorshipWithdrawnDate>2023-07-15</sponsorshipWithdrawnDate></item></cosponsors>
+    <actions><actions>
+      <item><actionDate>2023-02-01</actionDate><text>Introduced in Senate</text></item>
+      <item><actionDate>2023-09-01</actionDate><text>Vetoed by President.</text></item>
+    </actions></actions>
+    <summaries><item><actionDate>2023-09-01</actionDate><versionCode>49</versionCode><text>FUTURE: Not valid as the sponsorship text.</text></item></summaries>
+  </bill>
+</billStatus>

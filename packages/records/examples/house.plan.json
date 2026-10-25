@@ -1,0 +1,21 @@
+{
+  "identity": { "provider": "house", "config": { "state": "TX" } },
+  "since": "2025-01-01",
+  "sources": [
+    {
+      "id": "house-clerk-2025-rolls",
+      "adapter": "house-clerk",
+      "discovery": {
+        "kind": "house-clerk-rolls",
+        "year": 2025,
+        "fromRoll": 1,
+        "toRoll": 362,
+        "maxDocuments": 40
+      },
+      "config": {
+        "urls": ["https://clerk.house.gov/evs/2025/roll001.xml"],
+        "role": "US House of Representatives"
+      }
+    }
+  ]
+}

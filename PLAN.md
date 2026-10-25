@@ -10,6 +10,8 @@
 
 ## 1. User flow
 
+Screen-by-screen design: [docs/UX.md](docs/UX.md) · visual system: [docs/VISUAL_DESIGN.md](docs/VISUAL_DESIGN.md) · build guide: [docs/APP_BUILD.md](docs/APP_BUILD.md).
+
 ```
 Onboarding (Fairy Godmother) → address processed locally → precinct → ballot
   ▼
@@ -392,7 +394,7 @@ hacktx26/
 - **All TypeScript, including the pipeline (replaces the original Python pipeline plan).** No Python↔TS schema mirroring is needed. Use a small Python script only where TS is clearly worse (e.g. a PDF table extractor) and have it write fixture-shaped JSON.
 - **Scoring lives in `@ftb/types/scoring`** (a subpath export, not its own package) because both the mobile app and the pipeline need it. It must stay pure. **Validators live in `@ftb/pipeline`**, since only publication runs them.
 - **Packages are internal source packages** (`exports` → `src/*.ts`, `workspace:*` deps). There's no build step: Metro, `tsx` and Vite all import TS directly.
-- **Expo + pnpm:** Expo SDK 54+ supports pnpm's default isolated installs and auto-configures Metro for monorepos (verified: iOS export bundles `@ftb/types`, expo-doctor passes). If a native library breaks, fall back to `nodeLinker: hoisted` in `pnpm-workspace.yaml`. In `apps/mobile`, add deps with `npx expo install`.
+- **Expo + pnpm:** Expo SDK 54+ supports pnpm's default isolated installs and auto-configures Metro for monorepos (verified: iOS export bundles `@ftb/types`, expo-doctor passes). If a native library breaks, fall back to `nodeLinker: hoisted` in `pnpm-workspace.yaml`. In `apps/mobile`, add deps with `npx expo install`. Run on a phone with `pnpm mobile` (Expo Go); see `apps/mobile/README.md`.
 - **pnpm build scripts are allowlisted** under `allowBuilds` in `pnpm-workspace.yaml`. Approve new ones with `pnpm approve-builds <pkg>`.
 - **No Turborepo.** `pnpm dev`, `pnpm typecheck`, `pnpm test` and `pnpm -F <pkg>` are enough.
 - **Tooling:** one root `tsconfig.base.json` (strict), root Vitest, root Prettier. Web keeps its oxlint and mobile keeps `expo lint`.

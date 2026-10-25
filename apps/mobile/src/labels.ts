@@ -1,0 +1,63 @@
+import type { CredibilityFlagType, JudicialDim, OfficeKind, SourceType } from "@ftb/types";
+
+export const SOURCE_LABEL: Record<SourceType, string> = {
+  official_action: "Official action",
+  official_doc: "Official document",
+  questionnaire: "Questionnaire",
+  debate_speech: "Debate or speech",
+  campaign_site: "Campaign site",
+  archived_campaign_site: "Archived campaign site",
+  social_post: "Social post",
+  social_snippet: "Social snippet",
+  news: "News",
+};
+
+export const FLAG_COPY: Record<CredibilityFlagType, { title: string; detail: string }> = {
+  beyond_power: {
+    title: "Beyond this office's power",
+    detail: "This counts against them. Another office would have to do it.",
+  },
+  needs_others: {
+    title: "Needs others to act",
+    detail: "They can ask. They cannot do it alone. This is an explanation, not a penalty.",
+  },
+  no_funding: {
+    title: "No funding source stated",
+    detail:
+      "A cost shows up in the sample and no source is named. That is not proof that none exists.",
+  },
+  funded: {
+    title: "A funding source is named",
+    detail: "The plan names where the money would come from.",
+  },
+};
+
+export const JUDICIAL_LABEL: Record<JudicialDim, string> = {
+  text_vs_purpose: "Reading the law",
+  restraint_vs_review: "Deferring to lawmakers",
+  precedent: "Past rulings",
+  procedural_strictness: "Holding government to procedure",
+};
+
+export function officeKindLabel(kind: OfficeKind): string {
+  switch (kind) {
+    case "legislative":
+      return "Legislature";
+    case "executive":
+      return "Executive office";
+    case "regulatory":
+      return "Regulatory office";
+    case "judicial":
+      return "Court";
+    case "board":
+      return "Board";
+    case "measure":
+      return "Ballot measure";
+  }
+}
+
+export function contestTone(kind: OfficeKind, objective: boolean): string {
+  if (kind === "measure") return "No recommendation";
+  if (kind === "judicial" || objective) return "Objective information";
+  return "Evidence to compare";
+}

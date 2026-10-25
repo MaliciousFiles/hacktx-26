@@ -1,0 +1,16 @@
+{
+  "since": "2025-01-01",
+  "sources": [
+    {
+      "id": "tx-89r-hb2",
+      "adapter": "tlo-billhistory",
+      "config": {
+        "urls": ["ftp://ftp.legis.state.tx.us/bills/89R/billhistory/house_bills/HB00001_HB00099/HB%202.xml"],
+        "role": "Texas House District 54",
+        "memberName": "Buckley",
+        "memberCandidateId": "example-buckley",
+        "memberIdentitySourceUrl": "https://capitol.texas.gov/Members/MemberInfo.aspx?Chamber=H&Code=A3585&Leg=89"
+      }
+    }
+  ]
+}

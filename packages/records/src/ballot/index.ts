@@ -1,0 +1,1 @@
+export { voteTravisAdapter } from "./votetravis";

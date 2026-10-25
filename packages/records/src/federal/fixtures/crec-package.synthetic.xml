@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC miniature whole-day package. Not actual votes or claims about IDs.
+     Shape reference: https://www.govinfo.gov/metadata/pkg/CREC-2025-07-23/mods.xml
+     Granule contexts are relatedItem type=constituent, NOT host or otherFormat. -->
+<mods xmlns="http://www.loc.gov/mods/v3">
+  <titleInfo><title>Congressional Record PACKAGE TITLE IS NOT A VOTE QUESTION</title></titleInfo>
+  <originInfo><dateIssued encoding="w3cdtf">2025-07-23</dateIssued></originInfo>
+  <extension><collectionCode>CREC</collectionCode></extension>
+  <extension><docClass>CREC</docClass><congress>119</congress><session>1</session></extension>
+  <relatedItem type="host">
+    <titleInfo><title>HOST TITLE MUST NOT LEAK</title></titleInfo>
+    <extension><session>99</session><congVote chamber="SENATE" congress="119" number="999" yescount="500" nocount="0" nvcount="0"><congMember role="VOTED YES"/></congVote></extension>
+  </relatedItem>
+  <relatedItem type="constituent" ID="synthetic-house-granule">
+    <titleInfo><title>Unrelated House vote</title></titleInfo>
+    <extension>
+      <granuleDate>2025-07-23</granuleDate>
+      <congVote chamber="HOUSE" congress="119" number="200" yescount="200" nocount="0" nvcount="0"><congMember role="VOTED YES"/></congVote>
+    </extension>
+  </relatedItem>
+  <relatedItem type="constituent" ID="synthetic-senate-first">
+    <titleInfo><title>Synthetic First Nomination Cloture</title></titleInfo>
+    <extension>
+      <!-- Publication date and session intentionally inherited from the package. -->
+      <chamber>SENATE</chamber>
+      <congVote chamber="SENATE" congress="119" number="426" yescount="1" nocount="1" nvcount="0">
+        <inDailyDigest>false</inDailyDigest>
+        <congMember bioGuideId="C001098" role="VOTED YES" party="DO-NOT-PROJECT"/>
+        <congMember bioGuideId="C001099" role="VOTED NO"/>
+      </congVote>
+      <congMember bioGuideId="C001102" role="SPEAKING"/>
+    </extension>
+    <relatedItem type="host"><extension><session>99</session></extension></relatedItem>
+  </relatedItem>
+  <relatedItem type="constituent" ID="synthetic-senate-second">
+    <titleInfo><title>Synthetic Second Nomination Confirmation</title></titleInfo>
+    <extension>
+      <granuleDate>2025-07-24</granuleDate>
+      <congVote chamber="SENATE" congress="119" number="427" yescount="0" nocount="1" nvcount="0">
+        <inDailyDigest>false</inDailyDigest>
+        <congMember bioGuideId="C001098" role="VOTED NO" party="DO-NOT-PROJECT"/>
+      </congVote>
+    </extension>
+  </relatedItem>
+  <relatedItem type="constituent" ID="synthetic-unflagged-republication">
+    <titleInfo><title>Repeated First Nomination Vote</title></titleInfo>
+    <extension>
+      <granuleDate>2025-07-23</granuleDate>
+      <congVote chamber="SENATE" congress="119" number="426" yescount="1" nocount="1" nvcount="0">
+        <inDailyDigest>false</inDailyDigest>
+        <congMember bioGuideId="C001098" role="VOTED YES"/>
+        <congMember bioGuideId="C001099" role="VOTED NO"/>
+      </congVote>
+    </extension>
+  </relatedItem>
+  <relatedItem type="constituent" ID="synthetic-digest-republication">
+    <titleInfo><title>Daily Digest repeated vote</title></titleInfo>
+    <extension>
+      <granuleDate>2025-07-23</granuleDate>
+      <congVote chamber="SENATE" congress="119" number="426" yescount="1" nocount="1" nvcount="0">
+        <inDailyDigest>true</inDailyDigest>
+        <congMember bioGuideId="C001098" role="VOTED YES"/>
+        <congMember bioGuideId="C001099" role="VOTED NO"/>
+      </congVote>
+    </extension>
+  </relatedItem>
+</mods>

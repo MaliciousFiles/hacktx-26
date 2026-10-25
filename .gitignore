@@ -12,3 +12,5 @@ dist/
 # pipeline cache + raw snapshots (large, regenerable)
 packages/pipeline/.cache/
 packages/pipeline/snapshots/
+packages/records/.cache/
+packages/records/output/

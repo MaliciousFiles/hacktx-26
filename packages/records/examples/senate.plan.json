@@ -1,0 +1,13 @@
+{
+  "since": "2025-01-01",
+  "sources": [
+    {
+      "id": "gpo-senate-roll-426-2025",
+      "adapter": "govinfo-crec",
+      "config": {
+        "urls": ["https://www.govinfo.gov/metadata/granule/CREC-2025-07-23/CREC-2025-07-23-pt1-PgS4581-2/mods.xml"],
+        "role": "US Senate"
+      }
+    }
+  ]
+}
