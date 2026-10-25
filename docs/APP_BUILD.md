@@ -166,6 +166,7 @@ releaseCache.ts   releases/<releaseId>/<ballotStyleId>.json, immutable once writ
 fixtureSource.ts  reads fixtures/release-fixture.json; sets demo=true
 ```
 
+- **Current source (decided Oct 25):** the app reads `fixtures/release-fixture.json` through `fixtureSource.ts`, because it's the pipeline's real `/ballot` shape and the API serves the same file (§3.2, §10 H0–2). Issue labels and poles are bundled in the app until §9 gap 3 is agreed. `src/fixtures/travisDemo.ts` is retired once every screen reads the release fixture.
 - **Source switch:** when `EXPO_PUBLIC_API_URL` is unset, the app reads the fixture and shows the built `SampleMark` ("Sample release · not a live ballot") on every screen (PLAN §10). Demo data must never mix with real data.
 - **Release pinning:**
   1. On confirm (O6), fetch `GET /ballot?ballotStyleId&releaseId` and write it to the cache.

@@ -12,7 +12,7 @@
 
 | Topic | Decision |
 |---|---|
-| Look | The `mobile-dev-build` theme (parchment, forest, gold, rose; Georgia headings). Light only. See `VISUAL_DESIGN.md` |
+| Look | The fantastical gold storybook theme (parchment, maroon ink, gold leaf; IM Fell headings). Light only. See `VISUAL_DESIGN.md` |
 | Navigation | A single stack, as built on `mobile-dev-build`. No tab bar |
 | Unmasking | **One big reveal at the end** for the whole ballot. This replaces the per-contest "Lift the mask" button on `mobile-dev-build` |
 | Alignment buckets | Collapsed, opt-in, never on the ballot list or the share card |
