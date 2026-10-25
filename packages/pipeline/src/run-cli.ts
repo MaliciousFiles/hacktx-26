@@ -8,6 +8,8 @@ import { z } from "zod";
 import { hash } from "@ftb/scraping";
 import { ballotRunSchema, runBallotPipeline } from "./run.js";
 import { publishRelease, type PublishPayload } from "./publish.js";
+import { runBatch, type BatchInput } from "./batch.js";
+import { modelConfigFromEnv } from "./model-config.js";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 
@@ -28,6 +30,7 @@ export async function runCli(): Promise<void> {
   const { values } = parseArgs({
     options: {
       config: { type: "string" },
+      input: { type: "string" },
       out: { type: "string", default: "dist" },
       offline: { type: "boolean", default: false },
       concurrency: { type: "string", default: "3" },
@@ -36,9 +39,18 @@ export async function runCli(): Promise<void> {
       help: { type: "boolean", short: "h" },
     },
   });
+  if (values.input) {
+    // Prepared batch (sources/actions already collected): snapshot → classify → generate → publish.
+    if (values.config || values.fixture) throw new Error("--input is exclusive with --config/--fixture");
+    const batch = JSON.parse(await readFile(resolve(values.input), "utf8")) as BatchInput;
+    const result = await runBatch(batch, modelConfigFromEnv(resolve(values.out)));
+    if (!result.success) throw new Error([...result.errors, ...result.leaks].join("\n"));
+    console.log(`Published ${result.releaseFilePath} (${result.manifestHash})`);
+    return;
+  }
   if (values.help || (!values.config && !values.fixture)) {
     console.log(
-      "Usage: pnpm -F @ftb/pipeline start --config <verified-ballot-run.json> [--out dist] [--offline] [--concurrency 1-16]\nExplicit synthetic fixture mode: pnpm -F @ftb/pipeline start --fixture",
+      "Usage: pnpm -F @ftb/pipeline start --config <verified-ballot-run.json> [--out dist] [--offline] [--concurrency 1-16]\nPrepared batch: pnpm -F @ftb/pipeline start --input <batch.json>\nExplicit synthetic fixture mode: pnpm -F @ftb/pipeline start --fixture",
     );
     process.exitCode = values.help ? 0 : 1;
     return;

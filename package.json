@@ -5,6 +5,9 @@
   "packageManager": "pnpm@12.11.2",
   "scripts": {
     "dev": "pnpm -r --parallel --filter \"./apps/*\" dev",
+    "mobile": "pnpm -F @ftb/mobile go",
+    "mobile:tunnel": "pnpm -F @ftb/mobile go:tunnel",
+    "mobile:clear": "pnpm -F @ftb/mobile go:clear",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",

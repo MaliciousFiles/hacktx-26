@@ -13,7 +13,8 @@
     "records": "tsx --env-file-if-exists=../../.env src/records-cli.ts",
     "check-ai": "tsx --env-file-if-exists=../../.env src/check-ai.ts",
     "review-report": "tsx src/review-report.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:live": "tsx --env-file-if-exists=../../.env src/test-live-ai.ts"
   },
   "dependencies": {
     "@ftb/records": "workspace:*",

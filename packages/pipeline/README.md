@@ -163,3 +163,25 @@ Inspect `coverage.json`, not just the process exit status.
 
 See [CORPUS.md](CORPUS.md) for the live Travis County lookup, parallel acquisition,
 and the unresolved official-ballot/full-history coverage requirements.
+
+## Prepared batch mode (`--input`)
+
+`runBatch` (`src/batch.ts`) is the simpler path for data that was already collected
+elsewhere: snapshot → normalize → classify (Jev, Ollama fallback) → aggregate →
+generate highlights/plans (Ollama) → validate → publish. It does not collect anything.
+
+```sh
+pnpm -F @ftb/pipeline test:live                        # synthetic text, authenticated calls
+pnpm -F @ftb/pipeline start --input /absolute/path/to/batch.json
+```
+
+`.env`: `OLLAMA_MODEL`, `OLLAMA_MODEL_VERSION` (pinned revision from `/api/tags`),
+`OLLAMA_BASE_URL`, `JEV_API_KEY`, `JEV_MODEL_VERSION`. `BatchInput` fields: `payload`
+(shape of `fixtures/release-fixture.json`), `sources`, `actions`, `issues`,
+`normalize` (include every candidate name/alias), `blocklist`, `gitSha`. Judicial,
+uncontested, failed and thin-evidence contests get objective information only; full
+comparison needs at least three common sufficiently-evidenced issues per candidate.
+Raw snapshots/coverage: `dist/snapshots/` (keep private).
+
+For a full ballot with acquisition (records + voice + social), use `--config`
+(see Commands above).

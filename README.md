@@ -2,6 +2,12 @@
 
 HackTX '26. See [PLAN.md](./PLAN.md) for the product, invariants and the type contract.
 
+App design docs:
+
+- [docs/UX.md](./docs/UX.md): user flow, every screen, copy and accessibility
+- [docs/VISUAL_DESIGN.md](./docs/VISUAL_DESIGN.md): color, type, masks, components, motion, share card
+- [docs/APP_BUILD.md](./docs/APP_BUILD.md): mobile architecture, API, website, privacy enforcement, tests, build order, contract gaps
+
 Records integration: [packages/records/README.md](./packages/records/README.md)
 documents the shared `CandidateResearchRequest`, additive action-provenance fields,
 and source coverage. Pipeline owns ballot discovery; records and scraping receive
@@ -29,6 +35,8 @@ and read-only API credentials.
 | `config/`           |                 | `issues.yaml`, `authority.yaml`, `sources.yaml`, `prereg.yaml`                |
 | `fixtures/`         |                 | Contract-shaped fixture JSON everyone builds against                          |
 
+Pipeline batch inputs and Ollama configuration: [packages/pipeline/README.md](packages/pipeline/README.md).
+
 Packages ship TypeScript source directly (`exports` → `src/*.ts`), so there's no build step between packages.
 
 ## Commands
@@ -37,13 +45,15 @@ Packages ship TypeScript source directly (`exports` → `src/*.ts`), so there's 
 pnpm install
 cp .env.example .env          # fill in keys; never commit
 
-pnpm dev                      # all apps in parallel
-pnpm -F @ftb/mobile dev       # one app (Expo)
+pnpm mobile                   # Expo Go QR code for your phone (see apps/mobile/README.md)
+pnpm mobile:tunnel            # same, when the phone can't reach the laptop over Wi-Fi
+pnpm dev                      # all apps in parallel (no QR code; use `pnpm mobile` for the phone)
 pnpm -F @ftb/api dev          # API on :8787
-pnpm -F @ftb/pipeline start   # run the pipeline
+pnpm -F @ftb/pipeline start   # validate/publish the fixture
+pnpm -F @ftb/pipeline test:live # synthetic Jev + Ollama smoke test
 
 pnpm typecheck                # every workspace
-pnpm test                     # vitest (packages + api)
+pnpm test                     # vitest (packages + api + mobile)
 pnpm format
 ```
 

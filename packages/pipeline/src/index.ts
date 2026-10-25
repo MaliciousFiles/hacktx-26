@@ -11,6 +11,9 @@ export * from "./publish.js";
 export * from "./records.js";
 export * from "./run.js";
 export * from "./providers.js";
+export * from "./batch.js";
+export * from "./ollama.js";
+export * from "./model-config.js";
 
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";

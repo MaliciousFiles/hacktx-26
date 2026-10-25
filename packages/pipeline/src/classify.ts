@@ -34,6 +34,9 @@ export interface ClassifyConfig {
   jevModelVersion: string; // e.g. "jev-1.14" — never "latest"
   geminiModelVersion?: string; // optional when Ollama is the fallback
   ollamaApiKey?: string;
+  /** Inference model + endpoint for generation (see ollama.ts / model-config.ts). */
+  ollamaModel?: string;
+  ollamaBaseUrl?: string;
   ollamaModelVersion?: string;
   ollamaModelDigest?: string;
   /** Only enable after a separately evaluated fallback rubric has approval. */
@@ -257,6 +260,9 @@ export async function classifyOne(
   actionId: string | undefined,
   config: ClassifyConfig,
 ): Promise<Omit<Evidence, "id" | "eventDate" | "quoteSpan"> | null> {
+  if (input.sourceId !== source.id || input.mode === "unmasked_eval_only") {
+    throw new Error("Classification requires a publishable projection for this source");
+  }
   const req: JevClassifyRequest = {
     text: input.text,
     issueId: issue.id,

@@ -10,6 +10,7 @@ dist/
 !.env.example
 
 # pipeline cache + raw snapshots (large, regenerable)
+**/.cache/model-calls/
 packages/pipeline/.cache/
 packages/pipeline/snapshots/
 packages/records/.cache/

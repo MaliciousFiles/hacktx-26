@@ -240,7 +240,8 @@ export async function classifyActions(input: ClassifyActionsInput): Promise<Clas
         action.id,
         input.config,
       );
-      if (!out) continue;
+      // Low-confidence classifications are withheld, as in the live ballot runner.
+      if (!out || out.distribution.confidence < input.config.lowConfidenceThreshold) continue;
       const flipped = decision.direction === -1;
       evidence.push({
         ...out,

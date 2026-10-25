@@ -32,7 +32,7 @@ function sha256(text: string): string {
  * Ingest raw sources and actions:
  * - Set contentHash = sha256(originalText) on each source.
  * - Reject sources without a fetchedAt (never stamp the wall clock).
- * - Deduplicate sources by (url, contentHash) — identical wire reposts count once.
+ * - Deduplicate identical text per contest + candidate across URLs (wire reposts count once).
  * - Deduplicate actions by id.
  * - Write a stage manifest to dist/manifests/snapshot-<timestamp>.json.
  */
@@ -50,11 +50,12 @@ export function snapshotSources(
     return { ...s, contentHash: sha256(s.originalText) };
   });
 
-  // Deduplicate: keep the first occurrence of each (url, contentHash) pair
+  // Deduplicate: keep the first copy of identical text for each contest + attribution
+  // (the same text under different URLs is a repost, not independent evidence)
   const seen = new Set<string>();
   const deduped: Source[] = [];
   for (const s of stamped) {
-    const key = `${s.url}::${s.contentHash}`;
+    const key = `${s.contestId}::${s.candidateId ?? "unattributed"}::${s.contentHash}`;
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(s);
