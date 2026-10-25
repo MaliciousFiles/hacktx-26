@@ -37,6 +37,6 @@ Docs: https://docs.expo.dev/eas/index.md
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- The team runs the app in **Expo Go** (`pnpm mobile`). `expo-dev-client` is installed, so a bare `expo start` serves a dev-build QR code that Expo Go can't open. Keep `--go` on every start script.
-- Expo Go only includes its bundled native modules. Don't add a native library that Expo Go lacks without team agreement: it forces everyone onto a development build (`npx expo run:ios|android` or `eas build --profile development`). `src/expoGo.test.ts` has the allowlist; update it only after confirming the module is "Included in Expo Go".
+- The team runs the app in **Expo Go** only (`pnpm mobile` / `pnpm mobile:tunnel`). Don't add `expo-dev-client` or `expo run:*` scripts: the dev client makes the QR code target a native build that Expo Go can't open. Keep `--go` on every start script.
+- Expo Go only includes its bundled native modules. Don't add a native library that Expo Go lacks without team agreement: it would force everyone onto a native development build. `src/expoGo.test.ts` has the allowlist; update it only after confirming the module is "Included in Expo Go".
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md

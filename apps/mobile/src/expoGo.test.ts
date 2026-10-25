@@ -15,6 +15,7 @@ const rootPkg = readJson(join(mobileDir, "../../package.json"));
 const EXPO_GO_NATIVE = new Set([
   "expo",
   "expo-constants",
+  "expo-crypto",
   "expo-file-system",
   "expo-font",
   "expo-linking",
@@ -28,8 +29,6 @@ const EXPO_GO_NATIVE = new Set([
   "react-native-screens",
   "react-native-svg",
   "react-native-view-shot",
-  // Native, but Expo Go ignores it. It only matters for `pnpm -F @ftb/mobile dev-client`.
-  "expo-dev-client",
 ]);
 
 const NATIVE_MARKERS = [
@@ -50,14 +49,20 @@ describe("Expo Go workflow", () => {
     expect(rootPkg.scripts.mobile).toBe("pnpm -F @ftb/mobile go");
   });
 
-  // expo-dev-client is installed, so a bare `expo start` serves a development-build QR
-  // code (exp+fairy-tale-ballot://) that Expo Go can't open. Every start script needs --go.
-  it.each(["mobile", "start", "dev", "go", "go:tunnel", "go:clear"])(
+  it.each(["mobile", "start", "dev", "go", "go:tunnel", "go:clear", "ios", "android"])(
     "`%s` passes --go",
     (script) => {
       expect(mobilePkg.scripts[script]).toMatch(/^expo start --go\b/);
     },
   );
+
+  // With expo-dev-client installed, `expo start` serves a dev-build QR code
+  // (exp+fairy-tale-ballot://) and a "choose an app" page; Expo Go can't open the former and
+  // the tunnel 504s on the latter.
+  it("does not depend on expo-dev-client", () => {
+    const all = { ...mobilePkg.dependencies, ...mobilePkg.devDependencies };
+    expect(all).not.toHaveProperty("expo-dev-client");
+  });
 
   it("every native dependency is bundled in Expo Go", () => {
     const deps = Object.keys(mobilePkg.dependencies ?? {});

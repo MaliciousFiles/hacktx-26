@@ -1,9 +1,9 @@
+import { getRandomValues } from "expo-crypto";
+
+// React Native has no Web Crypto global, so `globalThis.crypto` is undefined on device.
+// expo-crypto ships in Expo Go and fills the array from the OS CSPRNG.
 function fillRandom(target: Uint32Array): void {
-  const source = globalThis.crypto;
-  if (!source?.getRandomValues) {
-    throw new Error("No cryptographic random source is available on this device.");
-  }
-  source.getRandomValues(target as Parameters<Crypto["getRandomValues"]>[0]);
+  getRandomValues(target);
 }
 
 export function randomId(): string {
