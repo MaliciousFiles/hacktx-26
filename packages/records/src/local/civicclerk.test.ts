@@ -95,7 +95,7 @@ describe("civicclerk", () => {
     expect(result.actions).toHaveLength(1);
     expect(urls.filter((url) => url.pathname.includes("/Meetings/"))).toHaveLength(1);
     expect(urls[0].searchParams.get("$filter")).toBe("startDateTime ge 2026-01-01T00:00:00Z and startDateTime lt 2026-11-01T00:00:00Z");
-    expect(urls[0].searchParams.get("$orderby")).toBe("startDateTime,id");
+    expect(urls[0].searchParams.get("$orderby")).toBe("startDateTime desc,id desc");
   });
 
   it("follows same-collection OData nextLink even on a short page, preserving scope", async () => {
@@ -172,8 +172,19 @@ describe("civicclerk server-driven paging and real-world minutes shapes", () => 
     const meeting = { items: [item({ minutesItemVotes: [motion({ yesVotes: ["Alex Rivera"], noVotes: [] })] })] };
     const { context } = mockContext(cappedServer(rows, meeting));
     const result = await civicClerkAdapter.collect(context, { ...config, pageSize: 10 });
-    expect(result.reason).toMatch(/^23 events inspected/);
+    expect(result.reason).toMatch(/^23 of 23 in-window events inspected/);
     expect(result.actions).toHaveLength(23);
+  });
+
+  it("bounds meeting requests to the newest maxMeetings and reports the uninspected older events", async () => {
+    const rows = Array.from({ length: 23 }, (_, i) => event({ id: 100 + i, agendaId: 500 + i, startDateTime: `2026-02-${String(i + 1).padStart(2, "0")}T09:00:00Z`, eventDate: `2026-02-${String(i + 1).padStart(2, "0")}T09:00:00Z` }));
+    const meeting = { items: [item({ minutesItemVotes: [motion({ yesVotes: ["Alex Rivera"], noVotes: [] })] })] };
+    const { context, urls } = mockContext(cappedServer(rows, meeting));
+    const result = await civicClerkAdapter.collect(context, { ...config, maxMeetings: 5 });
+    expect(result.actions).toHaveLength(5);
+    expect(result.status).toBe("partial");
+    expect(result.reason).toContain("23 in-window event(s) are published; the 5 newest were inspected");
+    expect(urls.filter((url) => url.pathname.includes("/Meetings/"))).toHaveLength(5);
   });
 
   it("keeps real motions published with an empty motion name and excludes call-to-order signature attendance", async () => {

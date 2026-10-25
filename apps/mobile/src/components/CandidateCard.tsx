@@ -2,20 +2,22 @@ import type { CandidateProfile, Contest, Position } from "@ftb/types";
 import { useState } from "react";
 import { Text, View, StyleSheet } from "react-native";
 import { issueById } from "@/fixtures/travisDemo";
-import { useBallotData } from "@/ballotData";
+import { useCandidateName } from "@/candidateName";
 import { formatIsoDate, formatMoney, monogram } from "@/format";
 import { FLAG_COPY, SOURCE_LABEL } from "@/labels";
 import { proximity } from "@/matching";
-import { useSession } from "@/session";
 import { colors, fonts, shadows } from "@/theme";
-import { Banner, Note, Section, TextButton } from "@/components/ui";
+import { Portrait } from "@/components/Portrait";
+import { Banner, ChoiceButton, Note, TextButton } from "@/components/ui";
+import { useSession } from "@/session";
+import { Chip, ChipRow, Disclosure, QuoteCard, Stat } from "@/components/cardKit";
 
 const PLAN_SLOTS = [
   ["goal", "Goal"],
-  ["mechanism", "Mechanism"],
+  ["mechanism", "How"],
   ["cost", "Cost"],
   ["funding", "Funding"],
-  ["timeline", "Timeline"],
+  ["timeline", "When"],
   ["whoActs", "Who acts"],
 ] as const;
 
@@ -28,35 +30,50 @@ export function CandidateCard({
   profile: CandidateProfile;
   userPositions: Partial<Record<string, Position>>;
 }) {
-  const session = useSession();
   const [showAlignment, setShowAlignment] = useState(false);
-  const { identityFor } = useBallotData();
-  const revealed = session.revealed[contest.id] === true;
-  const mask = revealed ? session.openedMasks[profile.id] : session.masks?.map[profile.id];
-  const identity = identityFor(profile.id);
-  const name = revealed
-    ? (identity?.name ?? "Name unavailable")
-    : (mask?.character ?? "Masked candidate");
-  const subtitle = revealed
-    ? "Same evidence as before the name."
-    : (mask?.title ?? "A character for this session only");
+  const { name, subtitle, character } = useCandidateName(contest, profile);
+  const session = useSession();
+  const pick = session.picks[contest.id];
+  const isPick = pick?.kind === "candidate" && pick.candidateId === profile.id;
   const objective = profile.coverage === "objective_only" || profile.evidenceState === "none";
 
   return (
     <View style={styles.card}>
       <View style={styles.identity}>
-        <View style={styles.monogram}>
-          <Text style={styles.monogramText}>{monogram(name)}</Text>
-        </View>
+        {character ? (
+          <Portrait character={character} size={64} />
+        ) : (
+          <View style={styles.monogram}>
+            <Text style={styles.monogramText}>{monogram(name)}</Text>
+          </View>
+        )}
         <View style={styles.identityText}>
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
         </View>
       </View>
 
-      {profile.recordInOffice === "none" ? (
-        <Note>Based on what they say, not what they have done.</Note>
-      ) : null}
+      <View style={styles.pickRow}>
+        <ChoiceButton
+          label={isPick ? "Your pick ✓ (tap to undo)" : "Pick this one"}
+          selected={isPick}
+          onPress={() =>
+            session.setPick(
+              contest.id,
+              isPick ? null : { kind: "candidate", candidateId: profile.id },
+            )
+          }
+        />
+      </View>
+
+      <ChipRow>
+        {profile.incumbent ? <Chip label="Incumbent" tone="gold" /> : null}
+        {profile.recordInOffice === "none" ? (
+          <Chip label="Based on what they say, not what they've done" />
+        ) : (
+          <Chip label="Has a record in office" tone="forest" icon="check" />
+        )}
+      </ChipRow>
 
       {objective ? (
         <Banner
@@ -66,107 +83,125 @@ export function CandidateCard({
       ) : null}
 
       {profile.platformHighlights.length > 0 ? (
-        <Section title="In their own record" icon="scroll">
+        <View style={styles.highlights}>
+          <Text style={styles.blockLabel}>In their own words</Text>
           {profile.platformHighlights.map((sentence) => (
-            <Text key={sentence.text} style={styles.paragraph}>
-              {sentence.text}
-            </Text>
+            <View key={sentence.text} style={styles.bullet}>
+              <View style={styles.gem} />
+              <Text style={styles.bulletText}>{sentence.text}</Text>
+            </View>
           ))}
-        </Section>
+        </View>
       ) : null}
 
       {profile.evidence.length > 0 ? (
-        <Section title="Evidence" icon="sparkle">
+        <Disclosure
+          title="Evidence"
+          icon="sparkle"
+          count={`${profile.evidence.length}`}
+          defaultOpen
+        >
           {profile.evidence.map((item) => (
-            <View key={item.id} style={styles.quote}>
-              <Text style={styles.quoteText}>“{item.excerpt}”</Text>
-              <Text style={styles.quoteMeta}>
-                {issueById(item.issueId)?.label ?? item.issueId} · {SOURCE_LABEL[item.sourceType]} ·{" "}
-                {item.eventDate.date ? formatIsoDate(item.eventDate.date) : "date unknown"}
-                {item.redacted ? " · redacted" : ""}
-              </Text>
-            </View>
+            <QuoteCard
+              key={item.id}
+              excerpt={item.excerpt}
+              chips={
+                <>
+                  <Chip label={issueById(item.issueId)?.label ?? item.issueId} tone="gold" />
+                  <Chip
+                    label={SOURCE_LABEL[item.sourceType]}
+                    tone={item.kind === "action" ? "forest" : "plain"}
+                  />
+                  <Chip
+                    label={
+                      item.eventDate.date ? formatIsoDate(item.eventDate.date) : "Date unknown"
+                    }
+                    icon="calendar"
+                  />
+                  {item.redacted ? <Chip label="Redacted" /> : null}
+                </>
+              }
+            />
           ))}
           <Note>
             Source links stay hidden until a later release can return them after the reveal.
           </Note>
-        </Section>
+        </Disclosure>
       ) : null}
 
       {profile.plans.length > 0 ? (
-        <Section title="Plan" icon="book">
-          <Note>
-            Filled slots only. This is not a score of whether the plan is true or possible.
-          </Note>
+        <Disclosure title="Plans" icon="book" count={`${profile.plans.length}`}>
+          <Note>Filled slots only. This is not a score of whether a plan is true or possible.</Note>
           {profile.plans.map((plan) => (
-            <View key={plan.id} style={styles.plan}>
-              <Text style={styles.planIssue}>
-                {issueById(plan.issueId)?.label ?? plan.issueId} · {filledSlots(plan)}
-              </Text>
-              {PLAN_SLOTS.map(([key, label]) => {
-                const slot = plan[key];
-                if (slot.state === "not_stated") {
-                  return (
-                    <Text key={key} style={styles.missing}>
-                      {label}: Not stated
-                    </Text>
-                  );
-                }
-                if (slot.state === "not_applicable") {
-                  return (
-                    <Text key={key} style={styles.paragraph}>
-                      {label}: {slot.reason.text}
-                    </Text>
-                  );
-                }
-                return (
-                  <Text key={key} style={styles.paragraph}>
-                    {label}: {slot.sentences.map((sentence) => sentence.text).join(" ")}
-                  </Text>
-                );
-              })}
-            </View>
+            <PlanBlock key={plan.id} plan={plan} />
           ))}
-        </Section>
+        </Disclosure>
       ) : null}
 
       {profile.credibility.flags.length > 0 ? (
-        <Section title="Worth a second look" icon="info">
+        <Disclosure
+          title="Worth a second look"
+          icon="info"
+          count={`${profile.credibility.flags.length}`}
+        >
           {profile.credibility.flags.map((flag) => (
             <View key={`${flag.type}-${flag.issueId}`} style={styles.flag}>
-              <Text style={styles.flagTitle}>{FLAG_COPY[flag.type].title}</Text>
-              <Text style={styles.paragraph}>
-                {issueById(flag.issueId)?.label ?? flag.issueId}. {FLAG_COPY[flag.type].detail}
-              </Text>
+              <View style={styles.flagHead}>
+                <Chip
+                  label={issueById(flag.issueId)?.label ?? flag.issueId}
+                  tone={
+                    flag.type === "funded"
+                      ? "forest"
+                      : flag.type === "beyond_power"
+                        ? "rose"
+                        : "gold"
+                  }
+                />
+                <Text style={styles.flagTitle}>{FLAG_COPY[flag.type].title}</Text>
+              </View>
+              <Text style={styles.paragraph}>{FLAG_COPY[flag.type].detail}</Text>
             </View>
           ))}
-        </Section>
+        </Disclosure>
       ) : null}
 
       {profile.saysVsDoes.length > 0 ? (
-        <Section title="Says and does" icon="scale">
+        <Disclosure title="Says and does" icon="scale" count={`${profile.saysVsDoes.length}`}>
           {profile.saysVsDoes.map((gap) => (
-            <Text key={gap.issueId} style={styles.paragraph}>
-              On {issueById(gap.issueId)?.label ?? gap.issueId}, the public statements and the
-              recorded actions point different ways.
-            </Text>
+            <View key={gap.issueId} style={styles.flag}>
+              <Chip label={issueById(gap.issueId)?.label ?? gap.issueId} tone="gold" />
+              <Text style={styles.paragraph}>
+                Public statements and recorded actions point different ways here.
+              </Text>
+            </View>
           ))}
-        </Section>
+        </Disclosure>
       ) : null}
 
       {profile.judicialProfile ? (
-        <Section title="On the record" icon="gavel">
-          <Text style={styles.paragraph}>
-            Stated years in practice: {profile.judicialProfile.experienceYears ?? "not stated"}.
-            Board certification: {profile.judicialProfile.boardCertified ? "listed" : "not listed"}.
-          </Text>
+        <Disclosure title="On the record" icon="gavel" defaultOpen>
+          <View style={styles.stats}>
+            <Stat
+              label="Years in practice"
+              value={
+                profile.judicialProfile.experienceYears != null
+                  ? `${profile.judicialProfile.experienceYears}`
+                  : "Not stated"
+              }
+            />
+            <Stat
+              label="Board certification"
+              value={profile.judicialProfile.boardCertified ? "Listed" : "Not listed"}
+            />
+          </View>
           <Note>
             Philosophy is not compared here. Read the available evidence rather than a policy score.
           </Note>
-        </Section>
+        </Disclosure>
       ) : null}
 
       {profile.funding ? <Money profile={profile} /> : null}
+
       {!objective && contest.officeKind !== "judicial" ? (
         <>
           <TextButton
@@ -180,6 +215,53 @@ export function CandidateCard({
           {showAlignment ? <Alignment profile={profile} userPositions={userPositions} /> : null}
         </>
       ) : null}
+    </View>
+  );
+}
+
+function PlanBlock({ plan }: { plan: CandidateProfile["plans"][number] }) {
+  const slots = [plan.goal, plan.mechanism, plan.cost, plan.funding, plan.timeline, plan.whoActs];
+  const applicable = slots.filter((slot) => slot.state !== "not_applicable");
+  const filled = applicable.filter((slot) => slot.state === "documented").length;
+  return (
+    <View style={styles.plan}>
+      <View style={styles.planHead}>
+        <Text style={styles.planIssue}>{issueById(plan.issueId)?.label ?? plan.issueId}</Text>
+        <Text style={styles.planCount}>
+          {filled} of {applicable.length} filled
+        </Text>
+      </View>
+      <View style={styles.meter}>
+        <View
+          style={[
+            styles.meterFill,
+            { width: `${applicable.length ? (filled / applicable.length) * 100 : 0}%` },
+          ]}
+        />
+      </View>
+      {PLAN_SLOTS.map(([key, label]) => {
+        const slot = plan[key];
+        if (slot.state === "not_applicable") {
+          return (
+            <View key={key} style={styles.slotRow}>
+              <Text style={styles.slotLabel}>{label}</Text>
+              <Text style={styles.slotText}>{slot.reason.text}</Text>
+            </View>
+          );
+        }
+        return (
+          <View key={key} style={styles.slotRow}>
+            <Text style={styles.slotLabel}>{label}</Text>
+            {slot.state === "not_stated" ? (
+              <Text style={styles.slotMissing}>Not stated</Text>
+            ) : (
+              <Text style={styles.slotText}>
+                {slot.sentences.map((sentence) => sentence.text).join(" ")}
+              </Text>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -207,25 +289,27 @@ function Alignment({
           const user = userPositions[issueId];
           const state = profile.issueEvidenceState[issueId];
           const stance = profile.stances[issueId];
-          if (user == null) {
-            return (
-              <Text key={issueId} style={styles.paragraph}>
-                {label}: you have not taken a side here.
-              </Text>
-            );
+          let reading: string;
+          let score: number | null = null;
+          if (user == null) reading = "You have not taken a side here";
+          else if (state !== "sufficient" || !stance) reading = "Not enough independent evidence";
+          else {
+            const result = proximity(user, stance.position);
+            reading = result.label;
+            score = result.score;
           }
-          if (state !== "sufficient" || !stance) {
-            return (
-              <Text key={issueId} style={styles.paragraph}>
-                {label}: not enough independent evidence to compare.
-              </Text>
-            );
-          }
-          const reading = proximity(user, stance.position);
           return (
-            <Text key={issueId} style={styles.paragraph}>
-              {label}: {reading.label}.
-            </Text>
+            <View key={issueId} style={styles.alignRow}>
+              <View style={styles.alignHead}>
+                <Text style={styles.alignLabel}>{label}</Text>
+                <Text style={styles.alignReading}>{reading}</Text>
+              </View>
+              {score != null ? (
+                <View style={styles.meter}>
+                  <View style={[styles.meterFill, { width: `${Math.round(score * 100)}%` }]} />
+                </View>
+              ) : null}
+            </View>
           );
         })
       )}
@@ -240,40 +324,40 @@ function Money({ profile }: { profile: CandidateProfile }) {
   const funding = profile.funding;
   if (!funding) return null;
   return (
-    <Section title="Money on file" icon="coins">
+    <Disclosure title="Money on file" icon="coins">
       <Text style={styles.paragraph}>
-        {formatIsoDate(funding.period.start)} – {formatIsoDate(funding.period.end)}
+        {formatIsoDate(funding.period.start)} to {formatIsoDate(funding.period.end)}
       </Text>
-      <Text style={styles.paragraph}>Direct receipts {formatMoney(funding.direct)}</Text>
-      <Text style={styles.paragraph}>
-        Small unitemized donations {formatMoney(funding.traced.receipts.unitemizedSmall)}. These are
-        not treated as undisclosed.
-      </Text>
-      <Text style={styles.paragraph}>Outside spending {formatMoney(funding.outside)}</Text>
-      {funding.ads.meta.max > 0 ? (
-        <Text style={styles.paragraph}>
-          Meta ads {formatMoney(funding.ads.meta)}, a reported range.
-        </Text>
+      <View style={styles.stats}>
+        <Stat label="Direct receipts" value={formatMoney(funding.direct)} />
+        <Stat label="Outside spending" value={formatMoney(funding.outside)} />
+        <Stat
+          label="Small donations"
+          value={formatMoney(funding.traced.receipts.unitemizedSmall)}
+          hint="Not treated as undisclosed"
+        />
+        {funding.ads.meta.max > 0 ? (
+          <Stat label="Meta ads" value={formatMoney(funding.ads.meta)} hint="A reported range" />
+        ) : null}
+      </View>
+      {funding.topIndustries.length > 0 ? (
+        <>
+          <Text style={styles.blockLabel}>Top industries</Text>
+          {funding.topIndustries.map((industry) => (
+            <View key={industry.industry} style={styles.industry}>
+              <Text style={styles.industryName}>{industry.industry}</Text>
+              <Text style={styles.industryAmount}>{formatMoney(industry.amount)}</Text>
+            </View>
+          ))}
+          <Note>Industry labels are aggregates, not donor names.</Note>
+        </>
       ) : null}
-      {funding.topIndustries.map((industry) => (
-        <Text key={industry.industry} style={styles.paragraph}>
-          {industry.industry}: {formatMoney(industry.amount)} in direct receipts. Industry labels
-          are aggregates, not donor names.
-        </Text>
-      ))}
       <Note>
         No dark-money share is inferred. Unknown or unitemized money is not automatically
         undisclosed money.
       </Note>
-    </Section>
+    </Disclosure>
   );
-}
-
-function filledSlots(plan: CandidateProfile["plans"][number]): string {
-  const slots = [plan.goal, plan.mechanism, plan.cost, plan.funding, plan.timeline, plan.whoActs];
-  const applicable = slots.filter((slot) => slot.state !== "not_applicable");
-  const filled = applicable.filter((slot) => slot.state === "documented").length;
-  return `${filled} of ${applicable.length} slots filled`;
 }
 
 const styles = StyleSheet.create({
@@ -281,12 +365,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 2,
-    borderRadius: 10,
+    borderRadius: 12,
     boxShadow: shadows.paper,
     padding: 16,
     marginTop: 16,
   },
   identity: { flexDirection: "row", gap: 12, alignItems: "center" },
+  pickRow: { marginTop: 12 },
   monogram: {
     width: 56,
     height: 56,
@@ -311,36 +396,81 @@ const styles = StyleSheet.create({
   paragraph: {
     fontFamily: fonts.body,
     color: colors.ink,
-    fontSize: 16,
-    lineHeight: 23,
+    fontSize: 15.5,
+    lineHeight: 22,
     marginTop: 8,
   },
-  detailLabel: { fontFamily: fonts.smallCaps, color: colors.ink, fontSize: 16 },
-  quote: {
+  blockLabel: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 17, marginTop: 12 },
+  highlights: { marginTop: 8 },
+  bullet: { flexDirection: "row", gap: 10, marginTop: 8, alignItems: "flex-start" },
+  gem: {
+    width: 8,
+    height: 8,
+    marginTop: 8,
+    backgroundColor: colors.gold,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    transform: [{ rotate: "45deg" }],
+  },
+  bulletText: { flex: 1, fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 23 },
+  plan: {
     backgroundColor: colors.cream,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.gold,
-    borderRadius: 6,
+    borderColor: colors.lineSoft,
+    borderWidth: 1.5,
+    borderRadius: 10,
     padding: 12,
     marginTop: 10,
   },
-  quoteText: { fontFamily: fonts.displayItalic, color: colors.ink, fontSize: 16, lineHeight: 23 },
-  quoteMeta: {
+  planHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  planIssue: { fontFamily: fonts.display, color: colors.heading, fontSize: 20 },
+  planCount: { fontFamily: fonts.bold, color: colors.inkSoft, fontSize: 13 },
+  meter: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.tray,
+    overflow: "hidden",
+    marginTop: 6,
+  },
+  meterFill: { height: 6, borderRadius: 3, backgroundColor: colors.goldDeep },
+  slotRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingTop: 8,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.lineSoft,
+  },
+  slotLabel: { width: 66, fontFamily: fonts.smallCaps, color: colors.line, fontSize: 15 },
+  slotText: { flex: 1, fontFamily: fonts.body, color: colors.ink, fontSize: 15, lineHeight: 21 },
+  slotMissing: {
+    flex: 1,
+    fontFamily: fonts.displayItalic,
+    color: colors.inkSoft,
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  flag: { marginTop: 10 },
+  flagHead: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  flagTitle: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 16 },
+  stats: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
+  industry: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lineSoft,
+  },
+  industryName: { flex: 1, fontFamily: fonts.body, color: colors.ink, fontSize: 15.5 },
+  industryAmount: { fontFamily: fonts.bold, color: colors.heading, fontSize: 15.5 },
+  alignRow: { marginTop: 12 },
+  alignHead: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  alignLabel: { fontFamily: fonts.display, color: colors.heading, fontSize: 18 },
+  alignReading: {
+    flexShrink: 1,
+    textAlign: "right",
     fontFamily: fonts.bold,
     color: colors.inkSoft,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 8,
+    fontSize: 14,
   },
-  plan: { marginTop: 8 },
-  planIssue: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 16, marginTop: 8 },
-  missing: {
-    fontFamily: fonts.bold,
-    color: colors.rose,
-    fontSize: 16,
-    lineHeight: 23,
-    marginTop: 8,
-  },
-  flag: { marginTop: 8 },
-  flagTitle: { fontFamily: fonts.smallCaps, color: colors.line, fontSize: 16 },
 });

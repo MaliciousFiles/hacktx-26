@@ -1,16 +1,21 @@
 import type { ID, Mask, MaskSession, Swipe } from "@ftb/types";
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useBallotData } from "@/ballotData";
+import { CAST, dealMasks } from "@/lib/masks";
+import type { ContestPick } from "@/lib/picks";
 import { randomBit, randomId, shuffle } from "@/random";
 
-const CAST: Mask[] = [
-  { character: "The Lantern Keeper", title: "Carries the light ahead", imageUrl: "" },
-  { character: "The Bridge Wren", title: "Mends what the road split", imageUrl: "" },
-  { character: "The Orchard Warden", title: "Counts what the harvest owes", imageUrl: "" },
-  { character: "The North Starling", title: "Keeps one heading", imageUrl: "" },
-  { character: "The Clockmaker", title: "Asks what the hour costs", imageUrl: "" },
-  { character: "The River Guide", title: "Knows the shallow crossing", imageUrl: "" },
-];
+/** Contests bigger than the cast reuse portraits with a numeral, so a contest never repeats a mask. */
+function castFor(size: number): Mask[] {
+  const cast = [...CAST];
+  for (let round = 2; cast.length < size; round += 1) {
+    for (const mask of CAST) {
+      if (cast.length >= size) break;
+      cast.push({ ...mask, character: `${mask.character} ${round}` });
+    }
+  }
+  return cast;
+}
 
 type SessionValue = {
   started: boolean;
@@ -22,13 +27,17 @@ type SessionValue = {
   swipes: Swipe[];
   deckIndex: number;
   revealed: Record<ID, boolean>;
+  /** The voter's choice per contest. Stays on this phone. */
+  picks: Record<ID, ContestPick>;
+  setPick: (contestId: ID, pick: ContestPick | null) => void;
   begin: () => boolean;
   reset: () => void;
   answer: (swipe: Swipe) => void;
   toggleStar: (cardId: ID) => void;
   starred: (cardId: ID) => boolean;
   setDeckIndex: (index: number) => void;
-  revealContest: (contestId: ID) => Promise<void>;
+  /** The one ceremony at the end: names and parties for every contest on the ballot. */
+  revealAll: () => Promise<void>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -50,6 +59,7 @@ function SessionState({ children }: { children: ReactNode }) {
   const [pendingStars, setPendingStars] = useState<ReadonlySet<ID>>(new Set());
   const [deckIndex, setDeckIndex] = useState(0);
   const [revealed, setRevealed] = useState<Record<ID, boolean>>({});
+  const [picks, setPicks] = useState<Record<ID, ContestPick>>({});
 
   const value = useMemo<SessionValue>(() => {
     const starred = (cardId: ID) => {
@@ -68,20 +78,20 @@ function SessionState({ children }: { children: ReactNode }) {
       swipes,
       deckIndex,
       revealed,
+      picks,
+      setPick: (contestId, pick) =>
+        setPicks((current) => {
+          const next = { ...current };
+          if (pick) next[contestId] = pick;
+          else delete next[contestId];
+          return next;
+        }),
       setDeckIndex,
       starred,
       begin: () => {
         try {
-          const cast = shuffle(CAST);
-          const map: Record<ID, Mask> = {};
-          demoBallot.candidates.forEach((candidate, index) => {
-            const base = cast[index % cast.length];
-            const mask = base && {
-              ...base,
-              character: `${base.character}${index >= cast.length ? ` ${Math.floor(index / cast.length) + 1}` : ""}`,
-            };
-            if (mask) map[candidate.id] = mask;
-          });
+          const largest = Math.max(0, ...demoBallot.contests.map((c) => c.candidateIds.length));
+          const map = dealMasks(demoBallot.contests, shuffle, castFor(largest));
           const nextFlips: Record<ID, boolean> = {};
           for (const card of demoBallot.cards) nextFlips[card.id] = randomBit();
           const nextOrder: Record<ID, ID[]> = {};
@@ -102,6 +112,7 @@ function SessionState({ children }: { children: ReactNode }) {
           setPendingStars(new Set());
           setDeckIndex(0);
           setRevealed({});
+          setPicks({});
           setOpenedMasks({});
           setMaskError(null);
           setStarted(true);
@@ -122,6 +133,7 @@ function SessionState({ children }: { children: ReactNode }) {
         setPendingStars(new Set());
         setDeckIndex(0);
         setRevealed({});
+        setPicks({});
       },
       answer: (swipe) => {
         setSwipes((current) => [...current.filter((item) => item.cardId !== swipe.cardId), swipe]);
@@ -149,24 +161,14 @@ function SessionState({ children }: { children: ReactNode }) {
           ),
         );
       },
-      revealContest: async (contestId) => {
-        await loadIdentities(contestId);
-        const contest = demoBallot.contests.find((item) => item.id === contestId);
-        if (contest && masks) {
-          setOpenedMasks((current) => {
-            const next = { ...current };
-            for (const id of contest.candidateIds) {
-              const mask = masks.map[id];
-              if (mask) next[id] = mask;
-            }
-            return next;
-          });
-          const remaining = Object.fromEntries(
-            Object.entries(masks.map).filter(([id]) => !contest.candidateIds.includes(id)),
-          );
-          setMasks({ ...masks, map: remaining });
+      revealAll: async () => {
+        // Fetch every contest first; only flip to "revealed" once all of them have loaded.
+        for (const contest of demoBallot.contests) await loadIdentities(contest.id);
+        if (masks) {
+          setOpenedMasks((current) => ({ ...current, ...masks.map }));
+          setMasks({ ...masks, map: {} });
         }
-        setRevealed((current) => ({ ...current, [contestId]: true }));
+        setRevealed(Object.fromEntries(demoBallot.contests.map((contest) => [contest.id, true])));
       },
     };
   }, [
@@ -179,6 +181,7 @@ function SessionState({ children }: { children: ReactNode }) {
     openedMasks,
     order,
     pendingStars,
+    picks,
     revealed,
     started,
     swipes,

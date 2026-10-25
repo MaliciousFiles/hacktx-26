@@ -38,7 +38,7 @@ export default function HowItWorks() {
     sample,
   } = useBallotData();
   return (
-    <Screen header={<TopBar onBack={() => router.navigate("/")} backLabel="Home" />}>
+    <Screen header={<TopBar onBack={() => router.navigate("/")} backLabel="Home" home={false} />}>
       <SampleMark />
       <Kicker>How Wishing Well works</Kicker>
       <Title>Evidence first, names last.</Title>

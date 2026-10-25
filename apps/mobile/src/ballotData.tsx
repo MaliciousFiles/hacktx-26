@@ -1,5 +1,5 @@
 import type { Api, CandidateIdentity, Contest } from "@ftb/types";
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { demoBallot, demoIdentities } from "@/fixtures/travisDemo";
 import { createApiClient } from "@/lib/apiClient";
 import { validateBallot, validateReveal } from "@/lib/releaseValidation";
@@ -25,7 +25,7 @@ function useDataState() {
         clearTimeout(timeout);
       }
     });
-  return {
+  const api = {
     data,
     sample,
     loading,
@@ -85,6 +85,18 @@ function useDataState() {
         return profile ? [profile] : [];
       }),
   };
+  // With all three EXPO_PUBLIC_* IDs set, load that frozen release on launch. A failure leaves
+  // the sample in place and the message shows in "Connect a published ballot".
+  const auto = useRef(false);
+  useEffect(() => {
+    const url = process.env.EXPO_PUBLIC_API_URL?.trim();
+    const style = process.env.EXPO_PUBLIC_BALLOT_STYLE_ID?.trim();
+    const release = process.env.EXPO_PUBLIC_RELEASE_ID?.trim();
+    if (auto.current || !url || !style || !release) return;
+    auto.current = true;
+    void api.connect(url, style, release);
+  });
+  return api;
 }
 const DataContext = createContext<ReturnType<typeof useDataState> | null>(null);
 export function BallotDataProvider({ children }: { children: ReactNode }) {

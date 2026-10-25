@@ -24,11 +24,13 @@ function clientFor(body: string | ((url: string) => string)) {
 }
 
 describe("GovInfo Congressional Record discovery", () => {
-  it("ignores selection caps in exhaustive mode while preserving all discovered documents", async () => {
+  it("treats maxDocuments as a fetch budget in exhaustive mode and discloses skipped documents", async () => {
     const { client } = clientFor(sitemap([{ date: "2025-01-07" }, { date: "2025-01-08" }]));
     const result = await discoverRecordUrls(client, { ...recordSpec, maxDocuments: 1 }, window, { exhaustive: true });
-    expect(result.urls).toHaveLength(2);
-    expect(result.status).toBe("complete");
+    expect(result.urls).toHaveLength(1);
+    expect(result.status).toBe("partial");
+    expect(result.reason).toContain("2 published");
+    expect(result.reason).toContain("1 discovered document(s) were not collected");
   });
   it("uses publication dates, not lastmod, sorts/deduplicates whole-day metadata and excludes cutoff", async () => {
     const { client, network } = clientFor(sitemap([
@@ -59,7 +61,8 @@ describe("GovInfo Congressional Record discovery", () => {
     const { client } = clientFor(sitemap([{ date: "2025-01-08" }, { date: "2025-01-07" }, { date: "2025-01-07" }]));
     const capped = await discoverRecordUrls(client, { ...recordSpec, maxDocuments: 1 }, window);
     expect(capped).toMatchObject({ urls: [packageUrl("2025-01-07")], status: "partial" });
-    expect(capped.reason).toContain("1 of 2");
+    expect(capped.reason).toContain("2 published");
+    expect(capped.reason).toContain("1 discovered document(s) were not collected");
     expect((await discoverRecordUrls(client, { ...recordSpec, maxDocuments: 2 }, window)).status).toBe("complete");
   });
 

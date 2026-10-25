@@ -19,8 +19,10 @@ import {
 import { ELECTION, electionPhase, localIsoDate, type ElectionPhase } from "@/election";
 import { formatIsoDate } from "@/format";
 import { useBallotData } from "@/ballotData";
+import { PixieSays } from "@/components/Pixie";
 import { DataConnection } from "@/components/DataConnection";
 import { DailyGameEntry } from "@/components/WebFeatures";
+import { isDecided } from "@/lib/picks";
 import { useSession } from "@/session";
 import { colors, fonts } from "@/theme";
 
@@ -47,7 +49,8 @@ export default function Home() {
   const answered = session.swipes.filter((swipe) => swipe.chosen !== "skip").length;
   const deckDone = session.started && session.deckIndex >= cards.length;
   const revealedIds = ballot.contestIds.filter((id) => session.revealed[id]);
-  const firstRevealed = revealedIds[0];
+  const pickedCount = ballot.contestIds.filter((id) => isDecided(session.picks[id])).length;
+  const allRevealed = revealedIds.length === contestCount;
 
   const open = (href: Href) => {
     if (!session.started && !session.begin()) return;
@@ -79,29 +82,25 @@ export default function Home() {
     },
     {
       numeral: "III",
-      icon: "mask",
-      title: "Reveal the names",
-      blurb: "See candidate names and parties when you are ready.",
-      status:
-        revealedIds.length === contestCount
-          ? "All names revealed"
-          : `${revealedIds.length} of ${contestCount} contests revealed`,
-      state:
-        revealedIds.length === contestCount
-          ? "done"
-          : revealedIds.length > 0
-            ? "underway"
-            : "ready",
+      icon: "star",
+      title: "Pick your favorites",
+      blurb: "Choose the one you like best in each race, still in costume.",
+      status: `${pickedCount} of ${contestCount} races picked`,
+      state: pickedCount === contestCount ? "done" : pickedCount > 0 ? "underway" : "ready",
       href: "/ballot",
     },
     {
       numeral: "IV",
-      icon: "envelope",
-      title: "Share your progress",
-      blurb: "Share how much you explored, without sharing your answers.",
-      status: firstRevealed ? "Ready to share" : "Available after your first reveal",
-      state: firstRevealed ? "ready" : "locked",
-      href: firstRevealed ? { pathname: "/reveal/[id]", params: { id: firstRevealed } } : null,
+      icon: "mask",
+      title: "Reveal your true ballot",
+      blurb: "Your Fairy Godmother turns every character into the real candidate.",
+      status: allRevealed
+        ? "Unmasked"
+        : pickedCount > 0
+          ? "Ready when you are"
+          : "Available after your first pick",
+      state: allRevealed ? "done" : pickedCount > 0 ? "ready" : "locked",
+      href: pickedCount > 0 ? "/share" : null,
     },
   ];
 
@@ -155,6 +154,7 @@ export default function Home() {
             started: session.started,
             answered,
             deckDone,
+            picked: pickedCount,
             revealed: revealedIds.length,
             contests: contestCount,
           })}
@@ -178,6 +178,9 @@ export default function Home() {
       <View style={styles.sectionHead}>
         <Icon name="house" size={18} />
         <Text style={styles.sectionLabel}>Ballot style on this phone</Text>
+        <View style={styles.pixie} pointerEvents="none">
+          <PixieSays>Play our game below!</PixieSays>
+        </View>
       </View>
       <Panel>
         <View style={styles.styleRow}>
@@ -207,7 +210,9 @@ export default function Home() {
         </Note>
       ) : null}
 
-      <DailyGameEntry />
+      <View style={styles.game}>
+        <DailyGameEntry />
+      </View>
       <View style={styles.links}>
         <TextButton
           label="Our sources and methods"
@@ -338,6 +343,7 @@ function guideLine(progress: {
   started: boolean;
   answered: number;
   deckDone: boolean;
+  picked: number;
   revealed: number;
   contests: number;
 }): string {
@@ -349,13 +355,12 @@ function guideLine(progress: {
       ? "Choose the option closest to your view. You can skip any question. Star the issues that matter most to you."
       : `You have answered ${progress.answered} questions. Continue where you left off, or open your ballot to read the evidence.`;
   }
-  if (progress.revealed === 0) {
-    return "You have finished the questions. Open a contest on your ballot to compare the evidence. Candidate names stay hidden until you choose to reveal them.";
-  }
   if (progress.revealed < progress.contests) {
-    return `You have revealed ${progress.revealed} of ${progress.contests} contests. Keep exploring to compare the remaining candidates and ballot measures.`;
+    return progress.picked === 0
+      ? "You have finished the questions. Open each race, read the evidence, and pick the candidate you like best. Everyone wears a storybook costume until the unmasking."
+      : `You have picked in ${progress.picked} of ${progress.contests} races. Pick as many as you like, then I'll unmask the whole ballot at once.`;
   }
-  return "All names are now visible. You can revisit the evidence or share your progress. Your answers are not included in the shared summary.";
+  return "Your ballot is unmasked. You can revisit the evidence any time. We never tell you how to vote.";
 }
 
 function ChapterCard({ chapter, onPress }: { chapter: Chapter; onPress?: () => void }) {
@@ -463,6 +468,7 @@ const styles = StyleSheet.create({
   },
   countdownDetail: { fontFamily: fonts.body, color: colors.ink, fontSize: 14, lineHeight: 19 },
   guide: { marginTop: 18 },
+  game: { marginTop: 30, marginBottom: 14 },
   storyTitle: {
     fontFamily: fonts.smallCaps,
     color: colors.line,
@@ -470,6 +476,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: -6,
   },
+  pixie: { position: "absolute", right: -8, top: -17 },
   chapters: { gap: 14, marginTop: 14 },
   trail: {
     position: "absolute",

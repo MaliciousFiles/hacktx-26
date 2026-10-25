@@ -8,6 +8,7 @@ import { SOURCE_LABEL } from "@/labels";
 import { useBallotData } from "@/ballotData";
 import { useSession } from "@/session";
 import { Chip, ChipRow } from "@/components/cardKit";
+import { Portrait } from "@/components/Portrait";
 import { Section } from "@/components/ui";
 import { colors, fonts, shadows } from "@/theme";
 
@@ -88,23 +89,25 @@ function Side({
       {entries.length === 0 ? (
         <Text style={styles.nobody}>No candidate on file leans this way.</Text>
       ) : (
-        entries.map((entry) => (
-          <EntryRow key={entry.profile.id} contest={contest} entry={entry} />
-        ))
+        entries.map((entry) => <EntryRow key={entry.profile.id} contest={contest} entry={entry} />)
       )}
     </View>
   );
 }
 
 function EntryRow({ contest, entry }: { contest: Contest; entry: DividingEntry }) {
-  const { name } = useCandidateName(contest, entry.profile);
+  const { name, character } = useCandidateName(contest, entry.profile);
   const evidence = entry.evidence;
   return (
     <View style={styles.entry}>
       <View style={styles.entryHead}>
-        <View style={styles.monogram}>
-          <Text style={styles.monogramText}>{monogram(name)}</Text>
-        </View>
+        {character ? (
+          <Portrait character={character} size={34} />
+        ) : (
+          <View style={styles.monogram}>
+            <Text style={styles.monogramText}>{monogram(name)}</Text>
+          </View>
+        )}
         <Text style={styles.entryName}>{name}</Text>
       </View>
       {evidence ? (
@@ -116,7 +119,9 @@ function EntryRow({ contest, entry }: { contest: Contest; entry: DividingEntry }
               tone={evidence.kind === "action" ? "forest" : "plain"}
             />
             <Chip
-              label={evidence.eventDate.date ? formatIsoDate(evidence.eventDate.date) : "Date unknown"}
+              label={
+                evidence.eventDate.date ? formatIsoDate(evidence.eventDate.date) : "Date unknown"
+              }
               icon="calendar"
             />
             {entry.evidenceState === "thin" ? <Chip label="Thin evidence" tone="gold" /> : null}

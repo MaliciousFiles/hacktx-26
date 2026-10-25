@@ -108,8 +108,14 @@ export class RecordsCollector {
     if (new Set(ids).size !== ids.length) throw new Error("Duplicate source IDs in collection plan");
     const window = dateWindow(request, plan.since);
     const client = this.options.client.fork();
-    const journal = client.workJournal;
-    const implementation = journal ? await recordsImplementationHash() : "untracked";
+    let journal = (() => { try { return client.workJournal; } catch { return undefined; } })();
+    const implementation = journal ? await recordsImplementationHash().catch(() => "untracked") : "untracked";
+    /** Journal problems are bookkeeping problems: drop to an unjournaled run, never zero the records. */
+    let journalBroken = false;
+    const jnote = (spec: Parameters<NonNullable<typeof journal>["note"]>[0], state: Parameters<NonNullable<typeof journal>["note"]>[1], reason: string): void => {
+      if (!journal || journalBroken) return;
+      try { journal.note(spec, state, reason); } catch { journalBroken = true; journal = undefined; }
+    };
     const workScope = `${request.candidate.id}:${window.since}:${window.before}`;
     const coverageIdentity = structuredClone(request);
     client.setWorkScope(`${workScope}:identity`);
@@ -117,9 +123,9 @@ export class RecordsCollector {
       key: workKey(["source-inventory-v1", implementation, coverageIdentity, window, source, plan.exhaustive ?? false]),
       kind: "coverage" as const, scope: workScope, payload: { candidateId: request.candidate.id, source, window, implementation },
     });
-    journal?.registerAll(plan.sources.map(coverageSpec));
+    try { journal?.registerAll(plan.sources.map(coverageSpec)); } catch { journalBroken = true; journal = undefined; }
     for (const [role, [description, gap]] of Object.entries(ROLE_FAMILIES)) {
-      journal?.note({ key: workKey(["role-coverage-v1", implementation, coverageIdentity, window, role]), kind: "coverage", scope: workScope,
+      jnote({ key: workKey(["role-coverage-v1", implementation, coverageIdentity, window, role]), kind: "coverage", scope: workScope,
         payload: { role, description, window } }, "blocked", gap);
     }
     const coverage: RecordCoverage[] = [];
@@ -130,7 +136,7 @@ export class RecordsCollector {
     const report = (source: string, status: RecordCoverage["status"], reason: string, actionCount = 0): void => {
       coverage.push({ source, status, reason, actionCount, ...window });
       const planned = plan.sources.find((s) => s.id === source);
-      if (planned) journal?.note(coverageSpec(planned), "blocked", `${status}: ${reason}; whole-history exhaustion has not been certified`);
+      if (planned) jnote(coverageSpec(planned), "blocked", `${status}: ${reason}; whole-history exhaustion has not been certified`);
     };
     const finish = (): RecordsResult => ({
       request,
@@ -201,7 +207,7 @@ export class RecordsCollector {
         skippedIds.push(source.id);
         skippedBioguide.set(source.adapter, skippedIds);
         const note = `Skipped: ${bioguideReason}`;
-        journal?.note(coverageSpec(source), "blocked", `needs_review: ${note}; whole-history exhaustion has not been certified`);
+        jnote(coverageSpec(source), "blocked", `needs_review: ${note}; whole-history exhaustion has not been certified`);
         if (skippedIds.length === 1) coverage.push({ source: source.adapter, status: "needs_review", reason: note, actionCount: 0, ...window });
         const row = coverage.find((entry) => entry.source === source.adapter && entry.status === "needs_review")!;
         row.reason = `${note} ${skippedIds.length} planned source(s) skipped (${skippedIds[0]}${skippedIds.length > 1 ? ` … ${skippedIds.at(-1)}` : ""}). Name/tenure sources in the same plan were not blocked.`;
@@ -212,7 +218,7 @@ export class RecordsCollector {
         const ids = outsideService.get(source.adapter) ?? [];
         ids.push(source.id);
         outsideService.set(source.adapter, ids);
-        journal?.note(coverageSpec(source), "blocked", "complete: outside the member's verified Congress.gov service years; whole-history exhaustion has not been certified");
+        jnote(coverageSpec(source), "blocked", "complete: outside the member's verified Congress.gov service years; whole-history exhaustion has not been certified");
         const label = `${source.adapter}:outside-service`;
         if (ids.length === 1) coverage.push({ source: label, status: "complete", reason: "", actionCount: 0, ...window });
         const chamber = source.adapter === "house-clerk" ? "House" : "Senate";
@@ -278,8 +284,15 @@ export class RecordsCollector {
           for (const snapshot of checkpoint.snapshots) await client.restore(snapshot.id);
           result = checkpoint.result;
         } else if (journal) {
-          const saved = await journal.run(task, async () => ({ result: await execute(), snapshots: client.snapshotsSince(sourceMark) }));
-          result = saved.result;
+          try {
+            const saved = await journal.run(task, async () => ({ result: await execute(), snapshots: client.snapshotsSince(sourceMark) }));
+            result = saved.result;
+          } catch {
+            // A journal failure must not turn a collectable source into zero records.
+            journalBroken = true;
+            journal = undefined;
+            result = await execute();
+          }
         } else result = await execute();
         const known = new Map(client.snapshots().map((s) => [s.id, s]));
         for (const action of result.actions) validateAction(action, request, known);

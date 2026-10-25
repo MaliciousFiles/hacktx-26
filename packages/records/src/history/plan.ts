@@ -62,6 +62,8 @@ export function buildHistoryPlan(
   const since = options.since ?? "2015-01-01";
   const houseRollCap = options.houseRollCap ?? 120;
   const documentCap = options.documentCap ?? 12;
+  // A Congress publishes ~10-20k bills; fetching all of them per candidate is a crawl, not research.
+  const billStatusBudget = Math.max(documentCap, 200);
   const years = yearsInWindow(request, since);
   const houseRollYears = options.houseRollYears ?? 2;
   const houseRollWindow = years.filter((year) => year > request.year - houseRollYears);
@@ -72,7 +74,7 @@ export function buildHistoryPlan(
   const gaps: string[] = [
     `Bounded discovery since ${since}: per-source document cap ${documentCap}, House roll cap ${houseRollCap}. Increasing caps alone does not establish complete career coverage.`,
     "Federal automatic inventories cover 2023 onward only, House roll upper bounds are configured rather than discovered to exhaustion, and Texas FTP discovery covers only 89R. Earlier terms and other sessions require additional inventories.",
-    `House roll-call votes are scoped to the ${houseRollYears} most recent calendar year(s) (${houseRollWindow.join(", ") || "none"}). Earlier roll calls are not fetched in this run; this is an operator scope, not evidence of absence.`,
+    `House and Senate roll-call votes are scoped to the ${houseRollYears} most recent calendar year(s) (${houseRollWindow.join(", ") || "none"}). Earlier roll calls are not fetched in this run; this is an operator scope, not evidence of absence. BILLSTATUS fetches are bounded to ${billStatusBudget} bills (identical inventory order for every candidate). Travis County Commissioners Court is bounded to the 60 newest meetings.`,
   ];
   const sources: RecordsPlan["sources"] = [];
   const tx = isTx(request.position.jurisdiction);
@@ -111,7 +113,7 @@ export function buildHistoryPlan(
         kind: "govinfo-billstatus",
         congresses: congresses.filter((c) => c >= (options.exhaustive ? 113 : 118)),
         billTypes: options.exhaustive ? ["hr", "hres", "hjres", "hconres"] : ["hr", "hres"],
-        maxDocuments: documentCap,
+        maxDocuments: billStatusBudget,
       },
       config: {
         urls: ["https://www.govinfo.gov/bulkdata/BILLSTATUS/119/hr/BILLSTATUS-119hr1.xml"],
@@ -121,8 +123,8 @@ export function buildHistoryPlan(
     `U.S. House BILLSTATUS sponsorship (bioguide-bound; cap ${documentCap}).`,
   );
 
-  // ——— U.S. Senate (always; soft-skipped without bioguide) ———
-  for (const year of years.filter((y) => y >= (options.exhaustive ? 1994 : 2023))) {
+  // ——— U.S. Senate roll calls (same explicit roll-call scope as the House) ———
+  for (const year of houseRollWindow.filter((y) => y >= (options.exhaustive ? 1994 : 2023))) {
     add(
       {
         id: `govinfo-crec-${year}`,
@@ -144,7 +146,7 @@ export function buildHistoryPlan(
         kind: "govinfo-billstatus",
         congresses: congresses.filter((c) => c >= (options.exhaustive ? 113 : 118)),
         billTypes: options.exhaustive ? ["s", "sres", "sjres", "sconres"] : ["s", "sres"],
-        maxDocuments: documentCap,
+        maxDocuments: billStatusBudget,
       },
       config: {
         urls: ["https://www.govinfo.gov/bulkdata/BILLSTATUS/119/s/BILLSTATUS-119s1.xml"],
@@ -237,7 +239,7 @@ export function buildHistoryPlan(
         discovery: {
           kind: "oag-opinion-index",
           agPath: agSeries.path,
-          maxDocuments: documentCap,
+          ...(options.exhaustive ? {} : { maxDocuments: documentCap }),
         },
         config: {
           urls: [`${OAG_OPINIONS_INDEX}/${agSeries.path}`],
@@ -313,6 +315,7 @@ export function buildHistoryPlan(
         config: {
           baseUrl: "https://traviscotx.api.civicclerk.com/v1",
           role: "Travis County Commissioners Court member",
+          maxMeetings: 60,
         },
       },
       "Travis County Commissioners Court: government-linked CivicClerk events and explicitly named structured minutes votes; no participation inferred from attendance or item sponsorship.",

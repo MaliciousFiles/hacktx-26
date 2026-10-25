@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -184,19 +185,42 @@ export function BackButton({ label = "Back", onPress }: { label?: string; onPres
   );
 }
 
+/** Round house button that returns to the start screen. Progress is kept. */
+export function HomeButton() {
+  const router = useRouter();
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel="Home"
+      hitSlop={8}
+      onPress={() => router.navigate("/")}
+    >
+      <View style={styles.backDisc}>
+        <Icon name="house" size={17} strokeWidth={2.2} />
+      </View>
+    </PressableScale>
+  );
+}
+
 export function TopBar({
   onBack,
   backLabel = "Back",
   action,
+  home = true,
 }: {
   onBack?: () => void;
   backLabel?: string;
   action?: ReactNode;
+  /** Show the Home button on the right. On by default for every screen with a top bar. */
+  home?: boolean;
 }) {
   return (
     <View pointerEvents="box-none" style={styles.topBar}>
       {onBack ? <BackButton label={backLabel} onPress={onBack} /> : <View />}
-      {action}
+      <View style={styles.topActions}>
+        {action}
+        {home ? <HomeButton /> : null}
+      </View>
     </View>
   );
 }
@@ -545,6 +569,7 @@ const styles = StyleSheet.create({
     minHeight: 36,
   },
   back: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topActions: { flexDirection: "row", alignItems: "center", gap: 14 },
   backDisc: {
     width: 32,
     height: 32,

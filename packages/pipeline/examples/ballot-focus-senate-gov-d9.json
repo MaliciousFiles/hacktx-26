@@ -1,0 +1,409 @@
+{
+  "releaseId": "focus-senate-gov-d9-v1",
+  "asOfDate": "2026-10-25",
+  "campaignWindow": {
+    "since": "2025-11-05",
+    "until": "2026-11-03"
+  },
+  "election": {
+    "year": 2026,
+    "month": 11
+  },
+  "demo": true,
+  "ballot": {
+    "id": "derived-westcampus-corrected-not-an-official-ballot",
+    "ballotStyleId": "DERIVED-FROM-COUNTYWIDE-UNION-NOT-AN-OFFICIAL-BALLOT-STYLE",
+    "precinctId": "315",
+    "provenance": {
+      "url": "https://votetravis.gov/wp-content/uploads/G26-Bedsheet-Ballot-Corrected-Final2.pdf",
+      "verifiedBy": "automated-district-filter-plus-manual-correction-against-410A-and-consolidated-ballot",
+      "verifiedAt": "2026-10-25"
+    },
+    "contests": [
+      {
+        "id": "us_senate-tx-united-states-senator",
+        "title": "United States Senator",
+        "office": "us_senate",
+        "officeKind": "legislative",
+        "districtType": "us_senate",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "federal",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "us_senate-tx-united-states-senator-ken-paxton",
+            "name": "Ken Paxton",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "us_senate-tx-united-states-senator-james-talarico",
+            "name": "James Talarico",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "us_senate-tx-united-states-senator-ted-brown",
+            "name": "Ted Brown",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "governor-tx-governor",
+        "title": "Governor",
+        "office": "governor",
+        "officeKind": "executive",
+        "districtType": "governor",
+        "districtId": "TX",
+        "jurisdiction": "us/tx",
+        "level": "state",
+        "partisan": true,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "governor-tx-governor-greg-abbott",
+            "name": "Greg Abbott",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Republican",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "governor-tx-governor-gina-hinojosa",
+            "name": "Gina Hinojosa",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Democrat",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "governor-tx-governor-pat-dixon",
+            "name": "Pat Dixon",
+            "aliases": [],
+            "identifiers": {},
+            "party": "Libertarian",
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      },
+      {
+        "id": "city_council-9-city-of-austin-city-council-member-distr",
+        "title": "City of Austin, City Council Member, District 9",
+        "office": "city_council",
+        "officeKind": "legislative",
+        "districtType": "city_council",
+        "districtId": "9",
+        "jurisdiction": "us/tx/austin",
+        "level": "local",
+        "partisan": false,
+        "seats": 1,
+        "candidates": [
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-rich-heyman",
+            "name": "Rich Heyman",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-katie-kam",
+            "name": "Katie Kam",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-zohaib-qadri",
+            "name": "Zohaib Qadri",
+            "aliases": [
+              "Zohaib \"Zo\" Qadri",
+              "Zo Qadri"
+            ],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-dave-thadani",
+            "name": "Dave Thadani",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          },
+          {
+            "id": "city_council-9-city-of-austin-city-council-member-distr-kai-huang",
+            "name": "Kai Huang",
+            "aliases": [],
+            "identifiers": {},
+            "incumbent": false,
+            "recordInOffice": "none",
+            "accounts": []
+          }
+        ]
+      }
+    ]
+  },
+  "web": {
+    "allowedPageHosts": [
+      "texastribune.org",
+      "www.texastribune.org",
+      "kut.org",
+      "www.kut.org",
+      "statesman.com",
+      "www.statesman.com",
+      "houstonchronicle.com",
+      "www.houstonchronicle.com",
+      "dallasnews.com",
+      "www.dallasnews.com",
+      "expressnews.com",
+      "www.expressnews.com",
+      "apnews.com",
+      "www.apnews.com",
+      "reuters.com",
+      "www.reuters.com",
+      "npr.org",
+      "www.npr.org",
+      "politico.com",
+      "www.politico.com",
+      "thehill.com",
+      "www.thehill.com",
+      "rollcall.com",
+      "www.rollcall.com",
+      "www.vote411.org",
+      "vote411.org",
+      "apps.texastribune.org",
+      "www.apps.texastribune.org",
+      "ballotpedia.org",
+      "www.ballotpedia.org",
+      "www.kenpaxton.com",
+      "kenpaxton.com",
+      "jamestalarico.com",
+      "tedbrown.org",
+      "www.lauren4congress.com",
+      "lauren4congress.com",
+      "www.casarforcongress.com",
+      "casarforcongress.com",
+      "www.gregabbott.com",
+      "gregabbott.com",
+      "ginafortexas.com",
+      "patdixon.org",
+      "www.danpatrick.org",
+      "danpatrick.org",
+      "www.vikkigoodwin.com",
+      "vikkigoodwin.com",
+      "www.anthonycristo.com",
+      "anthonycristo.com",
+      "mayesmiddleton.com",
+      "nathanfortexas.com",
+      "donhuffines.com",
+      "www.saraheckhardt.com",
+      "saraheckhardt.com",
+      "www.faizifortexas.com",
+      "faizifortexas.com",
+      "dawnbuckingham.com",
+      "www.letsgowithben.com",
+      "letsgowithben.com",
+      "natesheets.com",
+      "www.claytontuckertx.com",
+      "claytontuckertx.com",
+      "www.kellyfortx.com",
+      "kellyfortx.com",
+      "bofrench.com",
+      "jonrosenthaltx.com",
+      "www.votedibianca.com",
+      "votedibianca.com",
+      "www.jimmyblacklock.com",
+      "jimmyblacklock.com",
+      "www.maggieforjustice.com",
+      "maggieforjustice.com",
+      "www.judgesully.com",
+      "judgesully.com",
+      "charikelly.com",
+      "justicekylehawkins.com",
+      "brettbusby.com",
+      "www.justicetriana.com",
+      "justicetriana.com",
+      "smithfortexas.org",
+      "okeyanyiamforjudge.com",
+      "messingerforjustice.com",
+      "www.hollytforjudge.com",
+      "hollytforjudge.com",
+      "micatx.com",
+      "www.allisonfortx.com",
+      "allisonfortx.com",
+      "www.montserratfortexas.com",
+      "montserratfortexas.com",
+      "www.arshiafortexas.org",
+      "arshiafortexas.org",
+      "justicescottbrister.com",
+      "jerryzimmerer.com",
+      "justicescottfield.com",
+      "justiceaprilfarris.com",
+      "www.coryfortexas.com",
+      "coryfortexas.com",
+      "www.justicedarlenebyrne.com",
+      "justicedarlenebyrne.com",
+      "www.danielladesetalyttle.com",
+      "danielladesetalyttle.com",
+      "laurieforjudge.com",
+      "www.mayaguerragamble.com",
+      "mayaguerragamble.com",
+      "voteandy.com",
+      "www.lesliedippel.com",
+      "lesliedippel.com",
+      "www.judgedimple.com",
+      "judgedimple.com",
+      "www.judgemaryann.com",
+      "judgemaryann.com",
+      "votedeniseforjudge.com",
+      "www.tanisaforjudge.com",
+      "tanisaforjudge.com",
+      "www.richforaustin.org",
+      "richforaustin.org",
+      "www.katiekamforaustin.com",
+      "katiekamforaustin.com",
+      "www.zoforaustin.com",
+      "zoforaustin.com",
+      "daveforaustintx.com",
+      "danawalkerforacc.com",
+      "www.gloriaforacc.com",
+      "gloriaforacc.com",
+      "www.pamelaforaisd.com",
+      "pamelaforaisd.com",
+      "kxan.com",
+      "kvue.com",
+      "fox7austin.com",
+      "cbsaustin.com",
+      "austinchronicle.com",
+      "communityimpact.com",
+      "thedailytexan.com",
+      "austincurrent.org",
+      "theaustinbulldog.org",
+      "wfaa.com",
+      "houstonpublicmedia.org",
+      "texasstandard.org",
+      "sanantonioreport.org",
+      "abcnews.go.com",
+      "nbcnews.com",
+      "www.lwvaustin.org",
+      "www.lwvtexas.org",
+      "www.austinchronicle.com",
+      "www.austincc.edu",
+      "onyourballot.vote411.org"
+    ],
+    "speechDomains": [
+      "texastribune.org",
+      "kut.org",
+      "statesman.com",
+      "houstonchronicle.com",
+      "dallasnews.com",
+      "expressnews.com",
+      "apnews.com",
+      "reuters.com",
+      "npr.org",
+      "politico.com",
+      "thehill.com",
+      "rollcall.com"
+    ],
+    "campaignSites": [
+      {
+        "candidateId": "us_senate-tx-united-states-senator-ken-paxton",
+        "url": "https://www.kenpaxton.com",
+        "verifiedVia": "https://ballotpedia.org/Ken_Paxton"
+      },
+      {
+        "candidateId": "us_senate-tx-united-states-senator-james-talarico",
+        "url": "https://jamestalarico.com/",
+        "verifiedVia": "https://ballotpedia.org/James_Talarico"
+      },
+      {
+        "candidateId": "us_senate-tx-united-states-senator-ted-brown",
+        "url": "https://tedbrown.org/",
+        "verifiedVia": "https://ballotpedia.org/Ted_Brown_(Texas)"
+      },
+      {
+        "candidateId": "governor-tx-governor-greg-abbott",
+        "url": "https://www.gregabbott.com",
+        "verifiedVia": "https://ballotpedia.org/Greg_Abbott"
+      },
+      {
+        "candidateId": "governor-tx-governor-gina-hinojosa",
+        "url": "https://ginafortexas.com/",
+        "verifiedVia": "https://ballotpedia.org/Gina_Hinojosa"
+      },
+      {
+        "candidateId": "governor-tx-governor-pat-dixon",
+        "url": "https://patdixon.org/",
+        "verifiedVia": "https://ballotpedia.org/Pat_Dixon"
+      },
+      {
+        "candidateId": "city_council-9-city-of-austin-city-council-member-distr-rich-heyman",
+        "url": "https://www.richforaustin.org/",
+        "verifiedVia": "https://ballotpedia.org/Rich_Heyman"
+      },
+      {
+        "candidateId": "city_council-9-city-of-austin-city-council-member-distr-katie-kam",
+        "url": "https://www.katiekamforaustin.com/",
+        "verifiedVia": "https://ballotpedia.org/Katie_Kam"
+      },
+      {
+        "candidateId": "city_council-9-city-of-austin-city-council-member-distr-zohaib-qadri",
+        "url": "https://www.zoforaustin.com/",
+        "verifiedVia": "https://ballotpedia.org/Zohaib_Qadri"
+      },
+      {
+        "candidateId": "city_council-9-city-of-austin-city-council-member-distr-dave-thadani",
+        "url": "https://daveforaustintx.com/",
+        "verifiedVia": "https://ballotpedia.org/Dave_Thadani"
+      }
+    ],
+    "verifiedDocuments": [
+      {
+        "url": "https://communityimpact.com/central-austin/election/meet-the-candidates-running-for-austin-city-council-district-9/",
+        "type": "questionnaire",
+        "verifiedVia": "https://communityimpact.com/central-austin/election/meet-the-candidates-running-for-austin-city-council-district-9/",
+        "contestId": "city_council-9-city-of-austin-city-council-member-distr"
+      }
+    ],
+    "resultsPerQuery": 10,
+    "maxPagesPerChannel": 5,
+    "maxQuotesPerSource": 10,
+    "maxSocialItems": 20
+  },
+  "records": {
+    "documentCap": 25,
+    "houseRollCap": 25,
+    "since": "2003-01-01",
+    "includeTloFtp": false,
+    "exhaustive": true
+  }
+}

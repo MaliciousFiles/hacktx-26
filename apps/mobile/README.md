@@ -47,6 +47,9 @@ EXPO_PUBLIC_BALLOT_STYLE_ID=your-style
 EXPO_PUBLIC_RELEASE_ID=your-release
 ```
 
+When all three are set, the app loads that release on launch (a failure keeps the sample and
+shows the error under **Connect a published ballot**). Restart Metro after changing them.
+
 Use a URL reachable by your phone (not `localhost`). The API must expose the
 existing `/ballot?ballotStyleId=…&releaseId=…` and `/reveal/:contestId?releaseId=…`
 contract. No database credentials belong in the app. Sample mode remains available

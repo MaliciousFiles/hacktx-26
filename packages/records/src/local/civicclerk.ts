@@ -15,6 +15,9 @@ export const civicClerkConfigSchema = z.object({
   ...pagingShape,
   // 1000 is this API's documented `$top` ceiling; it also bounds the number of continuation chains.
   pageSize: z.number().int().min(1).max(1000).default(1000),
+  // One meeting is one HTTP request, so a 20-year event list is a per-candidate crawl. The
+  // newest meetings are inspected first and the rest are reported, never silently dropped.
+  maxMeetings: z.number().int().min(1).max(5000).default(60),
 });
 export type CivicClerkConfig = z.input<typeof civicClerkConfigSchema>;
 
@@ -73,10 +76,16 @@ export const civicClerkAdapter: RecordsAdapter = {
     const config = collectionConfig(parsed.data, context);
     const url = new URL(`${config.baseUrl}/Events`);
     url.searchParams.set("$filter", `startDateTime ge ${context.window.since}T00:00:00Z and startDateTime lt ${context.window.before}T00:00:00Z`);
-    url.searchParams.set("$orderby", "startDateTime,id");
-    const collected = await pages({ context, url, pageSize: config.pageSize, maxPages: config.maxPages, parse: eventSchema.parse, count: true });
+    // Newest first: a bounded meeting budget must cut the oldest end of the record, not an arbitrary slice.
+    url.searchParams.set("$orderby", "startDateTime desc,id desc");
+    const eventPages = Math.max(1, Math.ceil(config.maxMeetings / config.pageSize) + 1);
+    const collected = await pages({ context, url, pageSize: config.pageSize, maxPages: Math.min(config.maxPages, eventPages), parse: eventSchema.parse, count: true });
     const problems = [...collected.problems];
-    const events = uniqueRows(collected.rows, (event) => event.id, problems, "event");
+    const allEvents = uniqueRows(collected.rows, (event) => event.id, problems, "event");
+    const events = allEvents.slice(0, config.maxMeetings);
+    if (allEvents.length > events.length) {
+      problems.push(`${allEvents.length} in-window event(s) are published; the ${events.length} newest were inspected under the configured maxMeetings budget (${config.maxMeetings}). ${allEvents.length - events.length} older event(s) were not inspected in this run.`);
+    }
     const names = candidateNames(context.request);
     const actions: OfficialAction[] = [];
     let motionCount = 0;
@@ -176,6 +185,6 @@ export const civicClerkAdapter: RecordsAdapter = {
     if (noMotions.length) problems.push(`${noMotions.length} events (${span(noMotions)}) have no structured minutes motions; votes may be unpublished or predate this portal's recorded-vote era.`);
     if (notNamed) problems.push(`${notNamed} of ${motionCount} motions did not name the candidate; participation is unknown, not absent${actions.length ? "" : " (the candidate is never named in the structured era, so no Court votes are attributed)"}.`);
     return report(actions, problems, context.window,
-      `${events.length} events inspected; ${motionCount} motions and ${actions.length} target votes found in the government-designated CivicClerk JSON source.${attendanceMotions ? ` ${attendanceMotions} call-to-order signature motions (attendance, not decisions) were excluded.` : ""}${earliest ? ` Structured minutes votes exist from ${earliest}; earlier meetings in this portal have agendas but no published motions.` : ""}`);
+      `${events.length} of ${allEvents.length} in-window events inspected; ${motionCount} motions and ${actions.length} target votes found in the government-designated CivicClerk JSON source.${attendanceMotions ? ` ${attendanceMotions} call-to-order signature motions (attendance, not decisions) were excluded.` : ""}${earliest ? ` Structured minutes votes exist from ${earliest}; earlier meetings in this portal have agendas but no published motions.` : ""}`);
   },
 };

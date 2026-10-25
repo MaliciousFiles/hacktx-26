@@ -22,10 +22,18 @@ export async function runPipeline(): Promise<void> {
   await runCli();
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  runPipeline().catch(() => {
+  runPipeline().catch((error: unknown) => {
+    const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    const stack = error instanceof Error && error.stack ? `\n${error.stack.split("\n").slice(0, 6).join("\n")}` : "";
+    console.error(`Pipeline failed: ${redactCredentials(message)}${redactCredentials(stack)}`);
     console.error(
-      "Pipeline failed; inspect local stage artifacts and configuration. No release should be assumed published.",
+      "Inspect local stage artifacts and configuration. No release should be assumed published.",
     );
     process.exitCode = 1;
   });
+}
+
+/** Never echo a credential-bearing query string to a terminal or log file. */
+function redactCredentials(text: string): string {
+  return text.replace(/([?&](?:api_key|apikey|key|token|access_token|Authorization)=)[^&\s"']+/gi, "$1[redacted]");
 }

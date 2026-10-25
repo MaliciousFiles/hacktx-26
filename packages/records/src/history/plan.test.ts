@@ -19,7 +19,9 @@ describe("buildHistoryPlan", () => {
     const rollYears = plan.sources.filter((s) => s.adapter === "house-clerk").map((s) => s.id);
     expect(rollYears).toEqual(["house-clerk-2025", "house-clerk-2026"]);
     expect(plan.sources.find((s) => s.id === "house-clerk-2025")?.discovery?.kind).toBe("house-clerk-index");
-    expect(plan.sources.some((s) => s.id === "govinfo-crec-2015")).toBe(true);
+    // Senate roll calls (Congressional Record) follow the same 2-year roll-call scope as the House.
+    const crecYears = plan.sources.filter((s) => s.adapter === "govinfo-crec").map((s) => s.id);
+    expect(crecYears).toEqual(["govinfo-crec-2025", "govinfo-crec-2026"]);
     expect(plan.sources.some((s) => s.adapter === "tlo-billhistory")).toBe(false);
     expect(plan.sources.some((s) => s.adapter === "tx-legislator")).toBe(true);
     expect(gaps.some((gap) => /House roll-call votes are scoped to the 2 most recent/.test(gap))).toBe(true);

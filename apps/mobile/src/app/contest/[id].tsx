@@ -1,8 +1,10 @@
-import type { ContextBrief, Contest, PolicyCard, Slot } from "@ftb/types";
+import type { ContextBrief, Contest, Slot } from "@ftb/types";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { StyleSheet, Text } from "react-native";
 import { CandidateCard } from "@/components/CandidateCard";
+import { DividingIssues } from "@/components/DividingIssues";
+import { PickPanel } from "@/components/PickPanel";
 import {
   Banner,
   Body,
@@ -14,7 +16,6 @@ import {
   Section,
   Title,
   TopBar,
-  TextButton,
 } from "@/components/ui";
 import { useBallotData } from "@/ballotData";
 import { formatMoney } from "@/format";
@@ -25,9 +26,6 @@ import { colors, fonts } from "@/theme";
 
 export default function ContestScreen() {
   const { data: demoBallot, contestById, orderedProfiles } = useBallotData();
-  const [confirm, setConfirm] = useState(false);
-  const [revealing, setRevealing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const session = useSession();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
@@ -78,57 +76,15 @@ export default function ContestScreen() {
     );
   }
   const userPositions = polePositions(demoBallot.cards, session.swipes);
-  const tradeoff = session.swipes.find((swipe) => swipe.cardId === "card-tradeoff");
-  const tradeoffCard = demoBallot.cards.find((card) => card.id === "card-tradeoff");
-  const revealed = session.revealed[contest.id] === true;
+  const picked = session.picks[contest.id] != null;
 
   return (
     <Screen
       footer={
-        profiles.length > 0 ? (
-          <>
-            {confirm && !revealed ? (
-              <Note>
-                Ready? Names and parties will stay visible for this contest for the rest of this
-                session.
-              </Note>
-            ) : null}
-            {error ? <Note>{error}</Note> : null}
-            <PrimaryButton
-              label={
-                revealing
-                  ? "Loading candidate names…"
-                  : revealed
-                    ? "See the names"
-                    : confirm
-                      ? "Yes, reveal this contest"
-                      : "Reveal candidate names"
-              }
-              disabled={revealing}
-              onPress={async () => {
-                if (!revealed && !confirm) {
-                  setConfirm(true);
-                  return;
-                }
-                setRevealing(true);
-                setError(null);
-                try {
-                  if (!revealed) await session.revealContest(contest.id);
-                  router.push({ pathname: "/reveal/[id]", params: { id: contest.id } });
-                } catch (cause) {
-                  setError(cause instanceof Error ? cause.message : "Please try again.");
-                } finally {
-                  setRevealing(false);
-                }
-              }}
-            />
-            {confirm && !revealing && !revealed ? (
-              <TextButton label="Keep reading" onPress={() => setConfirm(false)} />
-            ) : null}
-          </>
-        ) : (
-          <PrimaryButton label="Back to the ballot" onPress={() => router.navigate("/ballot")} />
-        )
+        <PrimaryButton
+          label={picked ? "Pick saved · back to the ballot" : "Back to the ballot"}
+          onPress={() => router.navigate("/ballot")}
+        />
       }
       header={<TopBar onBack={() => router.navigate("/ballot")} backLabel="Ballot" />}
     >
@@ -141,10 +97,8 @@ export default function ContestScreen() {
 
       {contest.measure ? <Measure contest={contest} /> : null}
       {contest.officeKind === "judicial" ? <JudicialNotes /> : null}
-      {contest.id === "contest-council" &&
-      tradeoff?.kind === "tradeoff" &&
-      tradeoffCard?.kind === "tradeoff" ? (
-        <TradeoffNote card={tradeoffCard} chosen={tradeoff.chosen} />
+      {contest.officeKind !== "judicial" && !contest.measure ? (
+        <DividingIssues contest={contest} />
       ) : null}
       <Context context={contest.context} />
 
@@ -156,6 +110,8 @@ export default function ContestScreen() {
           userPositions={userPositions}
         />
       ))}
+
+      <PickPanel contest={contest} />
     </Screen>
   );
 }
@@ -226,28 +182,6 @@ function JudicialNotes() {
         ))
       )}
     </Section>
-  );
-}
-
-function TradeoffNote({
-  card,
-  chosen,
-}: {
-  card: Extract<PolicyCard, { kind: "tradeoff" }>;
-  chosen: "accept" | "decline" | "skip";
-}) {
-  const question = `${card.policy}, at the cost of ${card.cost}.`;
-  const answer =
-    chosen === "accept"
-      ? "You said that was worth it."
-      : chosen === "decline"
-        ? "You said that cost was too high."
-        : "You skipped it.";
-  return (
-    <Banner
-      title="Why you're seeing this: a question you answered"
-      body={`Earlier you were asked about this tradeoff: ${question} ${answer} City Council decides issues like this. It is only a reminder and does not change how the candidates are compared below.`}
-    />
   );
 }
 

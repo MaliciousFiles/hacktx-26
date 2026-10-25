@@ -14,5 +14,5 @@ export function useCandidateName(contest: Contest, profile: CandidateProfile) {
   const subtitle = revealed
     ? "Same evidence as before the name."
     : (mask?.title ?? "A character for this session only");
-  return { name, subtitle, revealed };
+  return { name, subtitle, revealed, character: mask?.character };
 }

@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 
@@ -41,7 +41,7 @@ export class WorkJournal {
   private readonly db: DatabaseSync;
   constructor(directory: string, readonly options: { now?: () => number; leaseMs?: number; maxAttempts?: number } = {}) {
     mkdirSync(directory, { recursive: true });
-    this.db = new DatabaseSync(join(directory, "work.sqlite"));
+    this.db = openHealthyJournal(join(directory, "work.sqlite"));
     this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=10000;
       CREATE TABLE IF NOT EXISTS jobs (
         key TEXT PRIMARY KEY, kind TEXT NOT NULL, scope TEXT NOT NULL, payload TEXT NOT NULL,
@@ -199,6 +199,39 @@ export class WorkJournal {
 }
 
 export const workKey = (value: unknown) => digest(JSON.stringify(publicData(value)));
+
+/**
+ * A journal is bookkeeping, never evidence: a malformed/copied/truncated database must
+ * not take a candidate's official-record collection down with it. Quarantine the bad
+ * file and start a fresh queue (snapshots live in the immutable cache, so no evidence
+ * is lost) and only then fail if the replacement cannot be opened.
+ */
+function openHealthyJournal(file: string): DatabaseSync {
+  for (let attempt = 0; ; attempt += 1) {
+    const db = new DatabaseSync(file);
+    try {
+      const verdict = (db.prepare("PRAGMA quick_check").all() as Record<string, unknown>[])
+        .map((row) => String(Object.values(row)[0] ?? ""))
+        .join("; ")
+        .trim();
+      if (!/^ok$/i.test(verdict)) throw new Error(verdict || "quick_check failed");
+      db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=10000;");
+      return db;
+    } catch (error) {
+      try { db.close(); } catch { /* keep the original failure */ }
+      if (attempt >= 1) throw error;
+      quarantineJournal(file);
+    }
+  }
+}
+
+function quarantineJournal(file: string): void {
+  const stamp = `.corrupt-${Date.now()}`;
+  for (const suffix of ["", "-wal", "-shm"]) {
+    try { renameSync(`${file}${suffix}`, `${file}${suffix}${stamp}`); } catch { /* file may not exist */ }
+  }
+}
+
 const journals = new Map<string, WorkJournal>();
 export function sharedWorkJournal(directory: string): WorkJournal {
   let journal = journals.get(directory);

@@ -14,6 +14,19 @@ const spec: WorkSpec = { key: "job", kind: "request", scope: "candidate:source",
 const open = (options: ConstructorParameters<typeof WorkJournal>[1] = {}) => { const journal = new WorkJournal(directory, options); opened.push(journal); return journal; };
 
 describe("durable recovery", () => {
+  it("quarantines a malformed journal database instead of failing every candidate", async () => {
+    const { writeFile, readdir } = await import("node:fs/promises");
+    await writeFile(join(directory, "work.sqlite"), "this is not a sqlite database, it is a truncated copy");
+    const journal = open();
+    journal.registerAll([spec]);
+    expect(journal.counts("candidate")).toMatchObject({ discovered: 1, remaining: 1 });
+    const names = await readdir(directory);
+    expect(names.some((name) => name.startsWith("work.sqlite.corrupt-"))).toBe(true);
+    // The replacement queue is usable and a second open reuses the healthy file.
+    expect((await journal.run(spec, async () => "ok"))).toBe("ok");
+    expect(open().get("job")?.state).toBe("succeeded");
+  });
+
   it("persists logical work and successful checkpoints without metadata credentials", async () => {
     const journal = open();
     expect(await journal.run(spec, async () => ({ snapshotId: "abc" }))).toEqual({ snapshotId: "abc" });

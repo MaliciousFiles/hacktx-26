@@ -80,9 +80,7 @@ export function dividingIssues(
       negativePole: issue?.negativePole ?? "The other direction",
       positive: positive.map(strip),
       negative: negative.map(strip),
-      between: entries
-        .filter((entry) => Math.abs(entry.position) < SIDE_THRESHOLD)
-        .map(strip),
+      between: entries.filter((entry) => Math.abs(entry.position) < SIDE_THRESHOLD).map(strip),
     });
   }
   return result;

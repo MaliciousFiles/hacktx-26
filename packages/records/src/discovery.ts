@@ -319,16 +319,39 @@ export async function discoverRecordUrls(
   // Successful inventory replays must restore the provenance inventory as well as URLs.
   if (journal) for (const snapshot of enumerated.snapshots) await client.restore(snapshot.id);
   const found = enumerated.urls;
-  // OAG opinions stay newest-first; other inventories stay lexicographically sorted.
-  const urls = spec.kind === "oag-opinion-index" ? [...new Set(found)] : [...new Set(found)].sort();
-  if (!options.exhaustive && spec.kind === "oag-opinion-index" && spec.maxDocuments !== undefined && urls.length >= spec.maxDocuments) {
-    return { urls: urls.slice(0, spec.maxDocuments), status: "partial",
-      reason: `Configured maxDocuments=${spec.maxDocuments} cap: collected the ${spec.maxDocuments} newest documents; older ones were not collected.` };
-  }
-  if (!options.exhaustive && spec.maxDocuments !== undefined && urls.length > spec.maxDocuments) {
-    return { urls: urls.slice(0, spec.maxDocuments), status: "partial",
-      reason: `Configured maxDocuments=${spec.maxDocuments} cap: returning ${spec.maxDocuments} of ${urls.length} discovered documents; remaining documents were not collected.` };
+  // A discovered inventory is an inventory, not a promise to download everything in one run.
+  // The configured maxDocuments is a FETCH BUDGET in every mode (exhaustive included): keep the
+  // newest documents the URL ordering can establish, and say exactly how many were skipped.
+  const ordered = orderNewestFirst(spec.kind, found);
+  const urls = spec.kind === "oag-opinion-index" ? [...new Set(ordered)] : [...new Set(ordered)].sort();
+  const budget = spec.maxDocuments;
+  if (budget !== undefined && urls.length > budget) {
+    return { urls: urls.slice(0, budget), status: "partial",
+      reason: `Enumerated ${urls.length} published ${spec.kind} document(s); downloaded the ${budget} newest under the configured fetch budget (maxDocuments=${budget}). ${urls.length - budget} discovered document(s) were not collected in this run.` };
   }
   return { urls, status: "complete",
     reason: `Enumerated configured published ${spec.kind} inventories only (${urls.length} documents); not a claim of lifetime coverage.${spec.kind === "tlo-billhistory" ? " FTP inventories are enumerated again in reuse mode; offline requires an explicit saved URLs plan." : ""}` };
+}
+
+/**
+ * Budgets must cut the OLD end of an inventory, never an arbitrary slice: a lexicographic
+ * sort of `/Meetings/963` or `roll001.xml` is not chronological. Only ordering that is
+ * grounded in the URL itself is applied here; everything else keeps inventory order.
+ */
+function orderNewestFirst(kind: string, urls: string[]): string[] {
+  const numericId = (url: string): number | undefined => {
+    const match = /\/(?:Meetings|Events)\/(\d+)\b/.exec(url);
+    return match ? Number(match[1]) : undefined;
+  };
+  if (kind === "civicclerk") {
+    const ids = urls.map(numericId);
+    if (ids.every((id): id is number => id !== undefined)) {
+      return [...urls].sort((a, b) => (numericId(b) ?? 0) - (numericId(a) ?? 0));
+    }
+  }
+  if (kind === "house-clerk-index" || kind === "house-clerk-rolls") {
+    const roll = (url: string) => Number(/roll(\d+)\.xml/.exec(url)?.[1] ?? 0);
+    return [...urls].sort((a, b) => roll(b) - roll(a));
+  }
+  return urls;
 }
