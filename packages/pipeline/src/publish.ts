@@ -47,10 +47,16 @@ function canonicalJson(value: unknown): string {
 /**
  * Validate, hash, and publish a release.
  */
-export function publishRelease(
-  payload: PublishPayload,
-  options: PublishOptions,
-): PublishResult {
+export function publishRelease(payload: PublishPayload, options: PublishOptions): PublishResult {
+  if (!/^[a-zA-Z0-9_-]+$/.test(payload.release.id)) {
+    return {
+      success: false,
+      manifestHash: "",
+      releaseFilePath: "",
+      errors: ["Invalid release ID"],
+      leaks: [],
+    };
+  }
   // 1. Validate publication integrity (citations and references)
   const pubValidation = validatePublication(
     payload.release,
@@ -84,15 +90,30 @@ export function publishRelease(
   }
 
   // 3. Compute manifestHash over canonical JSON
-  const manifestHash = createHash("sha256").update(canonicalJson(payload)).digest("hex");
-  payload.release.manifestHash = manifestHash;
+  const output = structuredClone(payload);
+  output.release.manifestHash = "";
+  const manifestHash = createHash("sha256").update(canonicalJson(output)).digest("hex");
+  output.release.manifestHash = manifestHash;
 
   // 4. Write release to disk
   const distDir = join(options.outDir, "releases");
   mkdirSync(distDir, { recursive: true });
 
   const releaseFilePath = join(distDir, `${payload.release.id}.json`);
-  writeFileSync(releaseFilePath, JSON.stringify(payload, null, 2), "utf-8");
+  const serializedOutput = JSON.stringify(output, null, 2);
+  if (existsSync(releaseFilePath)) {
+    if (readFileSync(releaseFilePath, "utf-8") !== serializedOutput) {
+      return {
+        success: false,
+        manifestHash: "",
+        releaseFilePath: "",
+        errors: ["Release ID already exists with different contents; use a new release ID"],
+        leaks: [],
+      };
+    }
+  } else {
+    writeFileSync(releaseFilePath, serializedOutput, { encoding: "utf-8", flag: "wx" });
+  }
 
   return {
     success: true,

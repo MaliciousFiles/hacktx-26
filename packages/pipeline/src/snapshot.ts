@@ -36,7 +36,7 @@ function today(): string {
  * Ingest raw sources and actions:
  * - Set contentHash = sha256(originalText) on each source.
  * - Set fetchedAt to today's date if missing.
- * - Deduplicate sources by (url, contentHash) — identical wire reposts count once.
+ * - Deduplicate identical text across URLs within the same candidate/contest.
  * - Deduplicate actions by id.
  * - Write a stage manifest to dist/manifests/snapshot-<timestamp>.json.
  */
@@ -56,11 +56,11 @@ export function snapshotSources(
     contentHash: sha256(s.originalText),
   }));
 
-  // Deduplicate: keep the first occurrence of each (url, contentHash) pair
+  // Deduplicate: keep the first copy of identical text for each attribution
   const seen = new Set<string>();
   const deduped: Source[] = [];
   for (const s of stamped) {
-    const key = `${s.url}::${s.contentHash}`;
+    const key = `${s.contestId}::${s.candidateId ?? "unattributed"}::${s.contentHash}`;
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(s);

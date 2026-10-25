@@ -1,5 +1,5 @@
 // generate.ts — Stage 5: generate CitedSentence[] for highlights, plan slots, context (PLAN.md §4, §7).
-// Uses Gemini as the pinned frontier LLM behind cachedCall().
+// Uses Ollama as the pinned frontier LLM behind cachedCall().
 // Every generated sentence MUST cite evidence (Invariant 2).
 import { createHash } from "node:crypto";
 import type {
@@ -14,10 +14,9 @@ import type {
   EvidenceRef,
 } from "@ftb/types";
 import { cachedCall } from "./cached_call.js";
+import { ollamaJson, object, type OllamaConfig } from "./ollama.js";
 
-export interface GenerateConfig {
-  geminiApiKey: string;
-  geminiModelVersion: string;
+export interface GenerateConfig extends OllamaConfig {
   rubricVersion: string;
 }
 
@@ -29,8 +28,8 @@ interface GenerateHighlightsResponse {
 }
 
 interface GeneratePlanResponse {
-  goal?: { text: string; evidenceIds: string[] };
-  mechanism?: { text: string; evidenceIds: string[] };
+  goal?: { text: string; evidenceIds: string[] } | "not_stated";
+  mechanism?: { text: string; evidenceIds: string[] } | "not_stated";
   cost?: { text: string; evidenceIds: string[] } | "not_stated" | "not_applicable";
   funding?: { text: string; evidenceIds: string[] } | "not_stated" | "not_applicable";
   timeline?: { text: string; evidenceIds: string[] } | "not_stated" | "not_applicable";
@@ -56,8 +55,8 @@ export async function generateHighlights(
 
   const inputJson = JSON.stringify(evidenceSummary);
   const spec: CachedCallSpec = {
-    model: "gemini",
-    modelVersion: config.geminiModelVersion,
+    model: "ollama",
+    modelVersion: config.ollamaModelVersion,
     rubricVersion: config.rubricVersion,
     questions: { candidateId, task: "platform_highlights" },
     inputHash: createHash("sha256").update(inputJson).digest("hex"),
@@ -83,23 +82,11 @@ ${inputJson}
 Respond with valid JSON only.`.trim();
 
   const response = await cachedCall<GenerateHighlightsResponse>(spec, async () => {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModelVersion}:generateContent?key=${config.geminiApiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" },
-        }),
-      },
-    );
-    if (!res.ok) throw new Error(`Gemini error ${res.status}: ${await res.text()}`);
-    const body = (await res.json()) as {
-      candidates: { content: { parts: { text: string }[] } }[];
-    };
-    const raw = body.candidates[0]?.content?.parts[0]?.text ?? "{\"highlights\":[]}";
-    return JSON.parse(raw) as GenerateHighlightsResponse;
+    return ollamaJson(prompt, config, (value) => {
+      const data = object(value);
+      if (!Array.isArray(data.highlights)) throw new Error("Invalid highlights response");
+      return { highlights: data.highlights.map((h) => citedText(h, evidence)) };
+    });
   });
 
   return (response.highlights || [])
@@ -116,15 +103,7 @@ function parseSlot(
   if (!data || data === "not_stated") {
     return { state: "not_stated" };
   }
-  if (data === "not_applicable") {
-    return {
-      state: "not_applicable",
-      reason: {
-        text: "Not applicable to this office or policy proposal.",
-        citations: [],
-      },
-    };
-  }
+  if (data === "not_applicable") return { state: "not_stated" };
   if (typeof data === "object" && data.text && data.evidenceIds?.length) {
     return {
       state: "documented",
@@ -169,8 +148,8 @@ export async function generatePlans(
 
     const inputJson = JSON.stringify(evidenceSummary);
     const spec: CachedCallSpec = {
-      model: "gemini",
-      modelVersion: config.geminiModelVersion,
+      model: "ollama",
+      modelVersion: config.ollamaModelVersion,
       rubricVersion: config.rubricVersion,
       questions: { candidateId, issueId, task: "plan_extraction" },
       inputHash: createHash("sha256").update(inputJson).digest("hex"),
@@ -205,23 +184,19 @@ ${inputJson}
 Respond with valid JSON only.`.trim();
 
     const planRes = await cachedCall<GeneratePlanResponse>(spec, async () => {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModelVersion}:generateContent?key=${config.geminiApiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" },
-          }),
-        },
-      );
-      if (!res.ok) throw new Error(`Gemini error ${res.status}: ${await res.text()}`);
-      const body = (await res.json()) as {
-        candidates: { content: { parts: { text: string }[] } }[];
-      };
-      const raw = body.candidates[0]?.content?.parts[0]?.text ?? "{}";
-      return JSON.parse(raw) as GeneratePlanResponse;
+      return ollamaJson(prompt, config, (value) => {
+        const data = object(value);
+        const result: Record<string, unknown> = {};
+        for (const key of ["goal", "mechanism", "cost", "funding", "timeline", "whoActs"]) {
+          const slot = data[key];
+          // Applicability requires cited reasoning; unsupported exemptions remain unknown.
+          result[key] =
+            slot == null || slot === "not_stated" || slot === "not_applicable"
+              ? "not_stated"
+              : citedText(slot, relevant);
+        }
+        return result as unknown as GeneratePlanResponse;
+      });
     });
 
     const goal = parseSlot(planRes.goal);
@@ -251,4 +226,19 @@ Respond with valid JSON only.`.trim();
   }
 
   return plans;
+}
+
+function citedText(value: unknown, evidence: Evidence[]): { text: string; evidenceIds: string[] } {
+  const data = object(value);
+  const ids = new Set(evidence.map((e) => e.id));
+  if (
+    typeof data.text !== "string" ||
+    !data.text.trim() ||
+    !Array.isArray(data.evidenceIds) ||
+    data.evidenceIds.length === 0 ||
+    data.evidenceIds.some((id) => typeof id !== "string" || !ids.has(id))
+  ) {
+    throw new Error("Generated sentence has missing or unknown evidence citations");
+  }
+  return { text: data.text, evidenceIds: data.evidenceIds as string[] };
 }

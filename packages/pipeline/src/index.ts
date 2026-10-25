@@ -10,10 +10,22 @@ export * from "./validate.js";
 export * from "./cards.js";
 export * from "./publish.js";
 export * from "./records.js";
+export * from "./batch.js";
+export * from "./ollama.js";
+export * from "./model-config.js";
 
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Release, Ballot, Contest, CandidateProfile, PolicyCard, SourceCitation } from "@ftb/types";
+import type {
+  Release,
+  Ballot,
+  Contest,
+  CandidateProfile,
+  PolicyCard,
+  SourceCitation,
+} from "@ftb/types";
+import { runBatch, type BatchInput } from "./batch.js";
+import { modelConfigFromEnv } from "./model-config.js";
 import { publishRelease, type PublishPayload } from "./publish.js";
 
 /**
@@ -23,6 +35,20 @@ import { publishRelease, type PublishPayload } from "./publish.js";
  */
 export async function runPipeline(): Promise<void> {
   console.log("🧚 [Fairy Tale Ballot] Running offline data pipeline...");
+
+  const inputFlag = process.argv.indexOf("--input");
+  if (inputFlag !== -1) {
+    const path = process.argv[inputFlag + 1];
+    if (!path) throw new Error("Usage: start --input /absolute/path/to/batch.json");
+    const input = JSON.parse(readFileSync(resolve(path), "utf-8")) as BatchInput;
+    const result = await runBatch(input, modelConfigFromEnv(join(process.cwd(), "dist")));
+    if (!result.success) throw new Error([...result.errors, ...result.leaks].join("\n"));
+    console.log(`Published ${result.releaseFilePath} (${result.manifestHash})`);
+    return;
+  }
+  console.log(
+    "Fixture mode. For prepared source data, use start --input /absolute/path/to/batch.json",
+  );
 
   const fixturePath = join(process.cwd(), "..", "..", "fixtures", "release-fixture.json");
   const localFixturePath = join(process.cwd(), "fixtures", "release-fixture.json");
@@ -58,9 +84,7 @@ export async function runPipeline(): Promise<void> {
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
-const isMain =
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isMain) {
   runPipeline().catch((err) => {
@@ -68,4 +92,3 @@ if (isMain) {
     process.exit(1);
   });
 }
-

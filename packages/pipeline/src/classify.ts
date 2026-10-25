@@ -1,4 +1,4 @@
-// classify.ts — Stage 3: Jev classification (primary) / Gemini fallback (PLAN.md §4, §7).
+// classify.ts — Stage 3: Jev classification (primary) / Ollama fallback (PLAN.md §4, §7).
 // All model calls go through cachedCall(). Stores the full Distribution, never just argmax.
 // Low-confidence outputs are written to the human-review queue; never auto-published.
 import { createHash } from "node:crypto";
@@ -19,14 +19,19 @@ import type {
   OfficialAction,
 } from "@ftb/types";
 import { cachedCall } from "./cached_call.js";
+import {
+  ollamaJson,
+  object,
+  probability,
+  assertPinnedVersion,
+  type OllamaConfig,
+} from "./ollama.js";
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 
-export interface ClassifyConfig {
+export interface ClassifyConfig extends OllamaConfig {
   jevApiKey: string;
-  geminiApiKey: string;
-  jevModelVersion: string;   // e.g. "jev-1.14" — never "latest"
-  geminiModelVersion: string; // e.g. "gemini-2.0-flash-001"
+  jevModelVersion: string; // e.g. "jev-1.14" — never "latest"
   rubricVersion: string;
   outDir: string;
   /** Confidence threshold below which a classification goes to human review. */
@@ -45,14 +50,14 @@ interface JevClassifyRequest {
 }
 
 interface JevClassifyResponse {
-  stance: Distribution;         // probs over position buckets → mapped to Position
-  relevance: Distribution;      // probs { relevant, irrelevant }
-  claimType: Distribution;      // probs { promise, advocacy, value }
-  specificity: number;          // 0..1
-  proposesSpending?: number;    // Prob
-  fundingStated?: number;       // Prob
-  isOwnSpeech: number;          // Prob
-  withinAuthority: string;      // "direct" | "influence" | "none"
+  stance: Distribution; // probs over position buckets → mapped to Position
+  relevance: Distribution; // probs { relevant, irrelevant }
+  claimType: Distribution; // probs { promise, advocacy, value }
+  specificity: number; // 0..1
+  proposesSpending?: number; // Prob
+  fundingStated?: number; // Prob
+  isOwnSpeech: number; // Prob
+  withinAuthority: string; // "direct" | "influence" | "none"
 }
 
 // ── Jev client ─────────────────────────────────────────────────────────────────
@@ -82,17 +87,19 @@ async function callJev(
   req: JevClassifyRequest,
   config: ClassifyConfig,
 ): Promise<JevClassifyResponse> {
+  if (!config.jevApiKey) throw new Error("JEV_API_KEY is not configured");
+  assertPinnedVersion(config.jevModelVersion);
   const spec: CachedCallSpec = {
     model: "jev",
     modelVersion: config.jevModelVersion,
     rubricVersion: config.rubricVersion,
-    questions: req,
+    questions: { ...req, adapterVersion: "jev-ollama-v2" },
     inputHash: createHash("sha256").update(req.text).digest("hex"),
   };
 
   return cachedCall(spec, async () => {
     const payload = {
-      model: config.jevModelVersion || "jev-latest",
+      model: config.jevModelVersion,
       state: req.text,
       questions: {
         relevance: {
@@ -119,20 +126,32 @@ async function callJev(
             value: "General moral, philosophical, or party value statement",
           },
         },
-        authority: {
-          type: "choice",
-          instructions: "Does this office have direct constitutional power over this policy area?",
-          criteria: {
-            direct: "Office has direct statutory, regulatory, or voting authority",
-            influence: "Office has indirect advisory, budgetary, or bully-pulpit influence",
-            none: "Office has no legal or statutory jurisdiction over this issue",
-          },
+        specificity: {
+          type: "score",
+          instructions:
+            "How concrete and detailed is the stated plan? Rate documented detail, not feasibility or truth.",
+          criteria: [
+            "No concrete plan detail",
+            "Some concrete mechanisms or commitments",
+            "Detailed mechanism, costs, funding, timeline and actors",
+          ],
+        },
+        own_speech: {
+          type: "noul",
+          instructions:
+            "The text directly quotes or records the candidate's own words rather than third-party commentary.",
+        },
+        spending: { type: "noul", instructions: "The text explicitly proposes public spending." },
+        funding: {
+          type: "noul",
+          instructions: "The text explicitly identifies a funding source for the proposal.",
         },
       },
     };
 
     const res = await fetch("https://api.typesafe.ai/v1/systemone", {
       method: "POST",
+      signal: AbortSignal.timeout(120_000),
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${config.jevApiKey}`,
@@ -141,7 +160,7 @@ async function callJev(
     });
 
     if (!res.ok) {
-      throw new Error(`TypeSafe Jev error ${res.status}: ${await res.text()}`);
+      throw new Error(`TypeSafe Jev request failed (HTTP ${res.status})`);
     }
 
     const data = (await res.json()) as {
@@ -158,18 +177,20 @@ async function callJev(
           confidence: number;
           probabilities: Record<string, number>;
         };
-        authority?: {
-          choice: string;
-          confidence: number;
-        };
+        specificity?: { score: number };
+        own_speech?: { noul: number };
+        spending?: { noul: number };
+        funding?: { noul: number };
       };
     };
 
-    const relNoul = data.answers.relevance?.noul ?? 1.0;
+    if (data.model !== config.jevModelVersion)
+      throw new Error("Jev returned an unexpected model version");
+    const relNoul = data.answers.relevance?.noul ?? 0;
     const stanceProbs = data.answers.stance?.probabilities ?? {};
     const claimProbs = data.answers.claim_type?.probabilities ?? {};
 
-    return {
+    return parseClassification({
       stance: {
         probs: {
           strong_negative: stanceProbs["0"] ?? 0,
@@ -178,7 +199,7 @@ async function callJev(
           moderate_positive: stanceProbs["3"] ?? 0,
           strong_positive: stanceProbs["4"] ?? 0,
         },
-        confidence: data.answers.stance?.confidence ?? 0.8,
+        confidence: data.answers.stance?.confidence ?? 0,
       },
       relevance: {
         probs: {
@@ -190,27 +211,29 @@ async function callJev(
       claimType: {
         probs: {
           promise: claimProbs["promise"] ?? 0,
-          advocacy: claimProbs["advocacy"] ?? 1,
+          advocacy: claimProbs["advocacy"] ?? 0,
           value: claimProbs["value"] ?? 0,
         },
-        confidence: data.answers.claim_type?.confidence ?? 0.8,
+        confidence: data.answers.claim_type?.confidence ?? 0,
       },
-      specificity: 0.8,
-      isOwnSpeech: 0.95,
-      withinAuthority: data.answers.authority?.choice ?? "direct",
-    };
+      specificity: (data.answers.specificity?.score ?? 0) / 2,
+      isOwnSpeech: data.answers.own_speech?.noul ?? 0,
+      proposesSpending: data.answers.spending?.noul ?? 0,
+      fundingStated: data.answers.funding?.noul ?? 0,
+      withinAuthority: "none",
+    });
   });
 }
 
-// ── Gemini fallback ────────────────────────────────────────────────────────────
+// ── Ollama fallback ────────────────────────────────────────────────────────────
 
-async function callGeminiFallback(
+async function callOllamaFallback(
   req: JevClassifyRequest,
   config: ClassifyConfig,
 ): Promise<JevClassifyResponse> {
   const spec: CachedCallSpec = {
-    model: "gemini",
-    modelVersion: config.geminiModelVersion,
+    model: "ollama",
+    modelVersion: config.ollamaModelVersion,
     rubricVersion: config.rubricVersion,
     questions: req,
     inputHash: createHash("sha256").update(req.text).digest("hex"),
@@ -240,23 +263,7 @@ ${req.text}
 Respond with JSON only.`.trim();
 
   return cachedCall(spec, async () => {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModelVersion}:generateContent?key=${config.geminiApiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" },
-        }),
-      },
-    );
-    if (!res.ok) throw new Error(`Gemini error ${res.status}: ${await res.text()}`);
-    const body = (await res.json()) as {
-      candidates: { content: { parts: { text: string }[] } }[];
-    };
-    const raw = body.candidates[0]?.content?.parts[0]?.text ?? "{}";
-    return JSON.parse(raw) as JevClassifyResponse;
+    return ollamaJson(prompt, config, parseClassification);
   });
 }
 
@@ -289,7 +296,7 @@ export interface IssuePoleLabel {
 
 /**
  * Classify a single ClassificationInput against a single issue axis.
- * Uses Jev as primary; falls back to Gemini if Jev throws.
+ * Uses Jev as primary; falls back to Ollama if Jev throws.
  * Returns null when relevance confidence is below threshold (caller should drop).
  */
 export async function classifyOne(
@@ -301,6 +308,9 @@ export async function classifyOne(
   actionId: string | undefined,
   config: ClassifyConfig,
 ): Promise<Omit<Evidence, "id" | "date" | "quoteSpan"> | null> {
+  if (input.sourceId !== source.id || input.mode === "unmasked_eval_only") {
+    throw new Error("Classification requires a publishable projection for this source");
+  }
   const req: JevClassifyRequest = {
     text: input.text,
     issueId: issue.id,
@@ -313,26 +323,29 @@ export async function classifyOne(
   let jevResponse: JevClassifyResponse;
   try {
     jevResponse = await callJev(req, config);
-  } catch (err) {
-    console.warn(`Jev failed for source ${source.id} / issue ${issue.id}; falling back to Gemini`, err);
-    jevResponse = await callGeminiFallback(req, config);
+  } catch {
+    console.warn(`Jev failed for source ${source.id} / issue ${issue.id}; falling back to Ollama`);
+    jevResponse = await callOllamaFallback(req, config);
+    // Self-reported LLM confidence is not calibrated Jev confidence.
+    queueForReview(source.id, issue.id, "uncalibrated_ollama_fallback", jevResponse, config.outDir);
+    return null;
   }
 
   // Drop if irrelevant
   const relevanceProb: Prob = jevResponse.relevance.probs["relevant"] ?? 0;
   if (relevanceProb < 0.5) return null;
 
-  // Low-confidence → queue for human review but still return (pipeline decides whether to drop)
+  // Low-confidence classifications are withheld pending human review.
   if (jevResponse.stance.confidence < config.lowConfidenceThreshold) {
     queueForReview(source.id, issue.id, "low_stance_confidence", jevResponse, config.outDir);
+    return null;
   }
 
   const position = stanceDistToPosition(jevResponse.stance);
 
-  // Find a verbatim quote from originalText. Use the full text if the source is short enough;
-  // otherwise the generator stage will select the most relevant span.
-  const quote = source.originalText.slice(0, 500);
-  const quoteSpan = { start: 0, end: Math.min(500, source.originalText.length) };
+  // Preserve all text used for the classification; arbitrary truncation can omit
+  // the passage that supported the issue classification.
+  const quote = source.originalText;
 
   const sourceType: SourceType = source.type;
   const claimTypeArgmax = argmax(jevResponse.claimType.probs) as ClaimType;
@@ -362,4 +375,37 @@ export async function classifyOne(
 
 function argmax(probs: Record<string, number>): string {
   return Object.entries(probs).reduce((best, [k, v]) => (v > best[1] ? [k, v] : best), ["", -1])[0];
+}
+
+function parseClassification(value: unknown): JevClassifyResponse {
+  const data = object(value);
+  function distribution(value: unknown, labels: string[]): Distribution {
+    const d = object(value),
+      probs = object(d.probs);
+    const entries = labels.map((label) => [label, probability(probs[label])] as const);
+    if (Math.abs(entries.reduce((sum, [, p]) => sum + p, 0) - 1) > 0.01) {
+      throw new Error("Model distribution must sum to one");
+    }
+    return { probs: Object.fromEntries(entries), confidence: probability(d.confidence) };
+  }
+  if (!["direct", "influence", "none"].includes(String(data.withinAuthority)))
+    throw new Error("Invalid authority");
+  return {
+    stance: distribution(data.stance, [
+      "strong_negative",
+      "moderate_negative",
+      "neutral",
+      "moderate_positive",
+      "strong_positive",
+    ]),
+    relevance: distribution(data.relevance, ["relevant", "irrelevant"]),
+    claimType: distribution(data.claimType, ["promise", "advocacy", "value"]),
+    specificity: probability(data.specificity),
+    isOwnSpeech: probability(data.isOwnSpeech),
+    withinAuthority: String(data.withinAuthority),
+    ...(data.proposesSpending === undefined
+      ? {}
+      : { proposesSpending: probability(data.proposesSpending) }),
+    ...(data.fundingStated === undefined ? {} : { fundingStated: probability(data.fundingStated) }),
+  };
 }

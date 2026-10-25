@@ -9,7 +9,8 @@
   "scripts": {
     "start": "tsx --env-file-if-exists=../../.env src/index.ts",
     "records": "tsx --env-file-if-exists=../../.env src/records-cli.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:live": "tsx --env-file-if-exists=../../.env src/test-live-ai.ts"
   },
   "dependencies": {
     "@ftb/records": "workspace:*",

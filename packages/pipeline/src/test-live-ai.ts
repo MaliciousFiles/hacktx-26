@@ -1,13 +1,14 @@
 // test-live-ai.ts — Live integration test runner for @ftb/pipeline
-// Runs real raw candidate text through JEV / Gemini with full validation.
+// Runs explicitly synthetic candidate text through JEV / Ollama with full validation.
 //
 // Usage:
-//   export GEMINI_API_KEY="your-api-key"
+//   export OLLAMA_API_KEY="your-api-key"
 //   npx tsx src/test-live-ai.ts
 
 import { normalizeSource } from "./normalize.js";
 import { classifyOne } from "./classify.js";
 import { generateHighlights, generatePlans } from "./generate.js";
+import { modelConfigFromEnv } from "./model-config.js";
 import { validateQuote } from "./validate.js";
 import type { Source } from "@ftb/types";
 import type { IssuePoleLabel } from "./classify.js";
@@ -15,30 +16,21 @@ import type { IssuePoleLabel } from "./classify.js";
 async function main() {
   console.log("🧚 [Fairy Tale Ballot] Running Live AI Pipeline Test...\n");
 
-  const geminiApiKey = process.env.GEMINI_API_KEY;
-  const jevApiKey = process.env.JEV_API_KEY || "dummy-jev-key";
+  const config = modelConfigFromEnv("dist");
 
-  if (!geminiApiKey) {
-    console.warn("⚠️  WARNING: GEMINI_API_KEY is not set in your environment or .env!");
-    console.warn("   To run with live Gemini API calls, run:");
-    console.warn("     export GEMINI_API_KEY=\"AIzaSy...\"");
-    console.warn("     npx tsx src/test-live-ai.ts\n");
-    return;
-  }
-
-  // 1. Raw candidate speech (e.g., from a real questionnaire on housing in Austin)
+  // 1. Synthetic speech for transport and citation validation; never election evidence.
   const candidateRawText =
-    "Representative Gina Hinojosa stated: We must reform municipal zoning to allow multifamily housing " +
+    "Synthetic Candidate stated: We must reform municipal zoning to allow multifamily housing " +
     "near major transit corridors by right. High housing costs are pushing working families out of central Austin. " +
     "I sponsored HB 1234 to cut red tape and incentivize private builders without public subsidies.";
 
   const source: Source = {
     id: "src-live-test-1",
     contestId: "contest-tx-house-49",
-    candidateId: "cand-hinojosa",
+    candidateId: "cand-synthetic",
     type: "questionnaire",
-    url: "https://apps.texastribune.org/features/2026/texas-voter-guide/",
-    outlet: "texas_tribune",
+    url: "https://example.invalid/synthetic-pipeline-test",
+    outlet: "synthetic_test",
     fetchedAt: new Date().toISOString().slice(0, 10),
     contentHash: "hash-live-test",
     originalText: candidateRawText,
@@ -55,25 +47,16 @@ async function main() {
   const normalized = normalizeSource(source, {
     mode: "names_only",
     projectionVersion: "proj-v1",
-    candidateNames: ["Gina Hinojosa", "Hinojosa"],
+    candidateNames: ["Synthetic Candidate", "Candidate"],
   });
   console.log("   Masked text preview:", normalized.text.slice(0, 100), "...\n");
 
-  console.log("2. Calling Classifier (JEV / Gemini fallback)...");
-  const config = {
-    jevApiKey,
-    geminiApiKey,
-    jevModelVersion: "jev-1.14",
-    geminiModelVersion: "gemini-2.0-flash",
-    rubricVersion: "rubric-v1",
-    outDir: "dist",
-    lowConfidenceThreshold: 0.6,
-  };
+  console.log("2. Calling Classifier (JEV / Ollama fallback)...");
 
   const classification = await classifyOne(
     normalized,
     source,
-    "cand-hinojosa",
+    "cand-synthetic",
     "contest-tx-house-49",
     issue,
     undefined,
@@ -81,11 +64,14 @@ async function main() {
   );
 
   if (!classification) {
-    console.error("❌ Statement was classified as irrelevant.");
-    return;
+    throw new Error(
+      "Classification withheld: irrelevant, low confidence, or fallback pending review. See dist/logs/review-queue.jsonl",
+    );
   }
 
-  console.log(`   Stance position: ${classification.position.toFixed(2)} (-1.0 negative pole to +1.0 positive pole)`);
+  console.log(
+    `   Stance position: ${classification.position.toFixed(2)} (-1.0 negative pole to +1.0 positive pole)`,
+  );
   console.log(`   Relevance: ${classification.relevance.toFixed(2)}`);
   console.log(`   Claim type: ${classification.claimType}`);
   console.log(`   Within legal authority: ${classification.withinAuthority}\n`);
@@ -95,8 +81,7 @@ async function main() {
     ...classification,
     id: "ev-live-1",
     date: source.fetchedAt,
-    quoteSpan: { start: 37, end: 135 },
-    quote: candidateRawText.slice(37, 135),
+    quoteSpan: { start: 0, end: classification.quote.length },
   };
 
   console.log("3. Validating Quote against raw source text...");
@@ -104,29 +89,31 @@ async function main() {
   if (quoteCheck.valid) {
     console.log("   ✅ Quote matches originalText slice character-for-character!\n");
   } else {
-    console.error("   ❌ Quote mismatch:", quoteCheck.error);
+    throw new Error(quoteCheck.error ?? "Quote validation failed");
   }
 
-  console.log("4. Generating Platform Highlights with Gemini...");
-  const genConfig = {
-    geminiApiKey,
-    geminiModelVersion: "gemini-2.0-flash",
-    rubricVersion: "rubric-v1",
-  };
+  console.log("4. Generating Platform Highlights with Ollama...");
+  const genConfig = config;
 
-  const highlights = await generateHighlights("cand-hinojosa", [evidence], genConfig);
+  const highlights = await generateHighlights("cand-synthetic", [evidence], genConfig);
   console.log("   Generated highlights:");
   for (const h of highlights) {
     console.log(`   • "${h.text}" [Citations: ${h.citations.map((c) => c.id).join(", ")}]`);
   }
   console.log();
 
-  console.log("5. Generating Structured 6-Slot Plan with Gemini...");
-  const plans = await generatePlans("cand-hinojosa", [evidence], genConfig);
+  console.log("5. Generating Structured 6-Slot Plan with Ollama...");
+  const plans = await generatePlans("cand-synthetic", [evidence], genConfig);
   for (const p of plans) {
     console.log(`   Plan for ${p.issueId}:`);
-    console.log(`   - Goal:`, p.goal.state === "documented" ? p.goal.sentences[0]?.text : "Not stated");
-    console.log(`   - Mechanism:`, p.mechanism.state === "documented" ? p.mechanism.sentences[0]?.text : "Not stated");
+    console.log(
+      `   - Goal:`,
+      p.goal.state === "documented" ? p.goal.sentences[0]?.text : "Not stated",
+    );
+    console.log(
+      `   - Mechanism:`,
+      p.mechanism.state === "documented" ? p.mechanism.sentences[0]?.text : "Not stated",
+    );
     console.log(`   - Cost:`, p.cost.state);
     console.log(`   - Funding:`, p.funding.state);
     console.log(`   - Specificity Score:`, (p.specificity * 100).toFixed(0) + "%");
@@ -135,4 +122,7 @@ async function main() {
   console.log("\n🎉 Live AI Pipeline Test Completed Successfully!");
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : "Live pipeline test failed");
+  process.exitCode = 1;
+});

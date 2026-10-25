@@ -45,26 +45,27 @@
 
 The inputs are raw, uncurated data produced by the scraping and official records packages:
 
-| Input Object | What it contains | Where it comes from |
-|---|---|---|
-| **`Source[]`** | Raw text from questionnaires (VOTE411, Texas Tribune), campaign websites, debate transcripts, and news articles. Contains the full `originalText`, date, URL, and outlet. | `packages/scraping` (via SerpApi / web fetchers) |
-| **`OfficialAction[]`** | Real government voting records, bill sponsorship, and votes (e.g. "Voted YES on HB 1234, margin 85-60"). | `packages/records` (via Texas Legislature Online & City Council minutes) |
-| **`MoneyFlow[]`** | Direct campaign contributions, PAC transfers, and independent outside ad spending. | `packages/scraping` (via FEC & Texas Ethics Commission) |
-| **`Contest[]`** | The list of races and ballot propositions for the election (e.g. State Rep District 49, Austin Prop A). | VoteTravis county election data |
-| **Config files** | `issues.yaml` (issue axes), `authority.yaml` (legal office powers), `sources.yaml` (trusted media list). | `config/` directory |
+| Input Object           | What it contains                                                                                                                                                          | Where it comes from                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **`Source[]`**         | Raw text from questionnaires (VOTE411, Texas Tribune), campaign websites, debate transcripts, and news articles. Contains the full `originalText`, date, URL, and outlet. | `packages/scraping` (via SerpApi / web fetchers)                         |
+| **`OfficialAction[]`** | Real government voting records, bill sponsorship, and votes (e.g. "Voted YES on HB 1234, margin 85-60").                                                                  | `packages/records` (via Texas Legislature Online & City Council minutes) |
+| **`MoneyFlow[]`**      | Direct campaign contributions, PAC transfers, and independent outside ad spending.                                                                                        | `packages/scraping` (via FEC & Texas Ethics Commission)                  |
+| **`Contest[]`**        | The list of races and ballot propositions for the election (e.g. State Rep District 49, Austin Prop A).                                                                   | VoteTravis county election data                                          |
+| **Config files**       | `issues.yaml` (issue axes), `authority.yaml` (legal office powers), `sources.yaml` (trusted media list).                                                                  | `config/` directory                                                      |
 
 ### The Core Difference: `@ftb/records` vs. `@ftb/scraping`
 
 A central invariant of this project is **Actions outweigh words (Invariant 12)** and **Says vs. Does**:
 
-| Package | What it covers | Real-world sources | How the pipeline treats it |
-|---|---|---|---|
-| **`@ftb/records`**<br>(Person 1) | **Deeds / Official Actions** (What the candidate *did* while holding public office). | Texas Legislature Online (TLO) XML, House/Senate voting journals, City Council minutes, executive orders, court statistics. | **High Evidentiary Weight**: Actions are weighted **2x over words**. Contested roll-call votes weigh significantly more than routine consent votes. This forms the **"DOES"** side of the *Says vs. Does* gap. |
-| **`@ftb/scraping`**<br>(Person 3) | **Words, Context & Money** (What the candidate *claims*, what media reports, and who pays). | VOTE411, Texas Tribune voter guides, candidate campaign sites, debate transcripts, SerpApi allowlisted news, and FEC/TEC financial filings. | **Voice & Financial Evidence**: Used for platform highlights, 6-slot plan extractions, campaign cash/dark money intervals, and forming the **"SAYS"** side of the *Says vs. Does* gap. |
+| Package                           | What it covers                                                                              | Real-world sources                                                                                                                          | How the pipeline treats it                                                                                                                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`@ftb/records`**<br>(Person 1)  | **Deeds / Official Actions** (What the candidate _did_ while holding public office).        | Texas Legislature Online (TLO) XML, House/Senate voting journals, City Council minutes, executive orders, court statistics.                 | **High Evidentiary Weight**: Actions are weighted **2x over words**. Contested roll-call votes weigh significantly more than routine consent votes. This forms the **"DOES"** side of the _Says vs. Does_ gap. |
+| **`@ftb/scraping`**<br>(Person 3) | **Words, Context & Money** (What the candidate _claims_, what media reports, and who pays). | VOTE411, Texas Tribune voter guides, candidate campaign sites, debate transcripts, SerpApi allowlisted news, and FEC/TEC financial filings. | **Voice & Financial Evidence**: Used for platform highlights, 6-slot plan extractions, campaign cash/dark money intervals, and forming the **"SAYS"** side of the _Says vs. Does_ gap.                         |
 
 ---
 
 ### How Scraped Text is Converted into Typed Objects
+
 Here is an example (from `test-live-ai.ts`) showing how raw text from a website is structured by `@ftb/scraping` before handing it to the pipeline:
 
 ```ts
@@ -92,17 +93,17 @@ const source: Source = {
 
 ## 3. What the Pipeline Does
 
-The pipeline turns noisy, biased raw web text into clean, cited, masked data through 7 stages:
+The pipeline turns noisy, biased prepared source snapshots into cited, masked data through 7 stages. See [the runnable batch format](packages/pipeline/README.md); ballot discovery and source acquisition supply its inputs:
 
-1. **Deduplicates**: Two news outlets repeating the exact same wire story count as 1 source, not 2 (`(url, contentHash)` deduplication).
+1. **Deduplicates**: Two news outlets repeating the exact same wire story count as 1 source, not 2 (content-hash deduplication per candidate and contest).
 2. **Masks**: Redacts names and party affiliations into an auditable `ClassificationInput` so AI models evaluate policy positions objectively without party bias.
 3. **Classifies with JEV**: Scores where the candidate stands on a `-1.0` to `+1.0` scale for each issue axis with full probability distributions.
 4. **Compares Words vs. Deeds**: Checks if how a politician voted in the legislature matches what they say on their campaign site (computes Says vs. Does gaps and dark-money spending ratios).
-5. **Generates Plans with Gemini**: Summarizes candidate proposals into 6 slots (*Goal, Mechanism, Cost, Funding, Timeline, Who Acts*).
+5. **Generates Plans with Ollama**: Summarizes candidate proposals into 6 slots (_Goal, Mechanism, Cost, Funding, Timeline, Who Acts_).
 6. **Validates Deterministically**:
-   * Drops any generated sentence that doesn't cite an exact quote.
-   * Checks quotes character-for-character against the original source text (`validateQuote`).
-   * **Leak Gate (`identityLeakGate`)**: Rejects the release if any real candidate name, party name, or donor name accidentally slipped into the text.
+   - Rejects generated responses with missing or unknown evidence IDs. Citation resolution does not prove semantic entailment; content review and golden-set evaluation remain required.
+   - Checks quotes character-for-character against the original source text (`validateQuote`).
+   - **Leak Gate (`identityLeakGate`)**: Rejects the release if any real candidate name, party name, or donor name accidentally slipped into the text.
 7. **Publishes Release**: Assembles the snapshot and cryptographically seals it with a canonical SHA-256 `manifestHash`.
 
 ---
@@ -111,21 +112,21 @@ The pipeline turns noisy, biased raw web text into clean, cited, masked data thr
 
 The output is **one versioned, frozen JSON file** (e.g., `dist/releases/release-v1.json`) containing:
 
-| Output Field | What it looks like / What it contains |
-|---|---|
-| **`release`** | Release ID (e.g. `"data-v1"`), as-of date, and a cryptographic `manifestHash` proving the data wasn't modified after publishing. |
-| **`ballot`** | The ballot style ID and the list of contest IDs a voter in that precinct will see, plus `requiresJudicialDeck`. |
-| **`contests`** | Each race on the ballot, official job description, and neutral context briefs (what supporters say vs. what opponents say). |
+| Output Field     | What it looks like / What it contains                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`release`**    | Release ID (e.g. `"data-v1"`), as-of date, and a cryptographic `manifestHash` proving the data wasn't modified after publishing.                                                                                                                                                                                                                                                          |
+| **`ballot`**     | The ballot style ID and the list of contest IDs a voter in that precinct will see, plus `requiresJudicialDeck`.                                                                                                                                                                                                                                                                           |
+| **`contests`**   | Each race on the ballot, official job description, and neutral context briefs (what supporters say vs. what opponents say).                                                                                                                                                                                                                                                               |
 | **`candidates`** | **Masked candidate profiles (`CandidateProfile[]`)**:<br>• Stances on each issue (`-1.0` to `+1.0`) with evidence strength.<br>• Platform highlights cited with evidence.<br>• Plan breakdown with a specificity score (0% to 100%).<br>• Says vs. Does gap score.<br>• Follow the money: direct vs. dark outside money ranges.<br>• **NO names, NO parties, NO photos, NO donor names.** |
-| **`cards`** | The interactive swipe cards (`PoleCard`, `TradeoffCard`, `JudicialCard`) that the voter will swipe through on their phone. |
-| **`citations`** | Every verified quote and citation referenced by the candidates. |
+| **`cards`**      | The interactive swipe cards (`PoleCard`, `TradeoffCard`, `JudicialCard`) that the voter will swipe through on their phone.                                                                                                                                                                                                                                                                |
+| **`citations`**  | Every verified quote and citation referenced by the candidates.                                                                                                                                                                                                                                                                                                                           |
 
 ---
 
 ## 5. How the App Uses This Output
 
-* **`apps/api`**: Loads this output file and simply serves it statically over HTTP (`GET /ballot`). **Zero AI model calls happen when a user uses the app.**
-* **`apps/mobile`**:
+- **`apps/api`**: Loads this output file and simply serves it statically over HTTP (`GET /ballot`). **Zero AI model calls happen when a user uses the app.**
+- **`apps/mobile`**:
   1. Downloads the masked profiles and cards.
   2. The voter swipes through the cards.
   3. The phone calculates the user's score locally using `@ftb/types/scoring`.
@@ -138,19 +139,21 @@ The output is **one versioned, frozen JSON file** (e.g., `dist/releases/release-
 
 A real Travis County ballot does not just contain one kind of race. Voters face three fundamentally different choices, and the app handles each with completely different rules:
 
-| Contest | Type | What is on the ballot | How the app handles it |
-|---|---|---|---|
-| **`contest-candidate-1`** | **Legislative / Executive Race** (e.g. TX House D-49) | Two or more human politicians (`cand-a`, `cand-b`) competing for one seat. | Evaluated on **policy stances** (housing, taxes, education), plan specificity, campaign money, and "Says vs. Does" voting record gaps. |
-| **`contest-measure-1`** | **Ballot Proposition / Bond** (e.g. Austin Prop A: $350M Bond) | **No candidates.** Just a policy proposal to vote YES or NO on. | Evaluated on **verbatim legal ballot text**, what YES means vs. what NO means, and financial debt/interest impact. **Never gets an alignment score or recommendation** (Invariant 14). |
-| **`contest-judicial-1`** | **Judicial Race** (e.g. 201st District Court Judge) | Two attorneys/judges (`judge-a`, `judge-b`) running for judge. | **Judges are NEVER scored on policy issues** (Invariant 13). Their `stances` are empty. Instead, they are evaluated on **judicial philosophy** (textualism, precedent) and objective qualifications (years licensed, board certification, Austin Bar ratings). |
+| Contest                   | Type                                                           | What is on the ballot                                                      | How the app handles it                                                                                                                                                                                                                                         |
+| ------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`contest-candidate-1`** | **Legislative / Executive Race** (e.g. TX House D-49)          | Two or more human politicians (`cand-a`, `cand-b`) competing for one seat. | Evaluated on **policy stances** (housing, taxes, education), plan specificity, campaign money, and "Says vs. Does" voting record gaps.                                                                                                                         |
+| **`contest-measure-1`**   | **Ballot Proposition / Bond** (e.g. Austin Prop A: $350M Bond) | **No candidates.** Just a policy proposal to vote YES or NO on.            | Evaluated on **verbatim legal ballot text**, what YES means vs. what NO means, and financial debt/interest impact. **Never gets an alignment score or recommendation** (Invariant 14).                                                                         |
+| **`contest-judicial-1`**  | **Judicial Race** (e.g. 201st District Court Judge)            | Two attorneys/judges (`judge-a`, `judge-b`) running for judge.             | **Judges are NEVER scored on policy issues** (Invariant 13). Their `stances` are empty. Instead, they are evaluated on **judicial philosophy** (textualism, precedent) and objective qualifications (years licensed, board certification, Austin Bar ratings). |
 
 ### What is `"requiresJudicialDeck": true`?
-When a voter's ballot contains a contested judicial race, the ballot sets `"requiresJudicialDeck": true`. 
+
+When a voter's ballot contains a contested judicial race, the ballot sets `"requiresJudicialDeck": true`.
 The mobile app sees this flag and inserts the 4-card **Judicial Philosophy Mini-Deck** (`JudicialCard[]`) into the onboarding flow:
-* **Text vs. Purpose**: Literal statutory text vs. legislative purpose.
-* **Restraint vs. Review**: Deferring to lawmakers vs. active judicial review.
-* **Precedent**: Adhering to past rulings vs. willingness to overturn errors.
-* **Procedural Strictness**: Strict procedural rules vs. flexible justice.
+
+- **Text vs. Purpose**: Literal statutory text vs. legislative purpose.
+- **Restraint vs. Review**: Deferring to lawmakers vs. active judicial review.
+- **Precedent**: Adhering to past rulings vs. willingness to overturn errors.
+- **Procedural Strictness**: Strict procedural rules vs. flexible justice.
 
 This builds a separate **Judicial Vector** so voters evaluate judges on legal interpretation rather than partisan policy.
 
@@ -159,6 +162,7 @@ This builds a separate **Judicial Vector** so voters evaluate judges on legal in
 ## 7. Configuration Files Reference
 
 The pipeline relies on three versioned configuration files in `config/`:
+
 1. **`config/issues.yaml`**: The hierarchical taxonomy of policy axes (e.g., `housing.zoning`, `economy.taxation`, `safety.policing`) with balanced, neutrally worded negative and positive poles.
 2. **`config/authority.yaml`**: The legal power matrix mapping each office to its actual legal jurisdiction (`direct`, `influence`, or `none`). Used to flag candidates promising things beyond their office's authority.
 3. **`config/sources.yaml`**: The media allowlist specifying vetted questionnaire providers (VOTE411, Texas Tribune, KUT), local news outlets, and IFCN fact-checkers.
@@ -171,9 +175,9 @@ The pipeline relies on three versioned configuration files in `config/`:
 # Run the pipeline to validate and publish releases
 pnpm -F @ftb/pipeline start
 
-# Run live AI pipeline test with real Gemini/JEV keys
-export GEMINI_API_KEY="your-gemini-key"
-pnpm -F @ftb/pipeline exec tsx src/test-live-ai.ts
+# Run live AI pipeline test with Ollama/Jev keys (synthetic input only)
+# Fill OLLAMA_API_KEY and JEV_API_KEY in the root .env
+pnpm -F @ftb/pipeline test:live
 
 # Run all test suites
 pnpm test
